@@ -2,12 +2,30 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Brain, Users } from 'lucide-react';
 import { useGameStore } from '@/store/gameStore';
+import { useMultiplayer } from '@/lib/useMultiplayer';
 
 export function RoleSelector({ onSelect }: { onSelect: () => void }) {
   const initializeGame = useGameStore((state) => state.initializeGame);
+  const { isConnected, updateGameState } = useMultiplayer();
 
   const handleSelect = (role: 'mastermind' | 'protagonist') => {
     initializeGame(role);
+    
+    // 联机模式下同步初始化状态到服务器
+    if (isConnected) {
+      setTimeout(() => {
+        const state = useGameStore.getState();
+        console.log('📤 同步游戏初始化状态到服务器');
+        updateGameState({
+          gameState: state.gameState,
+          mastermindDeck: state.mastermindDeck,
+          protagonistDeck: state.protagonistDeck,
+          currentMastermindCards: [],
+          currentProtagonistCards: [],
+        });
+      }, 100);
+    }
+    
     onSelect();
   };
 

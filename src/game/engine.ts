@@ -46,7 +46,7 @@ export function initializeGameState(
     },
     privateInfo,
     publicInfo,
-    phase: 'loop_start',
+    phase: 'dawn',  // 每天从黎明阶段开始
     cardsPlayedToday: 0,
   };
 }
@@ -89,6 +89,57 @@ export function checkIncidents(state: GameState): Incident | null {
   }
 
   return null;
+}
+
+/**
+ * 移动方向叠加规则
+ * 
+ * 规则表：
+ * - 相同方向 = 相同方向（横+横=横，竖+竖=竖，斜+斜=斜）
+ * - 不同方向 = 斜向（横+竖=斜）
+ * - 斜向+方向 = 垂直方向（斜+横=竖，斜+竖=横）
+ * 
+ * 这形成一个模3群运算：
+ * H=0, V=1, D=2
+ * H+H=H, V+V=V, D+D=D (同+同=同)
+ * H+V=D, V+H=D (不同=斜)
+ * D+H=V, D+V=H, H+D=V, V+D=H (斜+方向=垂直方向)
+ */
+export type MovementDirection = 'horizontal' | 'vertical' | 'diagonal';
+
+export function combineMovements(directions: MovementDirection[]): MovementDirection | null {
+  if (directions.length === 0) return null;
+  if (directions.length === 1) return directions[0];
+
+  // 叠加规则表
+  const combineTwo = (a: MovementDirection, b: MovementDirection): MovementDirection => {
+    if (a === b) return a; // 相同方向 = 相同方向
+    
+    // 横+竖 或 竖+横 = 斜
+    if ((a === 'horizontal' && b === 'vertical') || (a === 'vertical' && b === 'horizontal')) {
+      return 'diagonal';
+    }
+    
+    // 斜+横 或 横+斜 = 竖
+    if ((a === 'diagonal' && b === 'horizontal') || (a === 'horizontal' && b === 'diagonal')) {
+      return 'vertical';
+    }
+    
+    // 斜+竖 或 竖+斜 = 横
+    if ((a === 'diagonal' && b === 'vertical') || (a === 'vertical' && b === 'diagonal')) {
+      return 'horizontal';
+    }
+
+    return a; // fallback
+  };
+
+  // 依次叠加所有方向
+  let result = directions[0];
+  for (let i = 1; i < directions.length; i++) {
+    result = combineTwo(result, directions[i]);
+  }
+  
+  return result;
 }
 
 /** 处理移动 */
@@ -138,13 +189,14 @@ export function applyMovement(
 
 /** 应用指示物变化 */
 export function applyIndicatorChange(
-  character: CharacterState,
+  indicators: Indicators,
   type: 'goodwill' | 'anxiety' | 'intrigue',
   value: number
-): CharacterState {
-  const updatedIndicators = { ...character.indicators };
-  updatedIndicators[type] = Math.max(0, updatedIndicators[type] + value);
-  return { ...character, indicators: updatedIndicators };
+): Indicators {
+  return {
+    ...indicators,
+    [type]: Math.max(0, indicators[type] + value),
+  };
 }
 
 /** 处理事件触发 */
@@ -190,6 +242,9 @@ export function handleIncident(state: GameState): GameState {
 
   return updatedState;
 }
+
+/** 检查关键人物是否死亡 */
+export function checkKeyPersonDeath(state: GameState): boolean {
   if (!state.privateInfo) {
     return false;
   }
@@ -283,5 +338,105 @@ export function isGameOver(state: GameState): {
     isOver: false,
     winner: null,
     reason: '',
+  };
+}
+
+/**
+ * 执行黎明阶段
+ * 所有亲友角色自动获得1点友好
+ */
+export function processDawnPhase(state: GameState): GameState {
+  if (!state.privateInfo) {
+    return state; // 主人公视角无法执行（不知道谁是亲友）
+  }
+
+  const friendRoles = state.privateInfo.roles.filter(r => r.role === 'friend');
+  
+  const updatedCharacters = state.characters.map(char => {
+    const isFriend = friendRoles.some(r => r.characterId === char.id);
+    if (isFriend) {
+      return {
+        ...char,
+        indicators: {
+          ...char.indicators,
+          goodwill: char.indicators.goodwill + 1,
+        },
+      };
+    }
+    return char;
+  });
+
+  return {
+    ...state,
+    characters: updatedCharacters,
+  };
+}
+
+/**
+ * 检查角色是否满足能力使用条件
+ */
+export function canUseAbility(
+  characterState: CharacterState,
+  abilityIndex: number,
+  characters: Character[]
+): boolean {
+  // 角色必须存活
+  if (!characterState.alive) {
+    return false;
+  }
+
+  // 获取角色定义
+  const charDef = characters.find(c => c.id === characterState.id);
+  if (!charDef || abilityIndex >= charDef.abilities.length) {
+    return false;
+  }
+
+  const ability = charDef.abilities[abilityIndex];
+  
+  // 检查友好度是否足够
+  if (characterState.indicators.goodwill < ability.goodwillRequired) {
+    return false;
+  }
+
+  // 检查是否已达到每轮使用上限
+  if (ability.maxUsesPerLoop !== null) {
+    const usageCount = characterState.abilityUsesThisLoop[abilityIndex] || 0;
+    if (usageCount >= ability.maxUsesPerLoop) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+/**
+ * 使用角色能力（占位函数，需要根据具体能力实现）
+ */
+export function useCharacterAbility(
+  state: GameState,
+  characterId: CharacterId,
+  abilityIndex: number,
+  targetId?: CharacterId
+): GameState {
+  // TODO: 根据具体能力实现不同效果
+  // 这里先返回原状态，后续扩展
+  
+  const updatedCharacters = state.characters.map(char => {
+    if (char.id === characterId) {
+      const newUsageCount = (char.abilityUsesThisLoop[abilityIndex] || 0) + 1;
+      return {
+        ...char,
+        abilityUsesThisLoop: {
+          ...char.abilityUsesThisLoop,
+          [abilityIndex]: newUsageCount,
+        },
+      };
+    }
+    return char;
+  });
+
+  return {
+    ...state,
+    characters: updatedCharacters,
   };
 }

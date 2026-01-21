@@ -11,7 +11,7 @@ export function GameInfo() {
   const { currentLoop, currentDay, publicInfo } = gameState;
 
   return (
-    <div className="flex flex-col gap-4 p-4 bg-slate-900/80 backdrop-blur border-r border-slate-700 h-full min-w-[250px]">
+    <div className="flex flex-col gap-4 p-4 bg-transparent">
       <div className="space-y-1">
         <h1 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-purple-600">
           惨剧轮回

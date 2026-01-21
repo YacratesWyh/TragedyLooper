@@ -1,0 +1,383 @@
+/**
+ * 联机服务器 - 权威状态源
+ * 所有游戏状态由服务器维护，客户端只负责显示和发送操作
+ * 
+ * 启动: node server/websocket-server.js
+ * 端口: 3001
+ */
+
+const WebSocket = require('ws');
+
+const PORT = 3001;
+const wss = new WebSocket.Server({ port: PORT });
+
+// ========== 服务器状态（权威源）==========
+let serverState = {
+  // 游戏是否已初始化
+  initialized: false,
+  
+  // 完整的游戏状态
+  gameState: null,
+  
+  // 牌组状态
+  mastermindDeck: null,
+  protagonistDeck: null,
+  
+  // 当前打出的牌
+  currentMastermindCards: [],
+  currentProtagonistCards: [],
+  
+  // 玩家连接
+  players: {
+    mastermind: null,  // WebSocket connection
+    protagonist: null,
+  },
+};
+
+console.log(`🎮 惨剧轮回 - 联机服务器`);
+console.log(`📡 端口: ${PORT}`);
+console.log(`🌐 局域网: ws://[你的IP]:${PORT}`);
+console.log(`⏳ 等待玩家连接...\n`);
+
+// ========== 工具函数 ==========
+
+function getPlayerCount() {
+  return Object.values(serverState.players).filter(Boolean).length;
+}
+
+function getAvailableRoles() {
+  const roles = [];
+  if (!serverState.players.mastermind) roles.push('mastermind');
+  if (!serverState.players.protagonist) roles.push('protagonist');
+  return roles;
+}
+
+function broadcast(data, excludeWs = null) {
+  const message = JSON.stringify(data);
+  wss.clients.forEach((client) => {
+    if (client !== excludeWs && client.readyState === WebSocket.OPEN) {
+      client.send(message);
+    }
+  });
+}
+
+function sendTo(ws, data) {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify(data));
+  }
+}
+
+function broadcastState() {
+  // 广播完整状态给所有客户端
+  broadcast({
+    type: 'STATE_SYNC',
+    payload: {
+      gameState: serverState.gameState,
+      mastermindDeck: serverState.mastermindDeck,
+      protagonistDeck: serverState.protagonistDeck,
+      currentMastermindCards: serverState.currentMastermindCards,
+      currentProtagonistCards: serverState.currentProtagonistCards,
+      players: {
+        mastermind: !!serverState.players.mastermind,
+        protagonist: !!serverState.players.protagonist,
+      },
+    },
+  });
+}
+
+function broadcastPlayerStatus() {
+  broadcast({
+    type: 'PLAYERS_UPDATE',
+    payload: {
+      mastermind: !!serverState.players.mastermind,
+      protagonist: !!serverState.players.protagonist,
+    },
+  });
+}
+
+// ========== 消息处理 ==========
+
+wss.on('connection', (ws) => {
+  console.log('✅ 新连接');
+  
+  // 发送可用角色列表
+  sendTo(ws, {
+    type: 'WELCOME',
+    payload: {
+      availableRoles: getAvailableRoles(),
+      initialized: serverState.initialized,
+    },
+  });
+
+  ws.on('message', (message) => {
+    try {
+      const data = JSON.parse(message);
+      
+      switch (data.type) {
+        // 玩家选择角色
+        case 'SELECT_ROLE': {
+          const { role } = data;
+          
+          if (serverState.players[role]) {
+            sendTo(ws, { type: 'ERROR', message: '该角色已被占用' });
+            return;
+          }
+          
+          serverState.players[role] = ws;
+          ws.playerRole = role;
+          
+          console.log(`🎭 玩家选择: ${role === 'mastermind' ? '剧作家' : '主人公'}`);
+          
+          // 确认角色选择
+          sendTo(ws, {
+            type: 'ROLE_CONFIRMED',
+            payload: { role },
+          });
+          
+          // 广播玩家状态
+          broadcastPlayerStatus();
+          
+          // 如果游戏已初始化，发送当前状态
+          if (serverState.initialized) {
+            sendTo(ws, {
+              type: 'STATE_SYNC',
+              payload: {
+                gameState: serverState.gameState,
+                mastermindDeck: serverState.mastermindDeck,
+                protagonistDeck: serverState.protagonistDeck,
+                currentMastermindCards: serverState.currentMastermindCards,
+                currentProtagonistCards: serverState.currentProtagonistCards,
+                players: {
+                  mastermind: !!serverState.players.mastermind,
+                  protagonist: !!serverState.players.protagonist,
+                },
+              },
+            });
+          }
+          break;
+        }
+        
+        // 初始化游戏（由任一玩家触发）
+        case 'INIT_GAME': {
+          const { gameState, mastermindDeck, protagonistDeck } = data.payload;
+          
+          serverState.initialized = true;
+          serverState.gameState = gameState;
+          
+          // 确保 usedToday 和 usedThisLoop 是数组（JSON序列化时Set会变成{}）
+          serverState.mastermindDeck = mastermindDeck ? {
+            ...mastermindDeck,
+            usedToday: Array.isArray(mastermindDeck.usedToday) ? mastermindDeck.usedToday : [],
+            usedThisLoop: Array.isArray(mastermindDeck.usedThisLoop) ? mastermindDeck.usedThisLoop : [],
+          } : null;
+          serverState.protagonistDeck = protagonistDeck ? {
+            ...protagonistDeck,
+            usedToday: Array.isArray(protagonistDeck.usedToday) ? protagonistDeck.usedToday : [],
+            usedThisLoop: Array.isArray(protagonistDeck.usedThisLoop) ? protagonistDeck.usedThisLoop : [],
+          } : null;
+          
+          serverState.currentMastermindCards = [];
+          serverState.currentProtagonistCards = [];
+          
+          console.log('🎮 游戏已初始化');
+          
+          broadcastState();
+          break;
+        }
+        
+        // 打出牌
+        case 'PLAY_CARD': {
+          const { role, card, targetId, targetType } = data.payload;
+          
+          // 验证是否是该玩家
+          if (ws.playerRole !== role) {
+            sendTo(ws, { type: 'ERROR', message: '不是你的回合' });
+            return;
+          }
+          
+          const playedCard = {
+            ...card,
+            targetId,
+            targetType,
+            playedBy: role,
+          };
+          
+          if (role === 'mastermind') {
+            serverState.currentMastermindCards.push(playedCard);
+            // 更新牌组使用状态
+            if (serverState.mastermindDeck) {
+              serverState.mastermindDeck.usedToday.push(card.id);
+              if (card.oncePerLoop) {
+                serverState.mastermindDeck.usedThisLoop.push(card.id);
+              }
+            }
+          } else {
+            serverState.currentProtagonistCards.push(playedCard);
+            if (serverState.protagonistDeck) {
+              serverState.protagonistDeck.usedToday.push(card.id);
+              if (card.oncePerLoop) {
+                serverState.protagonistDeck.usedThisLoop.push(card.id);
+              }
+            }
+          }
+          
+          console.log(`🃏 ${role} 打出牌 -> ${targetId}`);
+          
+          broadcastState();
+          break;
+        }
+        
+        // 撤回牌
+        case 'RETREAT_CARD': {
+          const { role, cardId } = data.payload;
+          
+          if (ws.playerRole !== role) {
+            sendTo(ws, { type: 'ERROR', message: '无法撤回他人的牌' });
+            return;
+          }
+          
+          if (role === 'mastermind') {
+            const card = serverState.currentMastermindCards.find(c => c.id === cardId);
+            serverState.currentMastermindCards = serverState.currentMastermindCards.filter(c => c.id !== cardId);
+            if (card && serverState.mastermindDeck) {
+              serverState.mastermindDeck.usedToday = serverState.mastermindDeck.usedToday.filter(id => id !== cardId);
+              serverState.mastermindDeck.usedThisLoop = serverState.mastermindDeck.usedThisLoop.filter(id => id !== cardId);
+            }
+          } else {
+            const card = serverState.currentProtagonistCards.find(c => c.id === cardId);
+            serverState.currentProtagonistCards = serverState.currentProtagonistCards.filter(c => c.id !== cardId);
+            if (card && serverState.protagonistDeck) {
+              serverState.protagonistDeck.usedToday = serverState.protagonistDeck.usedToday.filter(id => id !== cardId);
+              serverState.protagonistDeck.usedThisLoop = serverState.protagonistDeck.usedThisLoop.filter(id => id !== cardId);
+            }
+          }
+          
+          console.log(`↩️ ${role} 撤回牌 ${cardId}`);
+          
+          broadcastState();
+          break;
+        }
+        
+        // 推进阶段
+        case 'ADVANCE_PHASE': {
+          const { newPhase, gameState: newGameState } = data.payload;
+          
+          serverState.gameState = newGameState;
+          
+          // 结算阶段时清空已打牌
+          if (newPhase === 'resolution') {
+            // 保留牌用于结算
+          } else if (newPhase === 'dawn' || newPhase === 'night') {
+            // 新的一天，重置每日使用
+            if (serverState.mastermindDeck) {
+              serverState.mastermindDeck.usedToday = [];
+            }
+            if (serverState.protagonistDeck) {
+              serverState.protagonistDeck.usedToday = [];
+            }
+            serverState.currentMastermindCards = [];
+            serverState.currentProtagonistCards = [];
+          }
+          
+          console.log(`⏩ 阶段推进: ${newPhase}`);
+          
+          broadcastState();
+          break;
+        }
+        
+        // 更新游戏状态（通用）
+        case 'UPDATE_GAME_STATE': {
+          if (data.payload.gameState) {
+            serverState.gameState = data.payload.gameState;
+          }
+          
+          // 确保 usedToday 和 usedThisLoop 是数组
+          if (data.payload.mastermindDeck) {
+            const deck = data.payload.mastermindDeck;
+            serverState.mastermindDeck = {
+              ...deck,
+              usedToday: Array.isArray(deck.usedToday) ? deck.usedToday : [],
+              usedThisLoop: Array.isArray(deck.usedThisLoop) ? deck.usedThisLoop : [],
+            };
+          }
+          if (data.payload.protagonistDeck) {
+            const deck = data.payload.protagonistDeck;
+            serverState.protagonistDeck = {
+              ...deck,
+              usedToday: Array.isArray(deck.usedToday) ? deck.usedToday : [],
+              usedThisLoop: Array.isArray(deck.usedThisLoop) ? deck.usedThisLoop : [],
+            };
+          }
+          if (data.payload.currentMastermindCards !== undefined) {
+            serverState.currentMastermindCards = data.payload.currentMastermindCards;
+          }
+          if (data.payload.currentProtagonistCards !== undefined) {
+            serverState.currentProtagonistCards = data.payload.currentProtagonistCards;
+          }
+          
+          broadcastState();
+          break;
+        }
+        
+        // 调整指示物
+        case 'ADJUST_INDICATOR': {
+          const { characterId, type, delta } = data.payload;
+          
+          if (serverState.gameState) {
+            serverState.gameState.characters = serverState.gameState.characters.map(char => {
+              if (char.id === characterId) {
+                const newValue = Math.max(0, char.indicators[type] + delta);
+                return {
+                  ...char,
+                  indicators: { ...char.indicators, [type]: newValue },
+                };
+              }
+              return char;
+            });
+          }
+          
+          console.log(`📊 调整指示物: ${characterId} ${type} ${delta > 0 ? '+' : ''}${delta}`);
+          
+          broadcastState();
+          break;
+        }
+        
+        // 重置游戏
+        case 'RESET_GAME': {
+          serverState.initialized = false;
+          serverState.gameState = null;
+          serverState.mastermindDeck = null;
+          serverState.protagonistDeck = null;
+          serverState.currentMastermindCards = [];
+          serverState.currentProtagonistCards = [];
+          
+          console.log('🔄 游戏已重置');
+          
+          broadcast({ type: 'GAME_RESET' });
+          break;
+        }
+        
+        default:
+          console.log('⚠️ 未知消息类型:', data.type);
+      }
+    } catch (e) {
+      console.error('❌ 消息处理错误:', e);
+    }
+  });
+
+  ws.on('close', () => {
+    const role = ws.playerRole;
+    if (role && serverState.players[role] === ws) {
+      serverState.players[role] = null;
+      console.log(`👋 ${role === 'mastermind' ? '剧作家' : '主人公'} 离开`);
+      broadcastPlayerStatus();
+    }
+  });
+});
+
+// 定期显示状态
+setInterval(() => {
+  const mm = serverState.players.mastermind ? '✅' : '❌';
+  const pro = serverState.players.protagonist ? '✅' : '❌';
+  console.log(`[状态] 剧作家${mm} 主人公${pro} | 阶段: ${serverState.gameState?.phase || '未开始'}`);
+}, 30000);

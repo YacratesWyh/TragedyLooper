@@ -1,30 +1,150 @@
-import React from 'react';
-import { motion } from 'framer-motion';
-import { CharacterState, Character } from '@/types/game';
+import React, { useState, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import type { CharacterState, Character, PlayedCard, Indicators } from '@/types/game';
 import { IndicatorDisplay } from './IndicatorDisplay';
+import { PlacedCards } from './PlacedCards';
 import { cn } from '@/lib/utils';
-import { User } from 'lucide-react';
+import { getCharacterSpriteStyle, hasCharacterAsset } from '@/lib/characterAssets';
+import { useGameStore } from '@/store/gameStore';
+import { useMultiplayer } from '@/lib/useMultiplayer';
+import { BookOpen, X } from 'lucide-react';
 
 interface CharacterCardProps {
   characterState: CharacterState;
   characterDef: Character;
   isDead: boolean;
-  onClick?: () => void;
+  /** 自己放在该角色上的牌 */
+  myPlacedCards?: PlayedCard[];
+  /** 对方放在该角色上的牌 */
+  opponentPlacedCards?: PlayedCard[];
+  /** 撤回牌 */
+  onRetreatCard?: (cardId: string) => void;
+  /** 是否正在放牌模式（有选中的牌） */
+  isPlacingCard?: boolean;
+  onClick?: (e: React.MouseEvent) => void;
 }
 
-export function CharacterCard({ characterState, characterDef, isDead, onClick }: CharacterCardProps) {
+export function CharacterCard({ 
+  characterState, 
+  characterDef, 
+  isDead, 
+  myPlacedCards = [],
+  opponentPlacedCards = [],
+  onRetreatCard,
+  isPlacingCard = false,
+  onClick 
+}: CharacterCardProps) {
+  const [showAbilities, setShowAbilities] = useState(false);
+  const hasCards = myPlacedCards.length > 0 || opponentPlacedCards.length > 0;
+  
+  const { isConnected, updateGameState } = useMultiplayer();
+
+  // 调整指示物并同步到服务器
+  const handleAdjustIndicator = useCallback((type: keyof Indicators, delta: number) => {
+    useGameStore.getState().adjustIndicator(characterState.id, type, delta);
+    
+    // 联机模式下同步
+    if (isConnected) {
+      setTimeout(() => {
+        const state = useGameStore.getState();
+        updateGameState({ gameState: state.gameState });
+      }, 50);
+    }
+  }, [characterState.id, isConnected, updateGameState]);
+  
+  const handleClick = (e: React.MouseEvent) => {
+    // 死亡角色无法交互
+    if (isDead) {
+      e.stopPropagation();
+      return;
+    }
+    
+    // 只有在非放牌模式下才切换能力显示
+    if (!isPlacingCard) {
+      setShowAbilities(!showAbilities);
+    }
+    onClick?.(e);
+  };
+  
+  // 检查角色是否有立绘资产
+  const hasSpriteAsset = hasCharacterAsset(characterState.id);
+  
+  // 获取角色立绘样式（显示宽度180px）
+  const displayWidth = 180;
+  const spriteStyle = hasSpriteAsset 
+    ? getCharacterSpriteStyle(characterState.id, displayWidth)
+    : {};
+
+  // 计算不安预警状态
+  const anxietyDiff = characterDef.anxietyLimit - characterState.indicators.anxiety;
+  const isAtLimit = anxietyDiff <= 0;      // 已达到或超过极限（危险！）
+  const isNearLimit = anxietyDiff === 1;   // 差1点达到极限（警告！）
+
+  // 根据不安状态决定样式
+  const getAnxietyStyles = () => {
+    if (isDead) {
+      return {
+        borderClass: "border-red-900",
+        bgClass: "bg-slate-900",
+        glowClass: "",
+      };
+    }
+    
+    if (isAtLimit) {
+      // 已达极限：红色边框 + 红色渐变背景（不闪烁）
+      return {
+        borderClass: "border-red-600",
+        bgClass: "bg-gradient-to-br from-red-900/80 via-slate-800 to-slate-800",
+        glowClass: "shadow-[0_0_20px_rgba(220,38,38,0.6)]",
+      };
+    }
+    
+    if (isNearLimit) {
+      // 差1点：橙色边框 + 橙色渐变警告
+      return {
+        borderClass: "border-orange-500",
+        bgClass: "bg-gradient-to-br from-orange-900/40 via-slate-800 to-slate-800",
+        glowClass: "shadow-[0_0_15px_rgba(249,115,22,0.4)]",
+      };
+    }
+    
+    // 正常状态
+    return {
+      borderClass: "border-slate-600 hover:border-blue-400",
+      bgClass: "bg-slate-800",
+      glowClass: "",
+    };
+  };
+
+  const anxietyStyles = getAnxietyStyles();
+
   return (
     <motion.div
       layoutId={`char-${characterState.id}`}
       className={cn(
-        "relative w-full max-w-[200px] bg-slate-800 border-2 rounded-lg p-3 shadow-lg select-none cursor-pointer transition-colors",
-        isDead ? "border-red-900 bg-slate-900 opacity-60 grayscale" : "border-slate-600 hover:border-blue-400",
+        "relative w-full max-w-[200px] border-2 rounded-lg p-3 shadow-lg select-none transition-all duration-300",
+        anxietyStyles.bgClass,
+        anxietyStyles.borderClass,
+        anxietyStyles.glowClass,
+        isDead ? "cursor-not-allowed" : "cursor-pointer",
+        hasCards && !isDead && "ring-2 ring-amber-500/50", // 有牌时高亮
         "flex flex-col gap-2"
       )}
-      onClick={onClick}
+      onClick={handleClick}
       whileHover={{ scale: 1.02 }}
       whileTap={{ scale: 0.98 }}
     >
+      {/* 已放置的牌显示（点击可撤回） */}
+      {hasCards && (
+        <div className="absolute -top-3 -right-2 z-10">
+          <PlacedCards 
+            myCards={myPlacedCards} 
+            opponentCards={opponentPlacedCards}
+            onRetreat={onRetreatCard}
+          />
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex justify-between items-center border-b border-slate-700 pb-2">
         <span className="font-bold text-slate-100">{characterDef.name}</span>
@@ -38,30 +158,152 @@ export function CharacterCard({ characterState, characterDef, isDead, onClick }:
         </div>
       </div>
 
-      {/* Placeholder Avatar */}
+      {/* Avatar / Abilities Toggle */}
       <div className={cn(
-        "w-full h-24 rounded bg-slate-700 flex items-center justify-center overflow-hidden",
+        "relative w-full rounded overflow-hidden",
         isDead ? "bg-red-950/30" : "bg-slate-700"
-      )}>
-        {/* We use an icon as placeholder since we can't use images */}
-        <User size={48} className={cn("text-slate-500", isDead && "text-red-900")} />
+      )}
+        style={{ 
+          // 620x866 原始尺寸，按 displayWidth 等比例缩放
+          height: hasSpriteAsset ? `${Math.round(866 * displayWidth / 620)}px` : '96px',
+        }}
+      >
+        <AnimatePresence mode="wait">
+          {!showAbilities ? (
+            // 默认显示角色立绘
+            <motion.div
+              key="avatar"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 flex items-center justify-center"
+            >
+              {hasSpriteAsset ? (
+                <div 
+                  className={cn(
+                    "w-full h-full bg-center bg-no-repeat transition-all duration-300",
+                    isDead && "grayscale opacity-40"
+                  )}
+                  style={spriteStyle}
+                />
+              ) : (
+                // 备用：无立绘时显示纯色背景
+                <div className="w-full h-full bg-slate-700 flex items-center justify-center">
+                  <span className="text-slate-500 text-xs">{characterDef.name}</span>
+                </div>
+              )}
+              
+              {/* 死亡标记 - 大红X */}
+              {isDead && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <X 
+                    size={80} 
+                    className="text-red-600 drop-shadow-[0_0_10px_rgba(220,38,38,0.8)]" 
+                    strokeWidth={6}
+                  />
+                </div>
+              )}
+              
+              {!isDead && characterDef.abilities.length > 0 && (
+                <div className="absolute top-1 right-1 text-[10px] text-white bg-black/50 px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                  <BookOpen size={10} />
+                  能力
+                </div>
+              )}
+            </motion.div>
+          ) : (
+            // 点击后显示能力
+            <motion.div
+              key="abilities"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-slate-800 p-2 overflow-y-auto"
+            >
+              {characterDef.abilities.length > 0 ? (
+                <div className="space-y-1.5">
+                  {characterDef.abilities.map((ability, i) => (
+                    <div key={i} className="text-[10px] leading-tight">
+                      <div className="flex items-center gap-1 text-pink-400 font-bold">
+                        <span>友好≥{ability.goodwillRequired}</span>
+                        {ability.maxUsesPerLoop && (
+                          <span className="text-amber-400">({ability.maxUsesPerLoop}次/轮)</span>
+                        )}
+                      </div>
+                      <div className="text-slate-300">{ability.effect}</div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="h-full flex items-center justify-center text-slate-500 text-xs">
+                  无特殊能力
+                </div>
+              )}
+              <div className="absolute bottom-1 right-1 text-[10px] text-slate-500">
+                点击返回
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* Stats */}
       <div className="space-y-2">
-        <div className="flex justify-between items-center text-xs text-slate-400">
-            <span>不安极限: <span className="text-purple-400 font-bold">{characterDef.anxietyLimit}</span></span>
+        {/* 不安极限显示 - 根据危险程度变色 */}
+        <div className="flex justify-between items-center text-xs">
+          <span className="transition-colors duration-300">
+            <span className={cn(
+              isAtLimit 
+                ? "text-red-400 font-extrabold animate-pulse" 
+                : isNearLimit 
+                  ? "text-orange-400 font-bold" 
+                  : "text-slate-400"
+            )}>
+              不安
+            </span>
+            <span className={cn(
+              isAtLimit 
+                ? "text-red-400 font-bold" 
+                : isNearLimit 
+                  ? "text-orange-400 font-bold" 
+                  : "text-slate-400"
+            )}>
+              极限: 
+            </span>
+            <span className={cn(
+              "ml-1 font-bold",
+              isAtLimit 
+                ? "text-red-300 animate-pulse" 
+                : isNearLimit 
+                  ? "text-orange-300" 
+                  : "text-purple-400"
+            )}>
+              {characterState.indicators.anxiety}/{characterDef.anxietyLimit}
+            </span>
+            {isAtLimit && <span className="ml-1 text-red-500 animate-pulse">⚠️</span>}
+            {isNearLimit && <span className="ml-1 text-orange-500">⚡</span>}
+          </span>
         </div>
         
-        <IndicatorDisplay indicators={characterState.indicators} className="justify-between" />
+        <IndicatorDisplay 
+          indicators={characterState.indicators} 
+          className="justify-between"
+          editable={!isDead}
+          onChange={handleAdjustIndicator}
+        />
       </div>
 
-      {/* Abilities Indicator (Tiny dots or icons to show they have abilities) */}
-      <div className="flex gap-1 mt-1 justify-center">
-        {characterDef.abilities.map((_, i) => (
-          <div key={i} className="w-1.5 h-1.5 rounded-full bg-blue-500/50" />
-        ))}
-      </div>
+      {/* Abilities Indicator - 显示有几个能力 */}
+      {characterDef.abilities.length > 0 && (
+        <div className="flex gap-1 mt-1 justify-center items-center">
+          {characterDef.abilities.map((_, i) => (
+            <div key={i} className={cn(
+              "w-1.5 h-1.5 rounded-full transition-colors",
+              showAbilities ? "bg-pink-500" : "bg-blue-500/50"
+            )} />
+          ))}
+        </div>
+      )}
     </motion.div>
   );
 }

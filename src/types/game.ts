@@ -18,13 +18,26 @@ export type ActionCardType = 'movement' | 'goodwill' | 'anxiety' | 'intrigue';
 export type MovementType = 'horizontal' | 'vertical' | 'diagonal' | 'forbid';
 
 /** 角色ID */
-export type CharacterId = 'student' | 'shrine_maiden' | 'doctor' | 'alien';
+export type CharacterId = 
+  | 'boy_student'      // 男学生
+  | 'girl_student'     // 女学生
+  | 'shrine_maiden'    // 巫女
+  | 'office_worker'    // 职员
+  | 'idol'             // 偶像
+  | 'doctor'           // 医生
+  // 以下为其他剧本角色，暂时保留
+  | 'student'          // 学生（旧）
+  | 'alien';           // 异界人
 
 /** 角色名称映射 */
 export const CHARACTER_NAMES: Record<CharacterId, string> = {
-  student: '学生',
+  boy_student: '男学生',
+  girl_student: '女学生',
   shrine_maiden: '巫女',
+  office_worker: '职员',
+  idol: '偶像',
   doctor: '医生',
+  student: '学生',
   alien: '异界人',
 };
 
@@ -53,6 +66,29 @@ export const ROLE_NAMES: Record<RoleType, string> = {
 
 /** 事件类型 */
 export type IncidentType = 'murder' | 'hospital_incident' | 'suicide' | 'faraway_murder';
+
+/** 游戏阶段 */
+export type GamePhase = 
+  | 'dawn'              // 黎明阶段：亲友角色自动+1友好
+  | 'mastermind_action' // 剧作家行动阶段：打出最多3张牌
+  | 'protagonist_action'// 主人公行动阶段：打出最多3张牌
+  | 'resolution'        // 结算阶段：翻开并结算所有牌
+  | 'ability'           // 友好能力使用阶段
+  | 'incident'          // 事件检查阶段
+  | 'night'             // 夜晚阶段：杀手/杀人狂能力
+  | 'game_over';        // 游戏结束
+
+/** 游戏阶段名称映射 */
+export const PHASE_NAMES: Record<GamePhase, string> = {
+  dawn: '黎明阶段',
+  mastermind_action: '剧作家行动',
+  protagonist_action: '主人公行动',
+  resolution: '结算阶段',
+  ability: '友好能力',
+  incident: '事件检查',
+  night: '夜晚阶段',
+  game_over: '游戏结束',
+};
 
 /** 指示物 */
 export interface Indicators {
@@ -123,8 +159,141 @@ export interface ActionCard {
   movementType?: MovementType;
   /** 指示物变化值 */
   value?: number;
-  /** 每轮限用（部分卡牌） */
+  /** 是否为"禁止"牌（抵消对方同类型牌的效果） */
+  isForbid?: boolean;
+  /** 每轮回限用（用1张少1张，本轮回用完就没了） */
   oncePerLoop?: boolean;
+  /** 基础牌ID（用于多副本牌的限制检查，如主人公的3套牌） */
+  baseId?: string;
+}
+
+/** 玩家的完整牌组 */
+export interface PlayerDeck {
+  /** 所有卡牌（固定不变） */
+  allCards: ActionCard[];
+  /** 今天已使用的卡牌ID */
+  usedToday: Set<string>;
+  /** 本轮回已使用的"每轮限一次"卡牌ID */
+  usedThisLoop: Set<string>;
+}
+
+/** 创建剧作家牌组（红色） */
+export function createMastermindDeck(): PlayerDeck {
+  const cards: ActionCard[] = [
+    // 移动牌 (4张)
+    { id: 'mm-diag', type: 'movement', owner: 'mastermind', movementType: 'diagonal', oncePerLoop: true },    // 斜向移动*
+    { id: 'mm-forbid-move', type: 'movement', owner: 'mastermind', movementType: 'forbid', oncePerLoop: true }, // 禁止移动*
+    { id: 'mm-horiz', type: 'movement', owner: 'mastermind', movementType: 'horizontal' },                     // 横向移动
+    { id: 'mm-vert', type: 'movement', owner: 'mastermind', movementType: 'vertical' },                        // 纵向移动
+    // 友好牌 (1张)
+    { id: 'mm-forbid-goodwill', type: 'goodwill', owner: 'mastermind', isForbid: true },                       // 禁止友好
+    // 不安牌 (3张)
+    { id: 'mm-anxiety-1a', type: 'anxiety', owner: 'mastermind', value: 1 },                                   // 不安+1
+    { id: 'mm-anxiety-1b', type: 'anxiety', owner: 'mastermind', value: 1 },                                   // 不安+1 (第二张)
+    { id: 'mm-forbid-anxiety', type: 'anxiety', owner: 'mastermind', isForbid: true },                         // 禁止不安
+    // 密谋牌 (2张)
+    { id: 'mm-intrigue-1', type: 'intrigue', owner: 'mastermind', value: 1 },                                  // 密谋+1
+    { id: 'mm-intrigue-2', type: 'intrigue', owner: 'mastermind', value: 2, oncePerLoop: true },               // 密谋+2*
+  ];
+  return { allCards: cards, usedToday: new Set(), usedThisLoop: new Set() };
+}
+
+/** 创建主人公牌组（蓝色）- 3套牌 + 1张禁止密谋 */
+export function createProtagonistDeck(): PlayerDeck {
+  // 有3张副本的牌
+  const tripleCards: Omit<ActionCard, 'id'>[] = [
+    // 移动牌
+    { baseId: 'pro-forbid-move', type: 'movement', owner: 'protagonist', movementType: 'forbid', oncePerLoop: true }, // 禁止移动* (3张，轮回限)
+    { baseId: 'pro-horiz', type: 'movement', owner: 'protagonist', movementType: 'horizontal' },                      // 横向移动 (3张)
+    { baseId: 'pro-vert', type: 'movement', owner: 'protagonist', movementType: 'vertical' },                         // 纵向移动 (3张)
+    // 友好牌
+    { baseId: 'pro-goodwill-1', type: 'goodwill', owner: 'protagonist', value: 1 },                                   // 友好+1 (3张)
+    { baseId: 'pro-goodwill-2', type: 'goodwill', owner: 'protagonist', value: 2, oncePerLoop: true },                // 友好+2* (3张，轮回限)
+    // 不安牌
+    { baseId: 'pro-anxiety-plus', type: 'anxiety', owner: 'protagonist', value: 1 },                                  // 不安+1 (3张)
+    { baseId: 'pro-anxiety-minus', type: 'anxiety', owner: 'protagonist', value: -1, oncePerLoop: true },             // 不安-1* (3张，轮回限)
+  ];
+
+  const cards: ActionCard[] = [];
+  
+  // 创建3套牌
+  for (let setNum = 1; setNum <= 3; setNum++) {
+    for (const base of tripleCards) {
+      cards.push({
+        ...base,
+        id: `${base.baseId}-${setNum}`, // 如 pro-horiz-1, pro-horiz-2, pro-horiz-3
+      });
+    }
+  }
+  
+  // 禁止密谋只有1张
+  cards.push({
+    id: 'pro-forbid-intrigue',
+    baseId: 'pro-forbid-intrigue',
+    type: 'intrigue',
+    owner: 'protagonist',
+    isForbid: true,
+  });
+
+  return { allCards: cards, usedToday: new Set(), usedThisLoop: new Set() };
+}
+
+/** 获取可用的手牌（未使用+未被轮回限制的牌） */
+export function getAvailableCards(deck: PlayerDeck): ActionCard[] {
+  // 兼容 Set 和 Array（服务器发送的数据会把 Set 转成 Array）
+  const isUsedToday = (id: string) => {
+    if (deck.usedToday instanceof Set) return deck.usedToday.has(id);
+    return Array.isArray(deck.usedToday) && deck.usedToday.includes(id);
+  };
+  
+  const usedThisLoopSet = toSet(deck.usedThisLoop);
+
+  return deck.allCards.filter(card => {
+    // 今天已用过 → 不可用
+    if (isUsedToday(card.id)) return false;
+    // 每轮回限用：检查这张牌是否已使用（用1张少1张）
+    if (card.oncePerLoop && usedThisLoopSet.has(card.id)) return false;
+    return true;
+  });
+}
+
+// 辅助函数：将 Set 或 Array 转换为 Set
+function toSet(data: Set<string> | string[] | unknown): Set<string> {
+  if (data instanceof Set) return data;
+  if (Array.isArray(data)) return new Set(data);
+  return new Set();
+}
+
+/** 标记卡牌已使用 */
+export function markCardUsed(deck: PlayerDeck, cardId: string): PlayerDeck {
+  const card = deck.allCards.find(c => c.id === cardId);
+  const newUsedToday = new Set(toSet(deck.usedToday)).add(cardId);
+  // 每轮回限用的牌：记录 card.id（用1张少1张）
+  const newUsedThisLoop = card?.oncePerLoop 
+    ? new Set(toSet(deck.usedThisLoop)).add(cardId) 
+    : new Set(toSet(deck.usedThisLoop));
+  return { ...deck, usedToday: newUsedToday, usedThisLoop: newUsedThisLoop };
+}
+
+/** 撤回卡牌（取消已使用标记） */
+export function unmarkCardUsed(deck: PlayerDeck, cardId: string): PlayerDeck {
+  const newUsedToday = new Set(toSet(deck.usedToday));
+  newUsedToday.delete(cardId);
+  // 注意：oncePerLoop 的牌一旦打出就算用过了，撤回也不能重新用
+  // 但如果在同一回合内撤回，应该可以重新放置，所以这里也从 usedThisLoop 移除
+  const newUsedThisLoop = new Set(toSet(deck.usedThisLoop));
+  newUsedThisLoop.delete(cardId);
+  return { ...deck, usedToday: newUsedToday, usedThisLoop: newUsedThisLoop };
+}
+
+/** 重置每日使用状态 */
+export function resetDailyUsage(deck: PlayerDeck): PlayerDeck {
+  return { ...deck, usedToday: new Set() };
+}
+
+/** 重置轮回使用状态（新轮回开始） */
+export function resetLoopUsage(deck: PlayerDeck): PlayerDeck {
+  return { ...deck, usedToday: new Set(), usedThisLoop: new Set() };
 }
 
 /** 规则Y（主线） */
