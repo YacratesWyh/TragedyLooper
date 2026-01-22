@@ -85,7 +85,7 @@ interface GameStore {
   switchRole: () => void;
   
   // 设置玩家角色（联机模式用）
-  setPlayerRole: (role: 'mastermind' | 'protagonist') => void;
+  setPlayerRole: (role: 'mastermind' | 'protagonist' | null) => void;
 }
 
 export const useGameStore = create<GameStore>((set, get) => ({
@@ -489,7 +489,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
   },
 
   // 设置玩家角色（联机模式用）
-  setPlayerRole: (role: 'mastermind' | 'protagonist') => {
-    set({ playerRole: role });
+  setPlayerRole: (role: 'mastermind' | 'protagonist' | null) => {
+    if (role) {
+      set({ playerRole: role });
+    }
+    // null 时不改变，保持当前角色
   },
 }));
