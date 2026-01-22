@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import type { ActionCard as ActionCardInterface, PlayerDeck } from '@/types/game';
 import { ActionCard } from './ActionCard';
 import { cn } from '@/lib/utils';
+import { ShieldAlert } from 'lucide-react';
 
 interface ActionHandProps {
   deck: PlayerDeck;
@@ -90,6 +91,21 @@ export function ActionHand({ deck, selectedCardId, onCardSelect, className, disa
     return Array.isArray(deck.usedThisLoop) && deck.usedThisLoop.includes(id);
   };
 
+  // 获取今天已经出过牌的行号 (1, 2, 3)
+  const usedRowNums = new Set<number>();
+  const usedTodayList = deck.usedToday instanceof Set ? Array.from(deck.usedToday) : (deck.usedToday || []);
+  usedTodayList.forEach(id => {
+    const match = id.match(/-(\d+)$/);
+    if (match) usedRowNums.add(parseInt(match[1], 10));
+  });
+
+  // 获取当前选中牌所在的行号
+  let selectedRowWeight: number | null = null;
+  if (selectedCardId) {
+    const match = selectedCardId.match(/-(\d+)$/);
+    if (match) selectedRowWeight = parseInt(match[1], 10);
+  }
+
   // 判断是否为主人公牌组（有多套牌）
   const isProtagonist = deck.allCards.some(c => c.owner === 'protagonist');
   
@@ -134,9 +150,57 @@ export function ActionHand({ deck, selectedCardId, onCardSelect, className, disa
         <div className="flex gap-4">
           {/* 左侧：3行主牌组 */}
           <div className="flex flex-col gap-2">
-            {rows.map((row, rowIndex) => (
-              <div key={`row-${rowIndex}`} className="flex gap-1.5 p-1 bg-slate-800/30 rounded-lg">
-                {row.map((card) => (
+            {rows.map((row, rowIndex) => {
+              const rowNum = rowIndex + 1;
+              const isRowDisabled = usedRowNums.has(rowNum);
+              
+              return (
+                <div 
+                  key={`row-${rowIndex}`} 
+                  className={cn(
+                    "flex gap-1.5 p-1 bg-slate-800/30 rounded-lg transition-opacity duration-300",
+                    isRowDisabled ? "opacity-40 grayscale" : "opacity-100"
+                  )}
+                >
+                  {row.map((card) => {
+                    const isCardSelected = selectedCardId === card.id;
+                    // 如果该行已出过牌，或者当前选中了该行的其他牌，则该牌不可选
+                    const isCardUnselectable = (isRowDisabled && !isUsedToday(card.id)) || 
+                                             (selectedRowWeight === rowNum && !isCardSelected);
+
+                    return (
+                      <CardSlot
+                        key={card.id}
+                        card={card}
+                        selectedCardId={selectedCardId}
+                        onCardSelect={onCardSelect}
+                        disabled={disabled || isCardUnselectable}
+                        isUsedToday={isUsedToday}
+                        isUsedThisLoop={isUsedThisLoop}
+                        size="small"
+                      />
+                    );
+                  })}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* 右侧：特殊功能区 */}
+          <div className="flex items-stretch h-full">
+            <div className="w-px bg-gradient-to-b from-transparent via-slate-700 to-transparent self-stretch mx-3" />
+            
+            <div className="flex flex-col items-center justify-between py-1 px-2 bg-slate-800/20 rounded-xl border border-slate-700/30">
+              <div className="flex flex-col items-center gap-1.5 mb-2">
+                <ShieldAlert size={14} className="text-amber-500/70" />
+                <div className="flex flex-col -gap-1">
+                  <span className="text-[10px] font-black text-amber-500/60 leading-none text-center">特</span>
+                  <span className="text-[10px] font-black text-amber-500/60 leading-none text-center">殊</span>
+                </div>
+              </div>
+
+              <div className="flex-1 flex flex-col items-center justify-center">
+                {special.map((card) => (
                   <CardSlot
                     key={card.id}
                     card={card}
@@ -149,26 +213,8 @@ export function ActionHand({ deck, selectedCardId, onCardSelect, className, disa
                   />
                 ))}
               </div>
-            ))}
-          </div>
-
-          {/* 右侧：垂直分隔线 + 禁止密谋 */}
-          <div className="flex items-center gap-4 h-full py-2">
-            <div className="w-px bg-slate-700 self-stretch" />
-            <div className="flex flex-col items-center justify-center gap-2">
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest [writing-mode:vertical-lr] rotate-180">特殊</span>
-              {special.map((card) => (
-                <CardSlot
-                  key={card.id}
-                  card={card}
-                  selectedCardId={selectedCardId}
-                  onCardSelect={onCardSelect}
-                  disabled={disabled}
-                  isUsedToday={isUsedToday}
-                  isUsedThisLoop={isUsedThisLoop}
-                  size="small"
-                />
-              ))}
+              
+              <div className="mt-2 w-1.5 h-1.5 rounded-full bg-slate-700" />
             </div>
           </div>
         </div>

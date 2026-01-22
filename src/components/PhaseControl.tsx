@@ -10,7 +10,7 @@ import type { GamePhase } from '@/types/game';
 import { PHASE_NAMES } from '@/types/game';
 import { useGameStore } from '@/store/gameStore';
 import { useMultiplayer } from '@/lib/useMultiplayer';
-import { processDawnPhase } from '@/game/engine';
+import { processDawnPhase, isGameOver } from '@/game/engine';
 import { 
   Sunrise, 
   UserCircle, 
@@ -19,7 +19,9 @@ import {
   Sparkles, 
   AlertTriangle, 
   Moon,
-  ChevronRight 
+  ChevronRight,
+  RotateCcw,
+  RefreshCw
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -32,6 +34,7 @@ const PHASE_ICONS: Record<GamePhase, React.ReactNode> = {
   protagonist_ability: <Sparkles className="w-5 h-5" />,
   incident: <AlertTriangle className="w-5 h-5" />,
   night: <Moon className="w-5 h-5" />,
+  loop_end: <RefreshCw className="w-5 h-5" />,
   game_over: <AlertTriangle className="w-5 h-5" />,
 };
 
@@ -44,6 +47,7 @@ const PHASE_COLORS: Record<GamePhase, string> = {
   protagonist_ability: 'bg-blue-500/20 border-blue-400 text-blue-200',
   incident: 'bg-orange-500/20 border-orange-500 text-orange-200',
   night: 'bg-indigo-500/20 border-indigo-500 text-indigo-200',
+  loop_end: 'bg-purple-500/20 border-purple-500 text-purple-200',
   game_over: 'bg-red-900/50 border-red-700 text-red-300',
 };
 
@@ -60,7 +64,7 @@ const PHASE_ORDER: GamePhase[] = [
 ];
 
 export function PhaseControl() {
-  const { gameState, resolveDay } = useGameStore();
+  const { gameState, resolveDay, revertPhaseState, takePhaseSnapshot } = useGameStore();
   const { isConnected, myRole, updateGameState } = useMultiplayer();
 
   if (!gameState) return null;
@@ -89,12 +93,35 @@ export function PhaseControl() {
       phase: nextPhase,
     };
 
+    // 在进入新阶段时，自动保存当前快照（用于复位手动操作）
+    // 我们排除行动阶段，因为行动阶段主要是放牌，撤回已经有专门逻辑
+    const manualPhases: GamePhase[] = [
+      'resolution', 
+      'mastermind_ability', 
+      'protagonist_ability', 
+      'incident', 
+      'night'
+    ];
+    
+    if (manualPhases.includes(nextPhase)) {
+      newGameState.phaseSnapshot = {
+        characters: JSON.parse(JSON.stringify(gameState.characters)),
+        boardIntrigue: { ...gameState.boardIntrigue }
+      };
+    }
+
     // 如果是进入新的一天，更新天数并重置每日状态
     if (nextPhase === 'dawn' && currentPhase === 'night') {
       // 执行黎明阶段逻辑（亲友+1友好）
       newGameState = processDawnPhase(newGameState);
       newGameState.currentDay = gameState.currentDay + 1;
       
+      // 检查主人公是否因生存天数足够而获胜
+      const gameOverCheck = isGameOver(newGameState);
+      if (gameOverCheck.isOver) {
+        newGameState.phase = 'game_over';
+      }
+
       // 清除前一天的卡牌
       const { mastermindDeck, protagonistDeck } = useGameStore.getState();
       useGameStore.setState({
@@ -121,8 +148,12 @@ export function PhaseControl() {
       
       // 如果是进入新的一天，同时重置卡牌
       if (nextPhase === 'dawn' && currentPhase === 'night') {
+        const { mastermindDeck, protagonistDeck } = useGameStore.getState();
         syncPayload.currentMastermindCards = [];
         syncPayload.currentProtagonistCards = [];
+        // 必须明确同步重置后的牌组状态（usedToday 设为空 Set，updateGameState 会自动序列化为数组）
+        syncPayload.mastermindDeck = { ...mastermindDeck, usedToday: new Set() };
+        syncPayload.protagonistDeck = { ...protagonistDeck, usedToday: new Set() };
       }
       
       updateGameState(syncPayload);
@@ -212,6 +243,29 @@ export function PhaseControl() {
           description: '游戏已结束',
           operator: 'any' as const,
         };
+      case 'loop_end':
+        return {
+          label: '开始新轮回',
+          action: () => {
+            // 重置到新轮回
+            const { endLoop, gameState } = useGameStore.getState();
+            endLoop();
+            if (isConnected) {
+              setTimeout(() => {
+                const newState = useGameStore.getState();
+                updateGameState({
+                  gameState: newState.gameState,
+                  mastermindDeck: newState.mastermindDeck,
+                  protagonistDeck: newState.protagonistDeck,
+                  currentMastermindCards: [],
+                  currentProtagonistCards: [],
+                });
+              }, 50);
+            }
+          },
+          description: '事件触发，本轮回结束。开始新的轮回。',
+          operator: 'any' as const,
+        };
       default:
         return {
           label: '继续',
@@ -246,13 +300,22 @@ export function PhaseControl() {
           {PHASE_ICONS[currentPhase]}
           <div className="flex-1">
             <div className="font-bold text-lg">
-              {PHASE_NAMES[currentPhase]}
+              {currentPhase === 'game_over' 
+                ? (isGameOver(gameState).winner === 'mastermind' ? '🎭 剧作家获胜' : '🦸 主人公获胜')
+                : PHASE_NAMES[currentPhase]}
             </div>
             <div className="text-xs opacity-80 mt-0.5">
               第 {gameState.currentLoop} 轮回 · 第 {gameState.currentDay} 天
             </div>
           </div>
         </div>
+
+        {/* 游戏结束特殊显示 */}
+        {currentPhase === 'game_over' && (
+          <div className="mt-3 p-3 bg-black/40 rounded border border-white/10 text-sm font-medium leading-relaxed italic text-center">
+            "{isGameOver(gameState).reason}"
+          </div>
+        )}
 
         {/* 阶段说明 */}
         {currentPhase === 'dawn' && (
@@ -295,23 +358,50 @@ export function PhaseControl() {
             🌙 剧作家点击指示物调整（杀手等能力）
           </div>
         )}
+        {currentPhase === 'loop_end' && (
+          <div className="mt-2 text-sm opacity-90">
+            🔄 事件触发导致本轮回结束，点击开始新轮回
+          </div>
+        )}
       </motion.div>
 
       {/* 阶段推进按钮 */}
       {currentPhase !== 'game_over' && canProceed() && (
-        <motion.button
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-          onClick={nextAction.action}
-          className={cn(
-            "flex items-center justify-between gap-3 px-4 py-3 rounded-lg",
-            "bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500",
-            "text-white font-bold shadow-lg transition-all"
+        <div className="flex flex-col gap-2">
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={nextAction.action}
+            className={cn(
+              "flex items-center justify-between gap-3 px-4 py-3 rounded-lg",
+              "bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500",
+              "text-white font-bold shadow-lg transition-all"
+            )}
+          >
+            <span>{nextAction.label}</span>
+            <ChevronRight className="w-5 h-5" />
+          </motion.button>
+
+          {/* 复位按钮：允许玩家撤销当前阶段的手动调整 */}
+          {['resolution', 'mastermind_ability', 'protagonist_ability', 'incident', 'night'].includes(currentPhase) && (
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => {
+                revertPhaseState();
+                if (isConnected) {
+                  setTimeout(() => {
+                    updateGameState({ gameState: useGameStore.getState().gameState });
+                  }, 50);
+                }
+              }}
+              className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 text-sm border border-slate-600 transition-all shadow-md"
+            >
+              <RotateCcw size={14} />
+              <span>复位到该阶段前</span>
+            </motion.button>
           )}
-        >
-          <span>{nextAction.label}</span>
-          <ChevronRight className="w-5 h-5" />
-        </motion.button>
+        </div>
       )}
 
       {/* 对方行动提示 */}

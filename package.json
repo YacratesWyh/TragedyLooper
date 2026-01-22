@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "server": "node server/websocket-server.js",
+    "start:prod": "concurrently \"next start\" \"node server/websocket-server.js\"",
     "multiplayer": "concurrently \"npm run dev\" \"npm run server\""
   },
   "dependencies": {

@@ -70,14 +70,20 @@ interface GameStore {
   // 手动调整指示物（玩家操作）
   adjustIndicator: (characterId: CharacterId, type: 'goodwill' | 'anxiety' | 'intrigue', delta: number) => void;
   
+  // 记录阶段快照（用于复位手动操作）
+  takePhaseSnapshot: () => void;
+  // 恢复到阶段开始时的状态
+  revertPhaseState: () => void;
+  // 切换角色存活状态
+  toggleCharacterLife: (characterId: CharacterId) => void;
+  // 移动角色到新地点
+  moveCharacter: (characterId: CharacterId, location: LocationType) => void;
+
   // 切换玩家视角（单人调试模式）
   switchRole: () => void;
   
   // 设置玩家角色（联机模式用）
   setPlayerRole: (role: 'mastermind' | 'protagonist') => void;
-  
-  // 重置游戏
-  resetGame: () => void;
 }
 
 export const useGameStore = create<GameStore>((set, get) => ({
@@ -269,7 +275,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const { gameState } = get();
     if (!gameState) return;
     
-    set({ gameState: { ...gameState, phase: 'ability' } });
+    set({ gameState: { ...gameState, phase: 'mastermind_ability' } });
   },
 
   proceedToIncident: () => {
@@ -309,7 +315,14 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const { gameState, mastermindDeck, protagonistDeck } = get();
     if (!gameState) return;
 
-    const updatedState = resetLoop(gameState);
+    let updatedState = resetLoop(gameState);
+    
+    // 检查剧作家是否因轮数耗尽而获胜
+    const gameOverCheck = isGameOver(updatedState);
+    if (gameOverCheck.isOver) {
+      updatedState.phase = 'game_over';
+    }
+
     // 新轮回：重置所有卡牌使用状态（包括"每轮限一次"的卡牌）
     set({ 
       gameState: updatedState,
@@ -354,6 +367,36 @@ export const useGameStore = create<GameStore>((set, get) => ({
         ...gameState,
         characters: updatedCharacters,
       },
+    });
+  },
+
+  // 记录阶段快照（用于复位手动操作）
+  takePhaseSnapshot: () => {
+    const { gameState } = get();
+    if (!gameState) return;
+    
+    set({
+      gameState: {
+        ...gameState,
+        phaseSnapshot: {
+          characters: JSON.parse(JSON.stringify(gameState.characters)), // 深拷贝
+          boardIntrigue: { ...gameState.boardIntrigue }
+        }
+      }
+    });
+  },
+
+  // 恢复到阶段开始时的状态
+  revertPhaseState: () => {
+    const { gameState } = get();
+    if (!gameState || !gameState.phaseSnapshot) return;
+
+    set({
+      gameState: {
+        ...gameState,
+        characters: gameState.phaseSnapshot.characters,
+        boardIntrigue: gameState.phaseSnapshot.boardIntrigue
+      }
     });
   },
 
@@ -408,16 +451,5 @@ export const useGameStore = create<GameStore>((set, get) => ({
   // 设置玩家角色（联机模式用）
   setPlayerRole: (role: 'mastermind' | 'protagonist') => {
     set({ playerRole: role });
-  },
-
-  // 重置游戏
-  resetGame: () => {
-    set({
-      gameState: null,
-      mastermindDeck: createMastermindDeck(),
-      protagonistDeck: createProtagonistDeck(),
-      currentMastermindCards: [],
-      currentProtagonistCards: [],
-    });
   },
 }));

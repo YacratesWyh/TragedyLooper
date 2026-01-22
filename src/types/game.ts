@@ -77,6 +77,7 @@ export type GamePhase =
   | 'protagonist_ability'  // 主人公能力阶段：主人公可调整token（友好技能）
   | 'incident'             // 事件检查阶段
   | 'night'                // 夜晚阶段：剧作家可调整token（杀手/杀人狂能力）
+  | 'loop_end'             // 轮回结束（事件触发导致）
   | 'game_over';           // 游戏结束
 
 /** 游戏阶段名称映射 */
@@ -89,6 +90,7 @@ export const PHASE_NAMES: Record<GamePhase, string> = {
   protagonist_ability: '主人公能力',
   incident: '事件检查',
   night: '夜晚阶段',
+  loop_end: '轮回结束',
   game_over: '游戏结束',
 };
 
@@ -173,25 +175,25 @@ export interface ActionCard {
 export interface PlayerDeck {
   /** 所有卡牌（固定不变） */
   allCards: ActionCard[];
-  /** 今天已使用的卡牌ID */
-  usedToday: Set<string>;
+  /** 今天已使用的卡牌ID (Set 方便查找，数组方便同步) */
+  usedToday: Set<string> | string[];
   /** 本轮回已使用的"每轮限一次"卡牌ID */
-  usedThisLoop: Set<string>;
+  usedThisLoop: Set<string> | string[];
 }
 
 /** 创建剧作家牌组（红色） */
 export function createMastermindDeck(): PlayerDeck {
   const cards: ActionCard[] = [
-    // 移动牌 (4张)
+    // 移动牌 (3张)
     { id: 'mm-diag', type: 'movement', owner: 'mastermind', movementType: 'diagonal', oncePerLoop: true },    // 斜向移动*
-    { id: 'mm-forbid-move', type: 'movement', owner: 'mastermind', movementType: 'forbid', oncePerLoop: true }, // 禁止移动*
     { id: 'mm-horiz', type: 'movement', owner: 'mastermind', movementType: 'horizontal' },                     // 横向移动
     { id: 'mm-vert', type: 'movement', owner: 'mastermind', movementType: 'vertical' },                        // 纵向移动
     // 友好牌 (1张)
     { id: 'mm-forbid-goodwill', type: 'goodwill', owner: 'mastermind', isForbid: true },                       // 禁止友好
-    // 不安牌 (3张)
+    // 不安牌 (4张)
     { id: 'mm-anxiety-1a', type: 'anxiety', owner: 'mastermind', value: 1 },                                   // 不安+1
     { id: 'mm-anxiety-1b', type: 'anxiety', owner: 'mastermind', value: 1 },                                   // 不安+1 (第二张)
+    { id: 'mm-anxiety-minus', type: 'anxiety', owner: 'mastermind', value: -1 },                                // 不安-1
     { id: 'mm-forbid-anxiety', type: 'anxiety', owner: 'mastermind', isForbid: true },                         // 禁止不安
     // 密谋牌 (2张)
     { id: 'mm-intrigue-1', type: 'intrigue', owner: 'mastermind', value: 1 },                                  // 密谋+1
@@ -356,6 +358,11 @@ export interface GameState {
   phase: GamePhase;
   /** 今日已打出卡片数（每轮最多3张） */
   cardsPlayedToday: number;
+  /** 阶段开始时的快照（用于复位手动操作） */
+  phaseSnapshot?: {
+    characters: CharacterState[];
+    boardIntrigue: Record<LocationType, number>;
+  };
 }
 
 /** 玩家角色 */

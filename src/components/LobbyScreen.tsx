@@ -21,6 +21,7 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
     availableRoles,
     players,
     selectRole,
+    resetGame,
   } = useMultiplayer();
   
   // 调试日志

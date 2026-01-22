@@ -10,6 +10,7 @@ import type {
   Indicators,
   PlayedCard,
   ActionCardType,
+  Character,
 } from '@/types/game';
 import { FS01_CHARACTERS } from './scripts/fs-01';
 
@@ -286,7 +287,7 @@ export function resetLoop(state: GameState): GameState {
       city: 0,
       school: 0,
     },
-    phase: 'loop_start',
+    phase: 'dawn',
     cardsPlayedToday: 0,
   };
 }
@@ -423,34 +424,22 @@ export function isGameOver(state: GameState): {
   winner: 'mastermind' | 'protagonist' | null;
   reason: string;
 } {
-  // 检查是否超过轮回次数
-  if (state.currentLoop > state.publicInfo.loops) {
+  // 1. 主人公获胜条件：生存天数超过剧本设定天数 (例如生存到第 4 天，而剧本只有 3 天)
+  if (state.currentDay > state.publicInfo.days) {
     return {
       isOver: true,
       winner: 'protagonist',
-      reason: '主人公成功避免了所有惨剧！',
+      reason: `主人公成功在第 ${state.currentLoop} 轮生存了所有天数，达成轮回突破！`,
     };
   }
 
-  // 检查关键人物是否死亡
-  if (checkKeyPersonDeath(state)) {
+  // 2. 剧作家获胜条件：轮回次数超过剧本设定次数 (例如进入第 5 轮，而剧本只有 4 轮)
+  if (state.currentLoop > state.publicInfo.loops) {
     return {
       isOver: true,
       winner: 'mastermind',
-      reason: '关键人物死亡，轮回立即结束！',
+      reason: '所有轮回均已耗尽，主人公未能阻止惨剧，剧作家获胜！',
     };
-  }
-
-  // 检查是否触发谋杀计划失败条件
-  if (checkMurderPlanFailure(state)) {
-    // 如果在最后一个轮回，主人公失败
-    if (state.currentLoop === state.publicInfo.loops) {
-      return {
-        isOver: true,
-        winner: 'mastermind',
-        reason: '谋杀事件发生，剧作家获胜！',
-      };
-    }
   }
 
   return {

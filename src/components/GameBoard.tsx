@@ -3,7 +3,7 @@ import { useGameStore } from '@/store/gameStore';
 import { useMultiplayer } from '@/lib/useMultiplayer';
 import { FS01_CHARACTERS } from '@/game/scripts/fs-01';
 import { LocationZone } from './LocationZone';
-import type { LocationType, PlayedCard } from '@/types/game';
+import type { LocationType, PlayedCard, CharacterId } from '@/types/game';
 
 interface GameBoardProps {
   onLocationClick?: (location: LocationType) => void;
@@ -31,7 +31,7 @@ export function GameBoard({ onLocationClick, onCharacterClick, isPlacingCard = f
       const newLocation = zoneElement.getAttribute('data-zone-type') as LocationType;
       if (newLocation) {
         console.log(`📍 角色 ${charId} 移动到 ${newLocation}`);
-        moveCharacter(charId, newLocation);
+        moveCharacter(charId as CharacterId, newLocation);
       }
     }
   }, [moveCharacter]);

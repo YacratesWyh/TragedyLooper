@@ -8,7 +8,7 @@
 
 const WebSocket = require('ws');
 
-const PORT = 3001;
+const PORT = process.env.PORT || 3001;
 const wss = new WebSocket.Server({ port: PORT });
 
 // ========== 服务器状态（权威源）==========
@@ -286,11 +286,8 @@ wss.on('connection', (ws) => {
           
           serverState.gameState = newGameState;
           
-          // 结算阶段时清空已打牌
-          if (newPhase === 'resolution') {
-            // 保留牌用于结算
-          } else if (newPhase === 'dawn' || newPhase === 'night') {
-            // 新的一天，重置每日使用
+          // 进入黎明阶段或夜晚阶段时（通常是新的一天开始），服务器强制清理已打出的牌
+          if (newPhase === 'dawn') {
             if (serverState.mastermindDeck) {
               serverState.mastermindDeck.usedToday = [];
             }
@@ -299,6 +296,7 @@ wss.on('connection', (ws) => {
             }
             serverState.currentMastermindCards = [];
             serverState.currentProtagonistCards = [];
+            console.log('🧹 新的一天开始，服务器已重置每日卡牌使用状态');
           }
           
           console.log(`⏩ 阶段推进: ${newPhase}`);
