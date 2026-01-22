@@ -58,18 +58,27 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
     }
   }, [isConnected, connect]);
 
+  const gameState = useGameStore((state) => state.gameState);
+
   // 角色选择确认后 - 剧作家进入剧本选择，主人公等待
   useEffect(() => {
     if (myRole && selectingRole) {
       setSelectingRole(null);
       
       // 剧作家选择角色后，显示剧本选择界面
-      if (myRole === 'mastermind') {
+      if (myRole === 'mastermind' && !gameState) {
         setShowScriptSetup(true);
       }
       // 主人公等待剧作家选择剧本
     }
-  }, [myRole, selectingRole]);
+  }, [myRole, selectingRole, gameState]);
+
+  // 剧作家重连后，如果没有 gameState，自动显示脚本选择
+  useEffect(() => {
+    if (myRole === 'mastermind' && !gameState && currentRoom && !showScriptSetup) {
+      setShowScriptSetup(true);
+    }
+  }, [myRole, gameState, currentRoom, showScriptSetup]);
 
   // 剧作家选择剧本后初始化游戏
   const handleScriptSelect = (script: ScriptTemplate) => {

@@ -5,10 +5,11 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
+    "start": "concurrently \"npm run start:frontend\" \"npm run start:server\"",
+    "start:frontend": "next start",
+    "start:server": "node server/websocket-server.js",
     "lint": "eslint",
-    "server": "node server/websocket-server.js",
-    "multiplayer": "concurrently \"npm run dev\" \"npm run server\""
+    "multiplayer": "concurrently \"npm run dev\" \"npm run start:server\""
   },
   "dependencies": {
     "clsx": "^2.1.1",
