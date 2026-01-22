@@ -7,7 +7,9 @@ const { createServer } = require('http');
 const { parse } = require('url');
 const next = require('next');
 const { WebSocketServer } = require('ws');
+const path = require('path');
 
+// 环境配置
 const dev = process.env.NODE_ENV !== 'production';
 const hostname = '0.0.0.0';
 
@@ -18,6 +20,12 @@ function parsePort(envPort) {
   return isNaN(parsed) ? 3000 : parsed;
 }
 const port = parsePort(process.env.PORT);
+
+console.log('🔧 环境配置:');
+console.log(`   NODE_ENV: ${process.env.NODE_ENV || '(未设置)'}`);
+console.log(`   PORT: ${port}`);
+console.log(`   开发模式: ${dev}`);
+console.log(`   工作目录: ${process.cwd()}`);
 
 // 初始化 Next.js
 const app = next({ dev, hostname, port });
@@ -211,23 +219,35 @@ function setupWebSocket(server) {
 
 // ============ 启动服务器 ============
 
-app.prepare().then(() => {
-  const server = createServer((req, res) => {
-    const parsedUrl = parse(req.url, true);
-    handle(req, res, parsedUrl);
-  });
+app.prepare()
+  .then(() => {
+    console.log('✅ Next.js 准备完成');
+    
+    const server = createServer((req, res) => {
+      const parsedUrl = parse(req.url, true);
+      handle(req, res, parsedUrl);
+    });
 
-  // 附加 WebSocket
-  setupWebSocket(server);
+    // 附加 WebSocket
+    setupWebSocket(server);
 
-  server.listen(port, hostname, () => {
-    console.log(`
+    server.listen(port, hostname, () => {
+      console.log(`
 🚀 惨剧轮回服务器已启动
 ━━━━━━━━━━━━━━━━━━━━━━━
 📍 地址: http://${hostname}:${port}
 🔌 WebSocket: ws://${hostname}:${port}/ws
 🌍 环境: ${dev ? '开发' : '生产'}
 ━━━━━━━━━━━━━━━━━━━━━━━
-    `);
+      `);
+    });
+
+    server.on('error', (err) => {
+      console.error('❌ 服务器错误:', err);
+      process.exit(1);
+    });
+  })
+  .catch((err) => {
+    console.error('❌ Next.js 启动失败:', err);
+    process.exit(1);
   });
-});

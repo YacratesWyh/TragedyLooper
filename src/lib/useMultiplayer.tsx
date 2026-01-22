@@ -8,13 +8,10 @@ import { useGameStore } from '@/store/gameStore';
 import type { GameState, PlayerDeck, PlayerRole, CharacterId, LocationType } from '@/types/game';
 
 // WebSocket 服务器地址
-// 开发环境：独立 WebSocket 服务器在 3001 端口
-// 生产环境：统一服务器，WebSocket 路径为 /ws
+// 本地开发：3001 端口
+// 生产环境：设置 NEXT_PUBLIC_WS_URL 环境变量
 const WS_URL = typeof window !== 'undefined' 
-  ? (process.env.NEXT_PUBLIC_WS_URL || 
-     (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-       ? `ws://${window.location.hostname}:3001`
-       : `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws`))
+  ? (process.env.NEXT_PUBLIC_WS_URL || `ws://${window.location.hostname}:3001`)
   : 'ws://localhost:3001';
 
 interface MultiplayerContextType {

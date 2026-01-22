@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "node server/index.js",
+    "start": "next start",
     "lint": "eslint",
     "server": "node server/websocket-server.js",
     "multiplayer": "concurrently \"npm run dev\" \"npm run server\""
