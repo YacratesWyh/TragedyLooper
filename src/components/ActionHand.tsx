@@ -44,14 +44,14 @@ function CardSlot({
       layout
       initial={{ y: 30, opacity: 0 }}
       animate={{ 
-        y: isUsed ? (size === 'small' ? 3 : 8) : 0,
-        opacity: isUsed ? 0.25 : (disabled ? 0.5 : 1),
-        scale: isUsed ? 0.9 : 1,
+        y: isUsed ? (size === 'small' ? 2 : 5) : 0,
+        opacity: isUsed ? 0.15 : (disabled ? 0.5 : 1),
+        scale: isUsed ? 0.85 : 1,
       }}
       transition={{ type: "spring", stiffness: 300, damping: 20 }}
       className={cn(
         "flex flex-col items-center relative",
-        isUsed && "grayscale"
+        isUsed && "grayscale pointer-events-none"
       )}
     >
       <ActionCard
@@ -64,12 +64,12 @@ function CardSlot({
       {/* 已使用覆盖层 */}
       {isUsed && (
         <div className={cn(
-          "absolute inset-0 flex items-center justify-center",
-          "bg-black/40 rounded-lg"
+          "absolute inset-0 flex items-center justify-center z-10",
+          "bg-black/60 rounded-lg backdrop-blur-[1px] border border-slate-700"
         )}>
           <span className={cn(
-            "text-red-400 font-bold rotate-[-15deg]",
-            size === 'small' ? "text-[10px]" : "text-xs"
+            "text-white font-black rotate-[-15deg] uppercase tracking-tighter drop-shadow-md",
+            size === 'small' ? "text-[8px]" : "text-[10px]"
           )}>
             {usedThisLoop ? "本轮已用" : "已用"}
           </span>
@@ -94,64 +94,69 @@ export function ActionHand({ deck, selectedCardId, onCardSelect, className, disa
   const isProtagonist = deck.allCards.some(c => c.owner === 'protagonist');
   
   if (isProtagonist) {
-    // 按 baseId 分组（每种牌一列，每列最多3张）
-    const cardsByType: Record<string, ActionCardInterface[]> = {};
+    // 按 setNum 分组（3行，每行7张）
+    const rows: ActionCardInterface[][] = [[], [], []];
     const special: ActionCardInterface[] = []; // 禁止密谋（只有1张）
     
-    deck.allCards.forEach(card => {
-      const baseId = card.baseId || card.id;
-      // 禁止密谋单独处理
-      if (baseId === 'pro-forbid-intrigue') {
-        special.push(card);
-      } else {
-        if (!cardsByType[baseId]) cardsByType[baseId] = [];
-        cardsByType[baseId].push(card);
-      }
-    });
-    
-    // 牌类型显示顺序
+    // 牌类型显示顺序 (7种)
     const typeOrder = [
-      'pro-forbid-move',  // 禁止移动
-      'pro-horiz',        // 横向
-      'pro-vert',         // 纵向
-      'pro-goodwill-1',   // 友好+1
-      'pro-goodwill-2',   // 友好+2
-      'pro-anxiety-plus', // 不安+1
+      'pro-forbid-move',   // 禁止移动
+      'pro-horiz',         // 横向
+      'pro-vert',          // 纵向
+      'pro-goodwill-1',    // 友好+1
+      'pro-goodwill-2',    // 友好+2
+      'pro-anxiety-plus',  // 不安+1
       'pro-anxiety-minus', // 不安-1
     ];
+
+    deck.allCards.forEach(card => {
+      if (card.id === 'pro-forbid-intrigue') {
+        special.push(card);
+      } else {
+        // 解析 setNum (e.g., pro-horiz-1 -> 1)
+        const match = card.id.match(/-(\d+)$/);
+        const setNum = match ? parseInt(match[1], 10) : 1;
+        rows[setNum - 1].push(card);
+      }
+    });
+
+    // 对每一行按 typeOrder 排序
+    rows.forEach(row => {
+      row.sort((a, b) => typeOrder.indexOf(a.baseId!) - typeOrder.indexOf(b.baseId!));
+    });
     
     return (
       <div className={cn(
-        "flex gap-2 p-2 transition-all items-start",
-        disabled && "pointer-events-none",
+        "flex flex-col gap-2 p-2 transition-all items-start bg-slate-900/50 rounded-xl border border-slate-700/50 shadow-inner",
+        disabled && "opacity-80",
         className
       )}>
-        {/* 7种牌，每种一列（3张） */}
-        {typeOrder.map(baseId => {
-          const cards = cardsByType[baseId] || [];
-          return (
-            <div key={baseId} className="flex flex-col gap-1">
-              {cards.map((card) => (
-                <CardSlot
-                  key={card.id}
-                  card={card}
-                  selectedCardId={selectedCardId}
-                  onCardSelect={onCardSelect}
-                  disabled={disabled}
-                  isUsedToday={isUsedToday}
-                  isUsedThisLoop={isUsedThisLoop}
-                  size="small"
-                />
-              ))}
-            </div>
-          );
-        })}
-        
-        {/* 分隔线 + 禁止密谋 */}
-        {special.length > 0 && (
-          <>
-            <div className="w-px bg-slate-600/50 self-stretch mx-1" />
-            <div className="flex flex-col gap-1">
+        <div className="flex gap-4">
+          {/* 左侧：3行主牌组 */}
+          <div className="flex flex-col gap-2">
+            {rows.map((row, rowIndex) => (
+              <div key={`row-${rowIndex}`} className="flex gap-1.5 p-1 bg-slate-800/30 rounded-lg">
+                {row.map((card) => (
+                  <CardSlot
+                    key={card.id}
+                    card={card}
+                    selectedCardId={selectedCardId}
+                    onCardSelect={onCardSelect}
+                    disabled={disabled}
+                    isUsedToday={isUsedToday}
+                    isUsedThisLoop={isUsedThisLoop}
+                    size="small"
+                  />
+                ))}
+              </div>
+            ))}
+          </div>
+
+          {/* 右侧：垂直分隔线 + 禁止密谋 */}
+          <div className="flex items-center gap-4 h-full py-2">
+            <div className="w-px bg-slate-700 self-stretch" />
+            <div className="flex flex-col items-center justify-center gap-2">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest [writing-mode:vertical-lr] rotate-180">特殊</span>
               {special.map((card) => (
                 <CardSlot
                   key={card.id}
@@ -165,8 +170,8 @@ export function ActionHand({ deck, selectedCardId, onCardSelect, className, disa
                 />
               ))}
             </div>
-          </>
-        )}
+          </div>
+        </div>
       </div>
     );
   }

@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import type { PlayedCard, PlayerRole } from '@/types/game';
+import { useGameStore } from '@/store/gameStore';
 import { cn } from '@/lib/utils';
 import { Eye, EyeOff, Heart, Zap, Footprints, X } from 'lucide-react';
 
@@ -96,22 +97,32 @@ function FaceDownCard({ owner }: { owner: PlayerRole }) {
 
 /** 显示放在目标上的所有牌 */
 export function PlacedCards({ myCards, opponentCards, onRetreat, className }: PlacedCardsProps) {
+  const { gameState } = useGameStore();
+  const phase = gameState?.phase || 'dawn';
+  
+  // 结算阶段及之后，所有牌都翻开
+  const isRevealed = ['resolution', 'mastermind_ability', 'protagonist_ability', 'incident', 'night', 'game_over'].includes(phase);
+
   if (myCards.length === 0 && opponentCards.length === 0) {
     return null;
   }
 
   return (
     <div className={cn("flex gap-1 flex-wrap", className)}>
-      {/* 对方的牌（面朝下） */}
+      {/* 对方的牌 */}
       {opponentCards.map((pc, i) => (
-        <FaceDownCard key={`opp-${i}`} owner={pc.card.owner} />
+        isRevealed ? (
+          <FaceUpCard key={`opp-${i}`} playedCard={pc} />
+        ) : (
+          <FaceDownCard key={`opp-${i}`} owner={pc.card.owner} />
+        )
       ))}
-      {/* 自己的牌（面朝上，可撤回） */}
+      {/* 自己的牌 */}
       {myCards.map((pc) => (
         <FaceUpCard 
           key={pc.card.id} 
           playedCard={pc} 
-          onRetreat={onRetreat ? () => onRetreat(pc.card.id) : undefined}
+          onRetreat={(!isRevealed && onRetreat) ? () => onRetreat(pc.card.id) : undefined}
         />
       ))}
     </div>

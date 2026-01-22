@@ -70,35 +70,24 @@ export default function Home() {
       return Array.isArray(myDeck.usedToday) && myDeck.usedToday.includes(id);
     };
     
-    // 检查 baseId 是否已在本轮使用（用于多副本牌的限制）
-    const isBaseIdUsedThisLoop = (baseId: string | undefined) => {
-      if (!baseId) return false;
-      const usedSet = myDeck.usedThisLoop instanceof Set 
-        ? myDeck.usedThisLoop 
-        : new Set(Array.isArray(myDeck.usedThisLoop) ? myDeck.usedThisLoop : []);
-      return myDeck.allCards.some(c => 
-        c.baseId === baseId && usedSet.has(c.id)
-      );
-    };
-
     // 检查这张牌是否今天已使用
     if (isUsedToday(card.id)) {
       setErrorMsg('这张牌今天已经使用过了');
       return;
     }
 
-    // 检查每轮限一次的牌（检查同 baseId 的所有牌）
-    if (card.oncePerLoop) {
-      const checkId = card.baseId || card.id;
-      if (isBaseIdUsedThisLoop(checkId)) {
-        setErrorMsg('这类牌本轮回已经使用过了（每轮限1次）');
-        return;
-      }
+    // 检查每轮限一次的牌
+    const usedThisLoopArr = Array.isArray(myDeck.usedThisLoop) 
+      ? myDeck.usedThisLoop 
+      : Array.from(myDeck.usedThisLoop as any);
+    if (card.oncePerLoop && usedThisLoopArr.includes(card.id)) {
+      setErrorMsg('这张牌本轮回已经使用过了');
+      return;
     }
 
     // 检查是否已打满3张
     if (myPlayedCount >= maxCardsPerDay) {
-      setErrorMsg('每天最多打出3张牌');
+      setErrorMsg(`每天最多只能打出 ${maxCardsPerDay} 张牌`);
       return;
     }
 
@@ -237,42 +226,50 @@ export default function Home() {
 
         {/* Hand - 显示完整牌组，标记已使用的牌 */}
         {(() => {
-          // 判断当前是否可以打牌
-          const currentPhase = gameState?.phase;
-          const isMyTurn = 
-            (currentPhase === 'mastermind_action' && playerRole === 'mastermind') ||
-            (currentPhase === 'protagonist_action' && playerRole === 'protagonist');
-          
-          // 获取当前阶段提示文字
-          const getPhaseHint = () => {
-            if (isMyTurn) return null;
-            if (currentPhase === 'mastermind_action') return '⏳ 等待剧作家行动...';
-            if (currentPhase === 'protagonist_action') return '⏳ 等待主人公行动...';
-            if (currentPhase === 'dawn') return '☀️ 黎明阶段 - 无需行动';
-            if (currentPhase === 'resolution') return '📋 结算中...';
-            if (currentPhase === 'ability') return '✨ 友好能力阶段';
-            if (currentPhase === 'incident') return '⚠️ 事件检查中';
-            if (currentPhase === 'night') return '🌙 夜晚阶段';
-            return '当前阶段无法打牌';
-          };
-          
-          return (
-            <div className={`relative border-t border-slate-800 bg-slate-900/90 backdrop-blur-md z-20 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] transition-opacity ${!isMyTurn ? 'opacity-60' : ''}`}>
-              {/* 非行动阶段提示 */}
-              {!isMyTurn && (
-                <div className="absolute left-1/2 -translate-x-1/2 -top-8 bg-slate-700/90 text-slate-300 px-4 py-1.5 rounded-t text-sm z-30 whitespace-nowrap">
-                  {getPhaseHint()}
-                </div>
-              )}
-              <ActionHand 
-                deck={myDeck} 
-                selectedCardId={isMyTurn ? selectedCardId : null}
-                onCardSelect={(card) => setSelectedCardId(selectedCardId === card.id ? null : card.id)}
-                disabled={!isMyTurn}
-              />
+    // 判断当前是否可以打牌
+    const currentPhase = gameState?.phase;
+    const isActionPhase = (currentPhase === 'mastermind_action' && playerRole === 'mastermind') ||
+                         (currentPhase === 'protagonist_action' && playerRole === 'protagonist');
+    const isHandFull = myPlayedCount >= maxCardsPerDay;
+    const isMyTurn = isActionPhase && !isHandFull;
+    
+    // 获取当前阶段提示文字
+    const getPhaseHint = () => {
+      if (isMyTurn) return null;
+      if (isHandFull && isActionPhase) return '✅ 今日已打满 3 张牌，请等待结算';
+      if (currentPhase === 'mastermind_action') return '🎭 等待剧作家行动...';
+      if (currentPhase === 'protagonist_action') return '🦸 等待主人公行动...';
+      if (currentPhase === 'dawn') return '☀️ 黎明阶段';
+      if (currentPhase === 'resolution') return '📋 结算中...';
+      if (currentPhase === 'mastermind_ability') return '🎭 剧作家能力阶段';
+      if (currentPhase === 'protagonist_ability') return '✨ 主人公能力阶段';
+      if (currentPhase === 'incident') return '⚠️ 事件检查中';
+      if (currentPhase === 'night') return '🌙 夜晚阶段';
+      return '当前阶段无法打牌';
+    };
+
+    return (
+      <div className={`relative border-t border-slate-800 bg-slate-900/90 backdrop-blur-md z-20 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] transition-all ${!isMyTurn ? 'opacity-50 grayscale-[0.5]' : ''}`}>
+        {/* 非行动阶段遮罩和提示 */}
+        {!isMyTurn && (
+          <div className="absolute inset-0 bg-black/10 z-30 pointer-events-none flex items-center justify-center">
+            <div className="px-6 py-2 bg-slate-800/90 border border-slate-600 rounded-full text-slate-200 text-sm font-bold shadow-2xl backdrop-blur-md">
+              {getPhaseHint()}
             </div>
-          );
-        })()}
+          </div>
+        )}
+        
+        <div className="p-1">
+          <ActionHand 
+            deck={myDeck} 
+            selectedCardId={isMyTurn ? selectedCardId : null}
+            onCardSelect={(card) => setSelectedCardId(selectedCardId === card.id ? null : card.id)}
+            disabled={!isMyTurn}
+          />
+        </div>
+      </div>
+    );
+  })()}
       </div>
     </main>
   );

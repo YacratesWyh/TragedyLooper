@@ -90,11 +90,15 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
           case 'STATE_SYNC':
             const payload = data.payload;
             useGameStore.setState({
-              gameState: payload.gameState,
+              gameState: payload.gameState || useGameStore.getState().gameState,
               mastermindDeck: payload.mastermindDeck || useGameStore.getState().mastermindDeck,
               protagonistDeck: payload.protagonistDeck || useGameStore.getState().protagonistDeck,
-              currentMastermindCards: payload.currentMastermindCards || [],
-              currentProtagonistCards: payload.currentProtagonistCards || [],
+              currentMastermindCards: payload.currentMastermindCards !== undefined 
+                ? payload.currentMastermindCards 
+                : useGameStore.getState().currentMastermindCards,
+              currentProtagonistCards: payload.currentProtagonistCards !== undefined 
+                ? payload.currentProtagonistCards 
+                : useGameStore.getState().currentProtagonistCards,
             });
             if (payload.players) {
               setPlayers(payload.players);

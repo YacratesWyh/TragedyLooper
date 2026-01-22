@@ -10,6 +10,7 @@ import type { GamePhase } from '@/types/game';
 import { PHASE_NAMES } from '@/types/game';
 import { useGameStore } from '@/store/gameStore';
 import { useMultiplayer } from '@/lib/useMultiplayer';
+import { processDawnPhase } from '@/game/engine';
 import { 
   Sunrise, 
   UserCircle, 
@@ -59,13 +60,16 @@ const PHASE_ORDER: GamePhase[] = [
 ];
 
 export function PhaseControl() {
-  const { gameState, playerRole, resolveDay } = useGameStore();
-  const { isConnected, updateGameState } = useMultiplayer();
+  const { gameState, resolveDay } = useGameStore();
+  const { isConnected, myRole, updateGameState } = useMultiplayer();
 
   if (!gameState) return null;
 
   const currentPhase = gameState.phase;
   const currentPhaseColor = PHASE_COLORS[currentPhase];
+  
+  // 使用 multiplayer 中的角色作为准则
+  const playerRole = myRole;
 
   // 获取下一个阶段
   const getNextPhase = (): GamePhase => {
@@ -80,39 +84,65 @@ export function PhaseControl() {
   const advanceToPhase = (nextPhase: GamePhase) => {
     console.log('⏩ 推进阶段:', currentPhase, '->', nextPhase, '联机状态:', isConnected);
     
-    const newGameState = {
+    let newGameState = {
       ...gameState,
       phase: nextPhase,
     };
 
-    // 如果是进入新的一天，更新天数
+    // 如果是进入新的一天，更新天数并重置每日状态
     if (nextPhase === 'dawn' && currentPhase === 'night') {
+      // 执行黎明阶段逻辑（亲友+1友好）
+      newGameState = processDawnPhase(newGameState);
       newGameState.currentDay = gameState.currentDay + 1;
+      
+      // 清除前一天的卡牌
+      const { mastermindDeck, protagonistDeck } = useGameStore.getState();
+      useGameStore.setState({
+        currentMastermindCards: [],
+        currentProtagonistCards: [],
+        mastermindDeck: {
+          ...mastermindDeck,
+          usedToday: new Set(),
+        },
+        protagonistDeck: {
+          ...protagonistDeck,
+          usedToday: new Set(),
+        }
+      });
     }
 
     // 更新本地状态
     useGameStore.setState({ gameState: newGameState });
 
-    // 如果联机，同步到服务器
+    // 如果联机，同步到服务器 (立即同步阶段变化)
     if (isConnected) {
-      console.log('📤 发送状态同步到服务器');
-      updateGameState({ gameState: newGameState });
-    } else {
-      console.log('⚠️ 未联机，跳过同步');
+      console.log('📤 发送阶段同步到服务器:', nextPhase);
+      const syncPayload: any = { gameState: newGameState };
+      
+      // 如果是进入新的一天，同时重置卡牌
+      if (nextPhase === 'dawn' && currentPhase === 'night') {
+        syncPayload.currentMastermindCards = [];
+        syncPayload.currentProtagonistCards = [];
+      }
+      
+      updateGameState(syncPayload);
     }
 
     // 结算阶段特殊处理
     if (nextPhase === 'resolution') {
+      console.log('📋 进入结算流程...');
+      // 延迟一点结算，让玩家先看到牌翻开
       setTimeout(() => {
         resolveDay();
-        // 结算后也同步
+        // 结算完成后再次同步状态（包含最新的指示物数值）
         if (isConnected) {
           const resolvedState = useGameStore.getState().gameState;
           if (resolvedState) {
+            console.log('📤 发送结算结果同步到服务器');
             updateGameState({ gameState: resolvedState });
           }
         }
-      }, 100);
+      }, 1000); // 增加到 1 秒，让翻牌动画更明显
     }
   };
 

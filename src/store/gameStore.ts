@@ -21,6 +21,7 @@ import {
   combineMovements,
   applyMovement,
   processDawnPhase,
+  processResolution,
   canUseAbility,
   useCharacterAbility,
 } from '@/game/engine';
@@ -203,151 +204,22 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const { gameState, currentMastermindCards, currentProtagonistCards } = get();
     if (!gameState) return;
 
-    let updatedState = { ...gameState };
-    const allCards = [...currentMastermindCards, ...currentProtagonistCards];
-
-    // 辅助函数：检查某目标上是否有对方的"禁止"牌
-    const hasForbidCard = (
-      targetCharId: CharacterId | undefined,
-      targetLoc: LocationType | undefined,
-      cardType: ActionCardType,
-      fromOwner: 'mastermind' | 'protagonist'
-    ) => {
-      const opponentOwner = fromOwner === 'mastermind' ? 'protagonist' : 'mastermind';
-      return allCards.some(pc => 
-        pc.card.owner === opponentOwner &&
-        pc.card.type === cardType &&
-        pc.card.isForbid === true &&
-        pc.targetCharacterId === targetCharId &&
-        (targetLoc ? pc.targetLocation === targetLoc : true)
-      );
-    };
-
-    // 1. 处理移动牌（带叠加规则）
-    const movementCards = allCards.filter(pc => pc.card.type === 'movement');
-    
-    // 按角色分组收集所有移动牌
-    const movementsByCharacter = new Map<CharacterId, typeof movementCards>();
-    
-    movementCards.forEach(pc => {
-      if (!pc.targetCharacterId || !pc.card.movementType) return;
-      if (pc.card.movementType === 'forbid') return; // 禁止移动牌不产生移动
-      
-      const charId = pc.targetCharacterId;
-      if (!movementsByCharacter.has(charId)) {
-        movementsByCharacter.set(charId, []);
-      }
-      movementsByCharacter.get(charId)!.push(pc);
-    });
-    
-    // 处理每个角色的移动
-    movementsByCharacter.forEach((cards, charId) => {
-      // 检查是否被"禁止移动"抵消（任意一方的禁止移动都会抵消）
-      const isForbidden = allCards.some(other => 
-        other.card.type === 'movement' &&
-        other.card.movementType === 'forbid' &&
-        other.targetCharacterId === charId
-      );
-      
-      if (isForbidden) return; // 被禁止了，不移动
-      
-      // 收集所有移动方向
-      const directions = cards
-        .map(pc => pc.card.movementType)
-        .filter((d): d is 'horizontal' | 'vertical' | 'diagonal' => 
-          d === 'horizontal' || d === 'vertical' || d === 'diagonal'
-        );
-      
-      // 使用叠加规则计算最终方向
-      const finalDirection = combineMovements(directions);
-      if (!finalDirection) return;
-
-      const character = FS01_CHARACTERS[charId];
-      const charState = updatedState.characters.find(c => c.id === charId);
-      if (charState) {
-        const newLocation = applyMovement(
-          charId,
-          charState.location,
-          finalDirection,
-          character.forbiddenLocation
-        );
-        updatedState.characters = updatedState.characters.map(c =>
-          c.id === charId ? { ...c, location: newLocation } : c
-        );
-      }
-    });
-
-    // 2. 处理指示物牌（带禁止抵消逻辑）
-    const indicatorCards = allCards.filter(pc => 
-      pc.card.type === 'goodwill' || pc.card.type === 'anxiety' || pc.card.type === 'intrigue'
+    // 使用引擎中的 processResolution 处理结算
+    let updatedState = processResolution(
+      gameState,
+      currentMastermindCards,
+      currentProtagonistCards
     );
-    
-    indicatorCards.forEach(pc => {
-      // 跳过"禁止"牌本身（它不产生数值效果）
-      if (pc.card.isForbid) return;
-      
-      // 检查是否被对方的"禁止"牌抵消
-      const isForbidden = hasForbidCard(
-        pc.targetCharacterId,
-        pc.targetLocation,
-        pc.card.type,
-        pc.card.owner
-      );
-      
-      if (isForbidden) return; // 被禁止抵消，无效果
 
-      // 放在角色上的牌
-      if (pc.targetCharacterId && pc.card.value) {
-        updatedState.characters = updatedState.characters.map(c => {
-          if (c.id === pc.targetCharacterId) {
-            const indicators = applyIndicatorChange(
-              c.indicators,
-              pc.card.type as 'goodwill' | 'anxiety' | 'intrigue',
-              pc.card.value!
-            );
-            return { ...c, indicators };
-          }
-          return c;
-        });
-      }
-      
-      // 放在地点上的密谋牌（只有密谋牌有效）
-      if (pc.targetLocation && !pc.targetCharacterId && pc.card.type === 'intrigue' && pc.card.value) {
-        updatedState.boardIntrigue = {
-          ...updatedState.boardIntrigue,
-          [pc.targetLocation]: updatedState.boardIntrigue[pc.targetLocation] + pc.card.value,
-        };
-      }
-    });
-
-    // 3. 检查事件
-    const incident = checkIncidents(updatedState);
-    if (incident) {
-      if (incident.type === 'murder') {
-        updatedState = handleIncident(updatedState);
-      }
-    }
-
-    // 4. 检查游戏是否结束
+    // 检查游戏是否结束（仅检查关键人物死亡等即时结束条件）
     const gameOverCheck = isGameOver(updatedState);
     if (gameOverCheck.isOver) {
-      updatedState.phase = 'game_end';
-    } else if (updatedState.currentDay >= updatedState.publicInfo.days) {
-      // 天数结束，进入轮回结束
-      updatedState.phase = 'loop_end';
-    } else {
-      // 进入下一天
-      updatedState = advanceDay(updatedState);
+      updatedState.phase = 'game_over';
     }
 
-    // 重置每日使用的卡牌（进入新的一天）
-    const { mastermindDeck, protagonistDeck } = get();
+    // 更新状态，但不立即清除卡牌，让玩家看到结算结果
     set({
       gameState: updatedState,
-      currentMastermindCards: [],
-      currentProtagonistCards: [],
-      mastermindDeck: resetDailyUsage(mastermindDeck),
-      protagonistDeck: resetDailyUsage(protagonistDeck),
     });
   },
 

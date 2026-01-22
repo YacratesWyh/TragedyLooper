@@ -8,6 +8,8 @@ import type {
   PrivateInfo,
   PublicInfo,
   Indicators,
+  PlayedCard,
+  ActionCardType,
 } from '@/types/game';
 import { FS01_CHARACTERS } from './scripts/fs-01';
 
@@ -294,8 +296,125 @@ export function advanceDay(state: GameState): GameState {
   return {
     ...state,
     currentDay: state.currentDay + 1,
-    phase: 'day_start',
+    phase: 'dawn',
   };
+}
+
+/** 
+ * 处理结算阶段
+ * 1. 处理移动
+ * 2. 处理指示物
+ * 3. 检查事件（仅关键人物死亡）
+ */
+export function processResolution(
+  state: GameState,
+  mastermindCards: PlayedCard[],
+  protagonistCards: PlayedCard[]
+): GameState {
+  let updatedState = { ...state };
+  const allCards = [...mastermindCards, ...protagonistCards];
+
+  // 辅助函数：检查某目标上是否有对方的"禁止"牌
+  const hasForbidCard = (
+    targetCharId: CharacterId | undefined,
+    targetLoc: LocationType | undefined,
+    cardType: ActionCardType,
+    fromOwner: 'mastermind' | 'protagonist'
+  ) => {
+    const opponentOwner = fromOwner === 'mastermind' ? 'protagonist' : 'mastermind';
+    return allCards.some(pc => 
+      pc.card.owner === opponentOwner &&
+      pc.card.type === cardType &&
+      pc.card.isForbid === true &&
+      pc.targetCharacterId === targetCharId &&
+      (targetLoc ? pc.targetLocation === targetLoc : true)
+    );
+  };
+
+  // 1. 处理移动牌
+  const movementCards = allCards.filter(pc => pc.card.type === 'movement');
+  const movementsByCharacter = new Map<CharacterId, PlayedCard[]>();
+  
+  movementCards.forEach(pc => {
+    if (!pc.targetCharacterId || !pc.card.movementType) return;
+    if (pc.card.movementType === 'forbid') return;
+    
+    const charId = pc.targetCharacterId;
+    if (!movementsByCharacter.has(charId)) {
+      movementsByCharacter.set(charId, []);
+    }
+    movementsByCharacter.get(charId)!.push(pc);
+  });
+  
+  movementsByCharacter.forEach((cards, charId) => {
+    const isForbidden = allCards.some(other => 
+      other.card.type === 'movement' &&
+      other.card.movementType === 'forbid' &&
+      other.targetCharacterId === charId
+    );
+    
+    if (isForbidden) return;
+    
+    const directions = cards.map(pc => pc.card.movementType as 'horizontal' | 'vertical' | 'diagonal');
+    const finalDirection = combineMovements(directions);
+    if (!finalDirection) return;
+
+    const character = FS01_CHARACTERS[charId];
+    const charState = updatedState.characters.find(c => c.id === charId);
+    if (charState) {
+      const newLocation = applyMovement(
+        charId,
+        charState.location,
+        finalDirection,
+        character.forbiddenLocation
+      );
+      updatedState.characters = updatedState.characters.map(c =>
+        c.id === charId ? { ...c, location: newLocation } : c
+      );
+    }
+  });
+
+  // 2. 处理指示物牌
+  const indicatorCards = allCards.filter(pc => 
+    pc.card.type === 'goodwill' || pc.card.type === 'anxiety' || pc.card.type === 'intrigue'
+  );
+  
+  indicatorCards.forEach(pc => {
+    if (pc.card.isForbid) return;
+    
+    const isForbidden = hasForbidCard(
+      pc.targetCharacterId,
+      pc.targetLocation,
+      pc.card.type,
+      pc.card.owner
+    );
+    
+    if (isForbidden) return;
+
+    if (pc.targetCharacterId && pc.card.value) {
+      updatedState.characters = updatedState.characters.map(c => {
+        if (c.id === pc.targetCharacterId) {
+          const indicators = applyIndicatorChange(
+            c.indicators,
+            pc.card.type as 'goodwill' | 'anxiety' | 'intrigue',
+            pc.card.value!
+          );
+          return { ...c, indicators };
+        }
+        return c;
+      });
+    }
+    
+    if (pc.targetLocation && !pc.targetCharacterId && pc.card.type === 'intrigue' && pc.card.value) {
+      const loc = pc.targetLocation;
+      updatedState.boardIntrigue = {
+        ...updatedState.boardIntrigue,
+        [loc]: (updatedState.boardIntrigue[loc] || 0) + pc.card.value,
+      };
+    }
+  });
+
+  return updatedState;
 }
 
 /** 检查游戏是否结束 */
