@@ -1,27 +1,61 @@
 /**
  * 多人联机上下文提供者
- * 支持多房间功能
+ * 支持多房间功能 + 断线重连
  */
 
-import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
+import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
 import { useGameStore } from '@/store/gameStore';
-import type { GameState, PlayerDeck, PlayerRole, CharacterId, LocationType } from '@/types/game';
+import type { PlayerRole, CharacterId, LocationType } from '@/types/game';
 
 // WebSocket 服务器地址
-// 生产环境：与 HTTP 同端口，路径 /ws (由 server/index.js 处理)
-// 开发环境：独立端口 3001
 const getWsUrl = () => {
   if (typeof window === 'undefined') return 'ws://localhost:3000/ws';
-  
-  // 允许环境变量覆盖（用于特殊部署场景）
   if (process.env.NEXT_PUBLIC_WS_URL) return process.env.NEXT_PUBLIC_WS_URL;
   
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const host = window.location.host; // 包含端口号
-  
-  // 统一使用 /ws 路径，与 server/index.js 一致
+  const host = window.location.host;
   return `${protocol}//${host}/ws`;
 };
+
+// 会话存储 key
+const SESSION_KEY = 'tl_session';
+const SESSION_TTL = 5 * 60 * 1000; // 5 分钟
+
+// 保存/读取/清除会话
+interface SessionData {
+  roomId: string;
+  roomName: string;
+  role: PlayerRole;
+  timestamp: number;
+}
+
+function saveSession(data: Omit<SessionData, 'timestamp'>) {
+  try {
+    localStorage.setItem(SESSION_KEY, JSON.stringify({ ...data, timestamp: Date.now() }));
+  } catch {}
+}
+
+function loadSession(): SessionData | null {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY);
+    if (!raw) return null;
+    const data = JSON.parse(raw) as SessionData;
+    // 检查是否过期
+    if (Date.now() - data.timestamp > SESSION_TTL) {
+      clearSession();
+      return null;
+    }
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+function clearSession() {
+  try {
+    localStorage.removeItem(SESSION_KEY);
+  } catch {}
+}
 
 // 房间信息类型
 interface RoomInfo {
@@ -34,12 +68,11 @@ interface RoomInfo {
 }
 
 interface MultiplayerContextType {
-  // 连接状态
   isConnected: boolean;
+  isReconnecting: boolean;
   connect: () => void;
   disconnect: () => void;
   
-  // 房间相关
   rooms: RoomInfo[];
   currentRoom: { id: string; name: string } | null;
   createRoom: (name: string, password?: string) => void;
@@ -47,14 +80,12 @@ interface MultiplayerContextType {
   leaveRoom: () => void;
   refreshRooms: () => void;
   
-  // 角色相关
   myRole: PlayerRole | null;
   availableRoles: string[];
   players: { mastermind: boolean; protagonist: boolean };
   selectRole: (role: PlayerRole) => void;
   
-  // 游戏操作
-  updateGameState: (updates: any) => void;
+  updateGameState: (updates: unknown) => void;
   adjustIndicator: (characterId: CharacterId, type: 'goodwill' | 'anxiety' | 'intrigue', delta: number) => void;
   toggleCharacterLife: (characterId: CharacterId) => void;
   moveCharacter: (characterId: CharacterId, location: LocationType) => void;
@@ -65,6 +96,7 @@ const MultiplayerContext = createContext<MultiplayerContextType | null>(null);
 
 export function MultiplayerProvider({ children }: { children: React.ReactNode }) {
   const [isConnected, setIsConnected] = useState(false);
+  const [isReconnecting, setIsReconnecting] = useState(false);
   const [rooms, setRooms] = useState<RoomInfo[]>([]);
   const [currentRoom, setCurrentRoom] = useState<{ id: string; name: string } | null>(null);
   const [myRole, setMyRole] = useState<PlayerRole | null>(null);
@@ -72,30 +104,70 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
   const [players, setPlayers] = useState({ mastermind: false, protagonist: false });
   
   const wsRef = useRef<WebSocket | null>(null);
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const reconnectAttemptsRef = useRef(0);
+  const maxReconnectAttempts = 5;
+  const intentionalDisconnectRef = useRef(false);
+  
   const setPlayerRole = useGameStore((s) => s.setPlayerRole);
 
-  const disconnect = useCallback(() => {
-    if (wsRef.current) {
-      wsRef.current.close();
-      wsRef.current = null;
-      setIsConnected(false);
-      setCurrentRoom(null);
-      setMyRole(null);
-      setRooms([]);
+  // 清理重连定时器
+  const clearReconnectTimeout = useCallback(() => {
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current);
+      reconnectTimeoutRef.current = null;
     }
   }, []);
 
+  // 断开连接
+  const disconnect = useCallback(() => {
+    intentionalDisconnectRef.current = true;
+    clearReconnectTimeout();
+    clearSession();
+    
+    if (wsRef.current) {
+      wsRef.current.close();
+      wsRef.current = null;
+    }
+    
+    setIsConnected(false);
+    setIsReconnecting(false);
+    setCurrentRoom(null);
+    setMyRole(null);
+    setRooms([]);
+    reconnectAttemptsRef.current = 0;
+  }, [clearReconnectTimeout]);
+
+  // 连接服务器
   const connect = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
+    if (wsRef.current?.readyState === WebSocket.CONNECTING) return;
 
+    intentionalDisconnectRef.current = false;
     const wsUrl = getWsUrl();
     console.log('🔌 正在连接服务器:', wsUrl);
+    
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
 
     ws.onopen = () => {
       console.log('✅ 已连接');
       setIsConnected(true);
+      setIsReconnecting(false);
+      reconnectAttemptsRef.current = 0;
+      
+      // 检查是否有会话需要恢复
+      const session = loadSession();
+      if (session) {
+        console.log('🔄 尝试恢复会话:', session.roomId, session.role);
+        ws.send(JSON.stringify({
+          type: 'REJOIN_ROOM',
+          payload: {
+            roomId: session.roomId,
+            role: session.role,
+          },
+        }));
+      }
     };
 
     ws.onmessage = (event) => {
@@ -104,19 +176,16 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
         console.log('📨 收到:', data.type);
 
         switch (data.type) {
-          // 欢迎消息，包含房间列表
           case 'WELCOME':
             if (data.payload.rooms) {
               setRooms(data.payload.rooms);
             }
             break;
 
-          // 房间列表更新
           case 'ROOM_LIST':
             setRooms(data.payload.rooms || []);
             break;
 
-          // 成功加入房间
           case 'ROOM_JOINED':
             setCurrentRoom({ id: data.payload.roomId, name: data.payload.roomName });
             setAvailableRoles(data.payload.availableRoles || ['mastermind', 'protagonist']);
@@ -124,36 +193,64 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
             console.log('🏠 已加入房间:', data.payload.roomId);
             break;
 
-          // 离开房间
+          case 'REJOIN_SUCCESS':
+            // 重连成功，恢复状态
+            setCurrentRoom({ id: data.payload.roomId, name: data.payload.roomName });
+            setMyRole(data.payload.role);
+            setPlayerRole(data.payload.role);
+            setPlayers(data.payload.players || { mastermind: false, protagonist: false });
+            console.log('🔄 重连成功:', data.payload.roomId, data.payload.role);
+            // 更新会话时间戳
+            saveSession({
+              roomId: data.payload.roomId,
+              roomName: data.payload.roomName,
+              role: data.payload.role,
+            });
+            break;
+
+          case 'REJOIN_FAILED':
+            // 重连失败，清除会话
+            console.log('❌ 重连失败:', data.payload?.message);
+            clearSession();
+            break;
+
           case 'ROOM_LEFT':
             setCurrentRoom(null);
             setMyRole(null);
             setPlayerRole(null);
+            clearSession();
             if (data.payload.rooms) {
               setRooms(data.payload.rooms);
             }
             console.log('🚶 已离开房间');
             break;
 
-          // 角色确认
-          case 'ROLE_CONFIRMED':
+          case 'ROLE_CONFIRMED': {
             const role = data.payload.role;
             setMyRole(role);
             setPlayerRole(role);
             console.log('🎭 角色确认:', role);
+            // 保存会话
+            if (currentRoom) {
+              saveSession({
+                roomId: currentRoom.id,
+                roomName: currentRoom.name,
+                role,
+              });
+            }
             break;
+          }
 
-          // 玩家状态更新
           case 'PLAYERS_UPDATE':
             setPlayers(data.payload);
-            const updatedAvailable = Object.entries(data.payload)
-              .filter(([, connected]) => !connected)
-              .map(([r]) => r as PlayerRole);
-            setAvailableRoles(updatedAvailable);
+            setAvailableRoles(
+              Object.entries(data.payload)
+                .filter(([, connected]) => !connected)
+                .map(([r]) => r as PlayerRole)
+            );
             break;
 
-          // 状态同步
-          case 'STATE_SYNC':
+          case 'STATE_SYNC': {
             const payload = data.payload;
             useGameStore.setState({
               gameState: payload.gameState || useGameStore.getState().gameState,
@@ -168,24 +265,25 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
             });
             if (payload.players) {
               setPlayers(payload.players);
-              const syncAvailable = Object.entries(payload.players)
-                .filter(([, connected]) => !connected)
-                .map(([r]) => r as PlayerRole);
-              setAvailableRoles(syncAvailable);
+              setAvailableRoles(
+                Object.entries(payload.players)
+                  .filter(([, connected]) => !connected)
+                  .map(([r]) => r as PlayerRole)
+              );
             }
             break;
+          }
 
-          // 游戏重置
           case 'GAME_RESET':
             setMyRole(null);
             setPlayerRole(null);
+            clearSession();
             useGameStore.getState().resetGame?.();
             break;
 
-          // 错误
           case 'ERROR':
             console.error('❌ 服务器错误:', data.payload?.message);
-            alert(data.payload?.message || '发生错误');
+            // 不要用 alert 打断用户
             break;
         }
       } catch (e) {
@@ -197,15 +295,39 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
       console.log('❌ 连接断开');
       wsRef.current = null;
       setIsConnected(false);
-      setCurrentRoom(null);
-      setMyRole(null);
+      
+      // 如果不是主动断开且有会话，尝试重连
+      const session = loadSession();
+      if (!intentionalDisconnectRef.current && session && reconnectAttemptsRef.current < maxReconnectAttempts) {
+        const delay = Math.min(1000 * Math.pow(2, reconnectAttemptsRef.current), 10000);
+        console.log(`⏳ ${delay/1000}秒后重连 (尝试 ${reconnectAttemptsRef.current + 1}/${maxReconnectAttempts})`);
+        setIsReconnecting(true);
+        
+        reconnectTimeoutRef.current = setTimeout(() => {
+          reconnectAttemptsRef.current++;
+          connect();
+        }, delay);
+      } else {
+        setCurrentRoom(null);
+        setMyRole(null);
+        setIsReconnecting(false);
+      }
     };
 
     ws.onerror = (error) => {
       console.error('WebSocket 错误:', error);
-      setIsConnected(false);
     };
-  }, [setPlayerRole]);
+  }, [setPlayerRole, currentRoom]);
+
+  // 组件卸载时清理
+  useEffect(() => {
+    return () => {
+      clearReconnectTimeout();
+      if (wsRef.current) {
+        wsRef.current.close();
+      }
+    };
+  }, [clearReconnectTimeout]);
 
   // 房间操作
   const createRoom = useCallback((name: string, password?: string) => {
@@ -227,6 +349,7 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
   }, []);
 
   const leaveRoom = useCallback(() => {
+    clearSession();
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({ type: 'LEAVE_ROOM' }));
     }
@@ -246,9 +369,9 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
   }, []);
 
   // 游戏状态更新
-  const updateGameState = useCallback((updates: any) => {
+  const updateGameState = useCallback((updates: unknown) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
-      const serializeDeck = (deck: any) => {
+      const serializeDeck = (deck: Record<string, unknown> | null | undefined) => {
         if (!deck) return undefined;
         return {
           ...deck,
@@ -257,10 +380,11 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
         };
       };
 
+      const typedUpdates = updates as Record<string, unknown>;
       const serializedUpdates = {
-        ...updates,
-        mastermindDeck: serializeDeck(updates.mastermindDeck),
-        protagonistDeck: serializeDeck(updates.protagonistDeck),
+        ...typedUpdates,
+        mastermindDeck: serializeDeck(typedUpdates.mastermindDeck as Record<string, unknown>),
+        protagonistDeck: serializeDeck(typedUpdates.protagonistDeck as Record<string, unknown>),
       };
 
       wsRef.current.send(JSON.stringify({
@@ -271,6 +395,7 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
   }, []);
 
   const resetGame = useCallback(() => {
+    clearSession();
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({ type: 'RESET_GAME' }));
     }
@@ -283,7 +408,7 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
         payload: { characterId, type, delta } 
       }));
     } else {
-      useGameStore.getState().adjustIndicator(characterId as any, type as any, delta);
+      useGameStore.getState().adjustIndicator(characterId as CharacterId, type as 'goodwill' | 'anxiety' | 'intrigue', delta);
     }
   }, []);
 
@@ -294,7 +419,7 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
         payload: { characterId } 
       }));
     } else {
-      useGameStore.getState().toggleCharacterLife(characterId as any);
+      useGameStore.getState().toggleCharacterLife(characterId as CharacterId);
     }
   }, []);
 
@@ -305,12 +430,13 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
         payload: { characterId, location } 
       }));
     } else {
-      useGameStore.getState().moveCharacter(characterId as any, location as any);
+      useGameStore.getState().moveCharacter(characterId as CharacterId, location as LocationType);
     }
   }, []);
 
   const value = {
     isConnected,
+    isReconnecting,
     connect,
     disconnect,
     rooms,

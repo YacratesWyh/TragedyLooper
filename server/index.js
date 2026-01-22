@@ -284,6 +284,68 @@ function setupWebSocket(server) {
             break;
           }
           
+          // 断线重连
+          case 'REJOIN_ROOM': {
+            const { roomId, role } = data.payload || {};
+            const room = rooms.get(roomId);
+            
+            if (!room) {
+              sendTo(ws, { 
+                type: 'REJOIN_FAILED', 
+                payload: { message: '房间已不存在' } 
+              });
+              return;
+            }
+            
+            // 检查角色是否空闲
+            if (isPlayerConnected(room, role)) {
+              sendTo(ws, { 
+                type: 'REJOIN_FAILED', 
+                payload: { message: '角色已被其他玩家占用' } 
+              });
+              return;
+            }
+            
+            // 恢复连接
+            ws.roomId = roomId;
+            ws.playerRole = role;
+            room.players[role] = ws;
+            
+            const mmConnected = isPlayerConnected(room, 'mastermind');
+            const proConnected = isPlayerConnected(room, 'protagonist');
+            
+            console.log(`🔄 [${roomId}] 玩家重连成功: ${role === 'mastermind' ? '剧作家' : '主人公'}`);
+            
+            sendTo(ws, {
+              type: 'REJOIN_SUCCESS',
+              payload: {
+                roomId,
+                roomName: room.name,
+                role,
+                players: { mastermind: mmConnected, protagonist: proConnected },
+              },
+            });
+            
+            // 同步游戏状态
+            if (room.initialized) {
+              sendTo(ws, {
+                type: 'STATE_SYNC',
+                payload: {
+                  gameState: room.gameState,
+                  mastermindDeck: room.mastermindDeck,
+                  protagonistDeck: room.protagonistDeck,
+                  currentMastermindCards: room.currentMastermindCards,
+                  currentProtagonistCards: room.currentProtagonistCards,
+                  players: { mastermind: mmConnected, protagonist: proConnected },
+                },
+              });
+            }
+            
+            broadcastPlayerStatus(room);
+            broadcastRoomList(wss);
+            break;
+          }
+          
           case 'LEAVE_ROOM': {
             const roomId = ws.roomId;
             const room = rooms.get(roomId);
