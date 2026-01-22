@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "concurrently \"npm run start:frontend\" \"npm run start:server\"",
+    "start": "node server/start.js",
     "start:frontend": "next start",
     "start:server": "node server/websocket-server.js",
     "lint": "eslint",

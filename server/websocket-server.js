@@ -8,9 +8,15 @@
 const WebSocket = require('ws');
 const crypto = require('crypto');
 
+// 安全解析端口号
+function parsePort(envValue, defaultPort) {
+  if (!envValue) return defaultPort;
+  const num = parseInt(envValue, 10);
+  return isNaN(num) ? defaultPort : num;
+}
+
 // WebSocket 使用独立端口，不与 Next.js 冲突
-// 优先使用 WS_PORT，其次 PORT+1，最后默认 3001
-const WS_PORT = process.env.WS_PORT || (process.env.PORT ? parseInt(process.env.PORT) + 1 : 3001);
+const WS_PORT = parsePort(process.env.WS_PORT, 3001);
 const wss = new WebSocket.Server({ port: WS_PORT });
 
 // ========== 房间管理 ==========
