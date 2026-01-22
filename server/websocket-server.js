@@ -2,14 +2,16 @@
  * 联机服务器 - 多房间支持
  * 
  * 启动: node server/websocket-server.js
- * 端口: 3001
+ * 端口: WS_PORT 环境变量，默认 3001
  */
 
 const WebSocket = require('ws');
 const crypto = require('crypto');
 
-const PORT = process.env.PORT || 3001;
-const wss = new WebSocket.Server({ port: PORT });
+// WebSocket 使用独立端口，不与 Next.js 冲突
+// 优先使用 WS_PORT，其次 PORT+1，最后默认 3001
+const WS_PORT = process.env.WS_PORT || (process.env.PORT ? parseInt(process.env.PORT) + 1 : 3001);
+const wss = new WebSocket.Server({ port: WS_PORT });
 
 // ========== 房间管理 ==========
 
@@ -42,8 +44,8 @@ function generateRoomId() {
 }
 
 console.log(`🎮 惨剧轮回 - 联机服务器 (多房间版)`);
-console.log(`📡 端口: ${PORT}`);
-console.log(`🌐 局域网: ws://[你的IP]:${PORT}`);
+console.log(`📡 端口: ${WS_PORT}`);
+console.log(`🌐 局域网: ws://[你的IP]:${WS_PORT}`);
 console.log(`⏳ 等待玩家连接...\n`);
 
 // ========== 工具函数 ==========

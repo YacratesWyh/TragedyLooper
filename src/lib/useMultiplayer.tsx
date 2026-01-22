@@ -8,9 +8,18 @@ import { useGameStore } from '@/store/gameStore';
 import type { GameState, PlayerDeck, PlayerRole, CharacterId, LocationType } from '@/types/game';
 
 // WebSocket 服务器地址
-const WS_URL = typeof window !== 'undefined' 
-  ? (process.env.NEXT_PUBLIC_WS_URL || `ws://${window.location.hostname}:3001`)
-  : 'ws://localhost:3001';
+// 生产环境使用 NEXT_PUBLIC_WS_URL 或当前主机 +1 端口
+const getWsUrl = () => {
+  if (typeof window === 'undefined') return 'ws://localhost:3001';
+  if (process.env.NEXT_PUBLIC_WS_URL) return process.env.NEXT_PUBLIC_WS_URL;
+  
+  // 默认：当前端口 +1（与服务器逻辑一致）
+  const currentPort = parseInt(window.location.port) || 80;
+  const wsPort = currentPort === 80 || currentPort === 443 ? 3001 : currentPort + 1;
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  return `${protocol}//${window.location.hostname}:${wsPort}`;
+};
+const WS_URL = getWsUrl();
 
 // 房间信息类型
 interface RoomInfo {
