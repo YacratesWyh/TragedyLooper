@@ -46,8 +46,8 @@ export function CharacterCard({
 
   const phase = gameState?.phase;
 
-  // 判断是否允许拖拽（事件阶段）
-  const canDrag = phase === 'incident';
+  // 判断是否允许拖拽（除打牌阶段外，允许人工修正位置）
+  const canDrag = phase !== 'mastermind_action' && phase !== 'protagonist_action';
 
   // 是否允许手动编辑指示物（用于手动处理能力、纠错或剧作家操作）
   const canEditIndicators = true;
