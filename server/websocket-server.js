@@ -141,7 +141,7 @@ wss.on('connection', (ws) => {
           const { role } = data;
           
           if (serverState.players[role]) {
-            sendTo(ws, { type: 'ERROR', message: '该角色已被占用' });
+            sendTo(ws, { type: 'ERROR', payload: { message: '该角色已被占用' } });
             return;
           }
           
@@ -213,7 +213,7 @@ wss.on('connection', (ws) => {
           
           // 验证是否是该玩家
           if (ws.playerRole !== role) {
-            sendTo(ws, { type: 'ERROR', message: '不是你的回合' });
+            sendTo(ws, { type: 'ERROR', payload: { message: '不是你的回合' } });
             return;
           }
           
@@ -254,7 +254,7 @@ wss.on('connection', (ws) => {
           const { role, cardId } = data.payload;
           
           if (ws.playerRole !== role) {
-            sendTo(ws, { type: 'ERROR', message: '无法撤回他人的牌' });
+            sendTo(ws, { type: 'ERROR', payload: { message: '无法撤回他人的牌' } });
             return;
           }
           

@@ -50,7 +50,13 @@ function isPlayerConnected(role) {
 function broadcastState(wss) {
   const stateMsg = JSON.stringify({
     type: 'STATE_SYNC',
-    ...serverState,
+    payload: {
+      ...serverState,
+      players: {
+        mastermind: isPlayerConnected('mastermind'),
+        protagonist: isPlayerConnected('protagonist'),
+      },
+    },
   });
   
   wss.clients.forEach((client) => {
@@ -64,11 +70,10 @@ function broadcastState(wss) {
 function broadcastPlayerStatus(wss) {
   const statusMsg = JSON.stringify({
     type: 'PLAYERS_UPDATE',
-    players: {
+    payload: {
       mastermind: isPlayerConnected('mastermind'),
       protagonist: isPlayerConnected('protagonist'),
     },
-    availableRoles: ['mastermind', 'protagonist'].filter(role => !isPlayerConnected(role)),
   });
   
   wss.clients.forEach((client) => {
@@ -89,11 +94,12 @@ function setupWebSocket(server) {
     // 发送欢迎消息和当前状态
     ws.send(JSON.stringify({
       type: 'WELCOME',
-      message: 'Connected to Tragedy Looper server',
-      availableRoles: ['mastermind', 'protagonist'].filter(role => !isPlayerConnected(role)),
-      players: {
-        mastermind: isPlayerConnected('mastermind'),
-        protagonist: isPlayerConnected('protagonist'),
+      payload: {
+        availableRoles: ['mastermind', 'protagonist'].filter(role => !isPlayerConnected(role)),
+        players: {
+          mastermind: isPlayerConnected('mastermind'),
+          protagonist: isPlayerConnected('protagonist'),
+        },
       },
     }));
     
@@ -114,7 +120,7 @@ function setupWebSocket(server) {
           case 'SELECT_ROLE': {
             const role = message.role;
             if (isPlayerConnected(role)) {
-              ws.send(JSON.stringify({ type: 'ERROR', message: `角色 ${role} 已被占用` }));
+              ws.send(JSON.stringify({ type: 'ERROR', payload: { message: `角色 ${role} 已被占用` } }));
               return;
             }
             
@@ -126,7 +132,7 @@ function setupWebSocket(server) {
             playerRoles[role] = ws;
             ws.playerRole = role;
             
-            ws.send(JSON.stringify({ type: 'ROLE_CONFIRMED', role }));
+            ws.send(JSON.stringify({ type: 'ROLE_CONFIRMED', payload: { role } }));
             broadcastPlayerStatus(wss);
             break;
           }
