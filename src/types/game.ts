@@ -17,26 +17,80 @@ export type ActionCardType = 'movement' | 'goodwill' | 'anxiety' | 'intrigue';
 /** 移动方向 */
 export type MovementType = 'horizontal' | 'vertical' | 'diagonal' | 'forbid';
 
-/** 角色ID */
+/** 
+ * 角色ID
+ * 数据来源：doc/角色技能表整理.md
+ */
 export type CharacterId = 
+  // 第1行：男学生、女学生、大小姐、巫女、刑警、上班族、情报贩子、医生
   | 'boy_student'      // 男学生
   | 'girl_student'     // 女学生
+  | 'rich_man'         // 大小姐
   | 'shrine_maiden'    // 巫女
-  | 'office_worker'    // 职员
-  | 'idol'             // 偶像
+  | 'detective'        // 刑警
+  | 'office_worker'    // 上班族
+  | 'informer'         // 情报贩子
   | 'doctor'           // 医生
-  // 以下为其他剧本角色，暂时保留
+  // 第2行：人偶师、班长、意外因素、异世界人、神格、偶像、媒体记者、大人物
+  | 'dollmaker'        // 人偶师
+  | 'class_rep'        // 班长
+  | 'factor'           // 意外因素
+  | 'mystery_boy'      // 异世界人
+  | 'shrine_god'       // 神格
+  | 'idol'             // 偶像
+  | 'journalist'       // 媒体记者
+  | 'boss'             // 大人物
+  // 第3行：护士、入院患者、学者...
+  | 'nurse'            // 护士
+  | 'patient'          // 入院患者
+  | 'scientist'        // 学者
+  // 扩展角色
+  | 'pop_idol'         // 偶像（别名）
+  | 'transfer_student' // 转学生
+  | 'time_traveler'    // 时间旅行者
+  | 'soldier'          // 军人
+  | 'illusion'         // 幻影
+  | 'ai'               // AI
+  | 'twin'             // 双子
+  | 'henchman'         // 手下
+  // 向后兼容
   | 'student'          // 学生（旧）
-  | 'alien';           // 异界人
+  | 'alien';           // 异界人（旧）
 
 /** 角色名称映射 */
 export const CHARACTER_NAMES: Record<CharacterId, string> = {
+  // 第1行
   boy_student: '男学生',
   girl_student: '女学生',
+  rich_man: '大小姐',
   shrine_maiden: '巫女',
-  office_worker: '职员',
-  idol: '偶像',
+  detective: '刑警',
+  office_worker: '上班族',
+  informer: '情报贩子',
   doctor: '医生',
+  // 第2行
+  dollmaker: '人偶师',
+  class_rep: '班长',
+  factor: '意外因素',
+  mystery_boy: '异世界人',
+  shrine_god: '神格',
+  idol: '偶像',
+  journalist: '媒体记者',
+  boss: '大人物',
+  // 第3行
+  nurse: '护士',
+  patient: '入院患者',
+  scientist: '学者',
+  // 扩展
+  pop_idol: '偶像',
+  transfer_student: '转学生',
+  time_traveler: '时间旅行者',
+  soldier: '军人',
+  illusion: '幻影',
+  ai: 'AI',
+  twin: '双子',
+  henchman: '手下',
+  // 向后兼容
   student: '学生',
   alien: '异界人',
 };

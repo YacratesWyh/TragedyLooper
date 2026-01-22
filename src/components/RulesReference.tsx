@@ -6,10 +6,12 @@ import { cn } from '@/lib/utils';
 import { 
   BookOpen, X, ChevronDown, ChevronRight,
   Skull, Users, Zap, Heart, Eye, AlertTriangle,
-  Image as ImageIcon, Maximize2
+  Image as ImageIcon, Maximize2, Lock
 } from 'lucide-react';
 import { useGameStore } from '@/store/gameStore';
+import { useMultiplayer } from '@/lib/useMultiplayer';
 import { FS01_BEGINNER_PUBLIC } from '@/game/scripts/fs-01';
+import type { PlayerRole } from '@/types/game';
 
 // ===== 身份数据 =====
 interface RoleInfo {
@@ -217,6 +219,7 @@ interface ScriptImage {
   id: string;
   title: string;
   path: string;
+  visibleTo?: PlayerRole; // 可选：限制可见性，undefined 表示所有人可见
 }
 
 interface ScriptConfig {
@@ -226,6 +229,11 @@ interface ScriptConfig {
 function ScriptReference() {
   const [config, setConfig] = useState<ScriptConfig | null>(null);
   const [zoomedImage, setZoomedImage] = useState<string | null>(null);
+  
+  // 优先使用多人游戏角色，回退到本地角色
+  const { myRole: multiplayerRole } = useMultiplayer();
+  const localRole = useGameStore((s) => s.playerRole);
+  const currentRole = multiplayerRole || localRole;
 
   useEffect(() => {
     fetch('/assets/fs/config.json')
@@ -243,13 +251,29 @@ function ScriptReference() {
     );
   }
 
+  // 根据角色过滤可见图片
+  const visibleImages = config.images.filter(img => {
+    if (!img.visibleTo) return true; // 无限制，所有人可见
+    return img.visibleTo === currentRole;
+  });
+
+  // 检测是否有隐藏图片（属于对方阵营）
+  const hiddenCount = config.images.length - visibleImages.length;
+
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3">
-        {config.images.map((img) => (
+        {visibleImages.map((img) => (
           <div key={img.id} className="group relative">
             <div 
-              className="aspect-[3/4] rounded-lg overflow-hidden border border-slate-700 bg-slate-800 cursor-pointer hover:border-amber-500/50 transition-colors relative"
+              className={cn(
+                "aspect-[3/4] rounded-lg overflow-hidden border bg-slate-800 cursor-pointer transition-colors relative",
+                img.visibleTo 
+                  ? img.visibleTo === 'mastermind' 
+                    ? "border-red-700/50 hover:border-red-500" 
+                    : "border-blue-700/50 hover:border-blue-500"
+                  : "border-slate-700 hover:border-amber-500/50"
+              )}
               onClick={() => setZoomedImage(`/assets/fs/${img.path}`)}
             >
               <img 
@@ -260,6 +284,17 @@ function ScriptReference() {
               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
                 <Maximize2 size={20} className="text-white opacity-0 group-hover:opacity-100 transition-opacity" />
               </div>
+              {/* 角色专属标记 */}
+              {img.visibleTo && (
+                <div className={cn(
+                  "absolute top-2 right-2 px-1.5 py-0.5 rounded text-[10px] font-bold",
+                  img.visibleTo === 'mastermind' 
+                    ? "bg-red-900/80 text-red-200" 
+                    : "bg-blue-900/80 text-blue-200"
+                )}>
+                  {img.visibleTo === 'mastermind' ? '剧作家' : '主人公'}
+                </div>
+              )}
             </div>
             <p className="mt-1.5 text-xs text-center text-slate-400 font-medium truncate" title={img.title}>
               {img.title}
@@ -267,6 +302,14 @@ function ScriptReference() {
           </div>
         ))}
       </div>
+
+      {/* 隐藏图片提示 */}
+      {hiddenCount > 0 && (
+        <div className="flex items-center gap-2 text-xs text-slate-500 px-2 py-1.5 bg-slate-800/30 rounded-lg border border-slate-700/30">
+          <Lock size={12} />
+          <span>还有 {hiddenCount} 张对方阵营专属卡牌</span>
+        </div>
+      )}
 
       {/* Zoomed Image Overlay */}
       <AnimatePresence>

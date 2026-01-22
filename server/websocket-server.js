@@ -1,77 +1,70 @@
 /**
- * 联机服务器 - 权威状态源
- * 所有游戏状态由服务器维护，客户端只负责显示和发送操作
+ * 联机服务器 - 多房间支持
  * 
  * 启动: node server/websocket-server.js
  * 端口: 3001
  */
 
 const WebSocket = require('ws');
+const crypto = require('crypto');
 
 const PORT = process.env.PORT || 3001;
 const wss = new WebSocket.Server({ port: PORT });
 
-// ========== 服务器状态（权威源）==========
-let serverState = {
-  // 游戏是否已初始化
-  initialized: false,
-  
-  // 完整的游戏状态
-  gameState: null,
-  
-  // 牌组状态
-  mastermindDeck: null,
-  protagonistDeck: null,
-  
-  // 当前打出的牌
-  currentMastermindCards: [],
-  currentProtagonistCards: [],
-  
-  // 玩家连接
-  players: {
-    mastermind: null,  // WebSocket connection
-    protagonist: null,
-  },
-};
+// ========== 房间管理 ==========
 
-console.log(`🎮 惨剧轮回 - 联机服务器`);
+// 房间数据结构
+function createRoom(id, name, password = '') {
+  return {
+    id,
+    name,
+    password, // 空字符串表示无密码
+    createdAt: Date.now(),
+    initialized: false,
+    gameState: null,
+    mastermindDeck: null,
+    protagonistDeck: null,
+    currentMastermindCards: [],
+    currentProtagonistCards: [],
+    players: {
+      mastermind: null,
+      protagonist: null,
+    },
+  };
+}
+
+// 所有房间
+const rooms = new Map();
+
+// 生成房间ID
+function generateRoomId() {
+  return crypto.randomBytes(3).toString('hex').toUpperCase();
+}
+
+console.log(`🎮 惨剧轮回 - 联机服务器 (多房间版)`);
 console.log(`📡 端口: ${PORT}`);
 console.log(`🌐 局域网: ws://[你的IP]:${PORT}`);
 console.log(`⏳ 等待玩家连接...\n`);
 
 // ========== 工具函数 ==========
 
-function isPlayerConnected(role) {
-  const ws = serverState.players[role];
+function isPlayerConnected(room, role) {
+  if (!room) return false;
+  const ws = room.players[role];
   if (!ws) return false;
   if (ws.readyState !== WebSocket.OPEN) {
-    serverState.players[role] = null; // 清理失效连接
+    room.players[role] = null;
     return false;
   }
   return true;
 }
 
-function getPlayerCount() {
-  let count = 0;
-  if (isPlayerConnected('mastermind')) count++;
-  if (isPlayerConnected('protagonist')) count++;
-  return count;
-}
-
-function getAvailableRoles() {
+function getAvailableRoles(room) {
+  if (!room) return [];
   const roles = [];
-  if (!isPlayerConnected('mastermind')) roles.push('mastermind');
-  if (!isPlayerConnected('protagonist')) roles.push('protagonist');
+  if (!isPlayerConnected(room, 'mastermind')) roles.push('mastermind');
+  if (!isPlayerConnected(room, 'protagonist')) roles.push('protagonist');
   return roles;
-}
-
-function broadcast(data, excludeWs = null) {
-  const message = JSON.stringify(data);
-  wss.clients.forEach((client) => {
-    if (client !== excludeWs && client.readyState === WebSocket.OPEN) {
-      client.send(message);
-    }
-  });
 }
 
 function sendTo(ws, data) {
@@ -80,19 +73,66 @@ function sendTo(ws, data) {
   }
 }
 
-function broadcastState() {
-  // 检查连接有效性后再广播
-  const mmConnected = isPlayerConnected('mastermind');
-  const proConnected = isPlayerConnected('protagonist');
+// 广播给房间内所有人
+function broadcastToRoom(room, data, excludeWs = null) {
+  if (!room) return;
+  const message = JSON.stringify(data);
+  
+  [room.players.mastermind, room.players.protagonist].forEach(ws => {
+    if (ws && ws !== excludeWs && ws.readyState === WebSocket.OPEN) {
+      ws.send(message);
+    }
+  });
+}
 
-  broadcast({
+// 广播房间列表给所有未进入房间的客户端
+function broadcastRoomList() {
+  const roomList = getRoomList();
+  wss.clients.forEach(client => {
+    if (client.readyState === WebSocket.OPEN && !client.roomId) {
+      sendTo(client, {
+        type: 'ROOM_LIST',
+        payload: { rooms: roomList },
+      });
+    }
+  });
+}
+
+// 获取房间列表（不含密码）
+function getRoomList() {
+  const list = [];
+  rooms.forEach((room, id) => {
+    const mmConnected = isPlayerConnected(room, 'mastermind');
+    const proConnected = isPlayerConnected(room, 'protagonist');
+    list.push({
+      id,
+      name: room.name,
+      hasPassword: !!room.password,
+      playerCount: (mmConnected ? 1 : 0) + (proConnected ? 1 : 0),
+      players: {
+        mastermind: mmConnected,
+        protagonist: proConnected,
+      },
+      initialized: room.initialized,
+    });
+  });
+  return list;
+}
+
+function broadcastRoomState(room) {
+  if (!room) return;
+  
+  const mmConnected = isPlayerConnected(room, 'mastermind');
+  const proConnected = isPlayerConnected(room, 'protagonist');
+
+  broadcastToRoom(room, {
     type: 'STATE_SYNC',
     payload: {
-      gameState: serverState.gameState,
-      mastermindDeck: serverState.mastermindDeck,
-      protagonistDeck: serverState.protagonistDeck,
-      currentMastermindCards: serverState.currentMastermindCards,
-      currentProtagonistCards: serverState.currentProtagonistCards,
+      gameState: room.gameState,
+      mastermindDeck: room.mastermindDeck,
+      protagonistDeck: room.protagonistDeck,
+      currentMastermindCards: room.currentMastermindCards,
+      currentProtagonistCards: room.currentProtagonistCards,
       players: {
         mastermind: mmConnected,
         protagonist: proConnected,
@@ -101,15 +141,33 @@ function broadcastState() {
   });
 }
 
-function broadcastPlayerStatus() {
+function broadcastPlayerStatus(room) {
+  if (!room) return;
+  
   const status = {
-    mastermind: isPlayerConnected('mastermind'),
-    protagonist: isPlayerConnected('protagonist'),
+    mastermind: isPlayerConnected(room, 'mastermind'),
+    protagonist: isPlayerConnected(room, 'protagonist'),
   };
-  console.log('📢 广播玩家状态:', status);
-  broadcast({
+  
+  console.log(`📢 [${room.id}] 广播玩家状态:`, status);
+  broadcastToRoom(room, {
     type: 'PLAYERS_UPDATE',
     payload: status,
+  });
+}
+
+// 清理空房间
+function cleanupEmptyRooms() {
+  rooms.forEach((room, id) => {
+    const mmConnected = isPlayerConnected(room, 'mastermind');
+    const proConnected = isPlayerConnected(room, 'protagonist');
+    if (!mmConnected && !proConnected) {
+      // 空房间超过5分钟删除
+      if (Date.now() - room.createdAt > 5 * 60 * 1000) {
+        rooms.delete(id);
+        console.log(`🗑️ 删除空房间: ${id}`);
+      }
+    }
   });
 }
 
@@ -118,16 +176,11 @@ function broadcastPlayerStatus() {
 wss.on('connection', (ws) => {
   console.log('✅ 新连接');
   
-  // 发送可用角色列表和当前占用状态
+  // 发送房间列表
   sendTo(ws, {
     type: 'WELCOME',
     payload: {
-      availableRoles: getAvailableRoles(),
-      players: {
-        mastermind: !!serverState.players.mastermind,
-        protagonist: !!serverState.players.protagonist,
-      },
-      initialized: serverState.initialized,
+      rooms: getRoomList(),
     },
   });
 
@@ -136,42 +189,180 @@ wss.on('connection', (ws) => {
       const data = JSON.parse(message);
       
       switch (data.type) {
-        // 玩家选择角色
+        // ========== 房间操作 ==========
+        
+        // 创建房间
+        case 'CREATE_ROOM': {
+          const { name, password } = data.payload || {};
+          const roomName = (name || '').trim() || '未命名房间';
+          const roomId = generateRoomId();
+          
+          const room = createRoom(roomId, roomName, password || '');
+          rooms.set(roomId, room);
+          
+          console.log(`🏠 创建房间: ${roomId} "${roomName}" ${password ? '(有密码)' : ''}`);
+          
+          // 自动加入该房间
+          ws.roomId = roomId;
+          
+          sendTo(ws, {
+            type: 'ROOM_JOINED',
+            payload: {
+              roomId,
+              roomName,
+              availableRoles: getAvailableRoles(room),
+              players: {
+                mastermind: false,
+                protagonist: false,
+              },
+            },
+          });
+          
+          broadcastRoomList();
+          break;
+        }
+        
+        // 加入房间
+        case 'JOIN_ROOM': {
+          const { roomId, password } = data.payload || {};
+          const room = rooms.get(roomId);
+          
+          if (!room) {
+            sendTo(ws, { type: 'ERROR', payload: { message: '房间不存在' } });
+            return;
+          }
+          
+          // 验证密码
+          if (room.password && room.password !== password) {
+            sendTo(ws, { type: 'ERROR', payload: { message: '密码错误' } });
+            return;
+          }
+          
+          // 检查是否已满
+          const mmConnected = isPlayerConnected(room, 'mastermind');
+          const proConnected = isPlayerConnected(room, 'protagonist');
+          if (mmConnected && proConnected) {
+            sendTo(ws, { type: 'ERROR', payload: { message: '房间已满' } });
+            return;
+          }
+          
+          ws.roomId = roomId;
+          
+          console.log(`🚪 玩家加入房间: ${roomId}`);
+          
+          sendTo(ws, {
+            type: 'ROOM_JOINED',
+            payload: {
+              roomId,
+              roomName: room.name,
+              availableRoles: getAvailableRoles(room),
+              players: {
+                mastermind: mmConnected,
+                protagonist: proConnected,
+              },
+              initialized: room.initialized,
+            },
+          });
+          
+          // 如果游戏已初始化，同步状态
+          if (room.initialized) {
+            sendTo(ws, {
+              type: 'STATE_SYNC',
+              payload: {
+                gameState: room.gameState,
+                mastermindDeck: room.mastermindDeck,
+                protagonistDeck: room.protagonistDeck,
+                currentMastermindCards: room.currentMastermindCards,
+                currentProtagonistCards: room.currentProtagonistCards,
+                players: {
+                  mastermind: mmConnected,
+                  protagonist: proConnected,
+                },
+              },
+            });
+          }
+          
+          broadcastRoomList();
+          break;
+        }
+        
+        // 离开房间
+        case 'LEAVE_ROOM': {
+          const roomId = ws.roomId;
+          const room = rooms.get(roomId);
+          
+          if (room && ws.playerRole) {
+            if (room.players[ws.playerRole] === ws) {
+              room.players[ws.playerRole] = null;
+            }
+            broadcastPlayerStatus(room);
+          }
+          
+          delete ws.roomId;
+          delete ws.playerRole;
+          
+          console.log(`🚶 玩家离开房间: ${roomId}`);
+          
+          sendTo(ws, {
+            type: 'ROOM_LEFT',
+            payload: { rooms: getRoomList() },
+          });
+          
+          broadcastRoomList();
+          break;
+        }
+        
+        // 刷新房间列表
+        case 'REFRESH_ROOMS': {
+          sendTo(ws, {
+            type: 'ROOM_LIST',
+            payload: { rooms: getRoomList() },
+          });
+          break;
+        }
+        
+        // ========== 游戏操作（需要在房间内）==========
+        
+        // 选择角色
         case 'SELECT_ROLE': {
           const { role } = data;
+          const room = rooms.get(ws.roomId);
           
-          if (serverState.players[role]) {
+          if (!room) {
+            sendTo(ws, { type: 'ERROR', payload: { message: '请先加入房间' } });
+            return;
+          }
+          
+          if (isPlayerConnected(room, role)) {
             sendTo(ws, { type: 'ERROR', payload: { message: '该角色已被占用' } });
             return;
           }
           
-          serverState.players[role] = ws;
+          room.players[role] = ws;
           ws.playerRole = role;
           
-          console.log(`🎭 玩家选择: ${role === 'mastermind' ? '剧作家' : '主人公'}`);
+          console.log(`🎭 [${ws.roomId}] 玩家选择: ${role === 'mastermind' ? '剧作家' : '主人公'}`);
           
-          // 确认角色选择
           sendTo(ws, {
             type: 'ROLE_CONFIRMED',
             payload: { role },
           });
           
-          // 广播玩家状态
-          broadcastPlayerStatus();
+          broadcastPlayerStatus(room);
+          broadcastRoomList();
           
-          // 如果游戏已初始化，发送当前状态
-          if (serverState.initialized) {
+          if (room.initialized) {
             sendTo(ws, {
               type: 'STATE_SYNC',
               payload: {
-                gameState: serverState.gameState,
-                mastermindDeck: serverState.mastermindDeck,
-                protagonistDeck: serverState.protagonistDeck,
-                currentMastermindCards: serverState.currentMastermindCards,
-                currentProtagonistCards: serverState.currentProtagonistCards,
+                gameState: room.gameState,
+                mastermindDeck: room.mastermindDeck,
+                protagonistDeck: room.protagonistDeck,
+                currentMastermindCards: room.currentMastermindCards,
+                currentProtagonistCards: room.currentProtagonistCards,
                 players: {
-                  mastermind: !!serverState.players.mastermind,
-                  protagonist: !!serverState.players.protagonist,
+                  mastermind: isPlayerConnected(room, 'mastermind'),
+                  protagonist: isPlayerConnected(room, 'protagonist'),
                 },
               },
             });
@@ -179,78 +370,78 @@ wss.on('connection', (ws) => {
           break;
         }
         
-        // 初始化游戏（由任一玩家触发）
+        // 初始化游戏
         case 'INIT_GAME': {
+          const room = rooms.get(ws.roomId);
+          if (!room) return;
+          
           const { gameState, mastermindDeck, protagonistDeck } = data.payload;
           
-          serverState.initialized = true;
-          serverState.gameState = gameState;
-          
-          // 确保 usedToday 和 usedThisLoop 是数组（JSON序列化时Set会变成{}）
-          serverState.mastermindDeck = mastermindDeck ? {
+          room.initialized = true;
+          room.gameState = gameState;
+          room.mastermindDeck = mastermindDeck ? {
             ...mastermindDeck,
             usedToday: Array.isArray(mastermindDeck.usedToday) ? mastermindDeck.usedToday : [],
             usedThisLoop: Array.isArray(mastermindDeck.usedThisLoop) ? mastermindDeck.usedThisLoop : [],
           } : null;
-          serverState.protagonistDeck = protagonistDeck ? {
+          room.protagonistDeck = protagonistDeck ? {
             ...protagonistDeck,
             usedToday: Array.isArray(protagonistDeck.usedToday) ? protagonistDeck.usedToday : [],
             usedThisLoop: Array.isArray(protagonistDeck.usedThisLoop) ? protagonistDeck.usedThisLoop : [],
           } : null;
+          room.currentMastermindCards = [];
+          room.currentProtagonistCards = [];
           
-          serverState.currentMastermindCards = [];
-          serverState.currentProtagonistCards = [];
+          console.log(`🎮 [${ws.roomId}] 游戏已初始化`);
           
-          console.log('🎮 游戏已初始化');
-          
-          broadcastState();
+          broadcastRoomState(room);
+          broadcastRoomList();
           break;
         }
         
         // 打出牌
         case 'PLAY_CARD': {
+          const room = rooms.get(ws.roomId);
+          if (!room) return;
+          
           const { role, card, targetId, targetType } = data.payload;
           
-          // 验证是否是该玩家
           if (ws.playerRole !== role) {
             sendTo(ws, { type: 'ERROR', payload: { message: '不是你的回合' } });
             return;
           }
           
-          const playedCard = {
-            ...card,
-            targetId,
-            targetType,
-            playedBy: role,
-          };
+          const playedCard = { ...card, targetId, targetType, playedBy: role };
           
           if (role === 'mastermind') {
-            serverState.currentMastermindCards.push(playedCard);
-            // 更新牌组使用状态
-            if (serverState.mastermindDeck) {
-              serverState.mastermindDeck.usedToday.push(card.id);
+            room.currentMastermindCards.push(playedCard);
+            if (room.mastermindDeck) {
+              room.mastermindDeck.usedToday.push(card.id);
               if (card.oncePerLoop) {
-                serverState.mastermindDeck.usedThisLoop.push(card.id);
+                room.mastermindDeck.usedThisLoop.push(card.id);
               }
             }
           } else {
-            serverState.currentProtagonistCards.push(playedCard);
-            if (serverState.protagonistDeck) {
-              serverState.protagonistDeck.usedToday.push(card.id);
+            room.currentProtagonistCards.push(playedCard);
+            if (room.protagonistDeck) {
+              room.protagonistDeck.usedToday.push(card.id);
               if (card.oncePerLoop) {
-                serverState.protagonistDeck.usedThisLoop.push(card.id);
+                room.protagonistDeck.usedThisLoop.push(card.id);
               }
             }
           }
           
-          console.log(`🃏 ${role} 打出牌 -> ${targetId}`);
+          console.log(`🃏 [${ws.roomId}] ${role} 打出牌 -> ${targetId}`);
           
-          broadcastState();
+          broadcastRoomState(room);
           break;
         }
         
         // 撤回牌
         case 'RETREAT_CARD': {
+          const room = rooms.get(ws.roomId);
+          if (!room) return;
+          
           const { role, cardId } = data.payload;
           
           if (ws.playerRole !== role) {
@@ -259,62 +450,61 @@ wss.on('connection', (ws) => {
           }
           
           if (role === 'mastermind') {
-            const card = serverState.currentMastermindCards.find(c => c.id === cardId);
-            serverState.currentMastermindCards = serverState.currentMastermindCards.filter(c => c.id !== cardId);
-            if (card && serverState.mastermindDeck) {
-              serverState.mastermindDeck.usedToday = serverState.mastermindDeck.usedToday.filter(id => id !== cardId);
-              serverState.mastermindDeck.usedThisLoop = serverState.mastermindDeck.usedThisLoop.filter(id => id !== cardId);
+            const card = room.currentMastermindCards.find(c => c.id === cardId);
+            room.currentMastermindCards = room.currentMastermindCards.filter(c => c.id !== cardId);
+            if (card && room.mastermindDeck) {
+              room.mastermindDeck.usedToday = room.mastermindDeck.usedToday.filter(id => id !== cardId);
+              room.mastermindDeck.usedThisLoop = room.mastermindDeck.usedThisLoop.filter(id => id !== cardId);
             }
           } else {
-            const card = serverState.currentProtagonistCards.find(c => c.id === cardId);
-            serverState.currentProtagonistCards = serverState.currentProtagonistCards.filter(c => c.id !== cardId);
-            if (card && serverState.protagonistDeck) {
-              serverState.protagonistDeck.usedToday = serverState.protagonistDeck.usedToday.filter(id => id !== cardId);
-              serverState.protagonistDeck.usedThisLoop = serverState.protagonistDeck.usedThisLoop.filter(id => id !== cardId);
+            const card = room.currentProtagonistCards.find(c => c.id === cardId);
+            room.currentProtagonistCards = room.currentProtagonistCards.filter(c => c.id !== cardId);
+            if (card && room.protagonistDeck) {
+              room.protagonistDeck.usedToday = room.protagonistDeck.usedToday.filter(id => id !== cardId);
+              room.protagonistDeck.usedThisLoop = room.protagonistDeck.usedThisLoop.filter(id => id !== cardId);
             }
           }
           
-          console.log(`↩️ ${role} 撤回牌 ${cardId}`);
+          console.log(`↩️ [${ws.roomId}] ${role} 撤回牌 ${cardId}`);
           
-          broadcastState();
+          broadcastRoomState(room);
           break;
         }
         
         // 推进阶段
         case 'ADVANCE_PHASE': {
+          const room = rooms.get(ws.roomId);
+          if (!room) return;
+          
           const { newPhase, gameState: newGameState } = data.payload;
           
-          serverState.gameState = newGameState;
+          room.gameState = newGameState;
           
-          // 进入黎明阶段或夜晚阶段时（通常是新的一天开始），服务器强制清理已打出的牌
           if (newPhase === 'dawn') {
-            if (serverState.mastermindDeck) {
-              serverState.mastermindDeck.usedToday = [];
-            }
-            if (serverState.protagonistDeck) {
-              serverState.protagonistDeck.usedToday = [];
-            }
-            serverState.currentMastermindCards = [];
-            serverState.currentProtagonistCards = [];
-            console.log('🧹 新的一天开始，服务器已重置每日卡牌使用状态');
+            if (room.mastermindDeck) room.mastermindDeck.usedToday = [];
+            if (room.protagonistDeck) room.protagonistDeck.usedToday = [];
+            room.currentMastermindCards = [];
+            room.currentProtagonistCards = [];
+            console.log(`🧹 [${ws.roomId}] 新的一天开始，已重置每日卡牌`);
           }
           
-          console.log(`⏩ 阶段推进: ${newPhase}`);
+          console.log(`⏩ [${ws.roomId}] 阶段推进: ${newPhase}`);
           
-          broadcastState();
+          broadcastRoomState(room);
           break;
         }
         
-        // 更新游戏状态（通用）
+        // 更新游戏状态
         case 'UPDATE_GAME_STATE': {
-          if (data.payload.gameState) {
-            serverState.gameState = data.payload.gameState;
-          }
+          const room = rooms.get(ws.roomId);
+          if (!room) return;
           
-          // 确保 usedToday 和 usedThisLoop 是数组
+          if (data.payload.gameState) {
+            room.gameState = data.payload.gameState;
+          }
           if (data.payload.mastermindDeck) {
             const deck = data.payload.mastermindDeck;
-            serverState.mastermindDeck = {
+            room.mastermindDeck = {
               ...deck,
               usedToday: Array.isArray(deck.usedToday) ? deck.usedToday : [],
               usedThisLoop: Array.isArray(deck.usedThisLoop) ? deck.usedThisLoop : [],
@@ -322,106 +512,112 @@ wss.on('connection', (ws) => {
           }
           if (data.payload.protagonistDeck) {
             const deck = data.payload.protagonistDeck;
-            serverState.protagonistDeck = {
+            room.protagonistDeck = {
               ...deck,
               usedToday: Array.isArray(deck.usedToday) ? deck.usedToday : [],
               usedThisLoop: Array.isArray(deck.usedThisLoop) ? deck.usedThisLoop : [],
             };
           }
           if (data.payload.currentMastermindCards !== undefined) {
-            serverState.currentMastermindCards = data.payload.currentMastermindCards;
+            room.currentMastermindCards = data.payload.currentMastermindCards;
           }
           if (data.payload.currentProtagonistCards !== undefined) {
-            serverState.currentProtagonistCards = data.payload.currentProtagonistCards;
+            room.currentProtagonistCards = data.payload.currentProtagonistCards;
           }
           
-          broadcastState();
+          broadcastRoomState(room);
           break;
         }
         
         // 调整指示物
         case 'ADJUST_INDICATOR': {
+          const room = rooms.get(ws.roomId);
+          if (!room || !room.gameState) return;
+          
           const { characterId, type, delta } = data.payload;
           
-          if (serverState.gameState) {
-            serverState.gameState.characters = serverState.gameState.characters.map(char => {
-              if (char.id === characterId) {
-                const newValue = Math.max(0, char.indicators[type] + delta);
-                return {
-                  ...char,
-                  indicators: { ...char.indicators, [type]: newValue },
-                };
-              }
-              return char;
-            });
-          }
+          room.gameState.characters = room.gameState.characters.map(char => {
+            if (char.id === characterId) {
+              const newValue = Math.max(0, char.indicators[type] + delta);
+              return { ...char, indicators: { ...char.indicators, [type]: newValue } };
+            }
+            return char;
+          });
           
-          console.log(`📊 调整指示物: ${characterId} ${type} ${delta > 0 ? '+' : ''}${delta}`);
+          console.log(`📊 [${ws.roomId}] 调整指示物: ${characterId} ${type} ${delta > 0 ? '+' : ''}${delta}`);
           
-          broadcastState();
-          break;
-        }
-
-        // 切换存活状态
-        case 'TOGGLE_LIFE': {
-          const { characterId } = data.payload;
-          
-          if (serverState.gameState) {
-            serverState.gameState.characters = serverState.gameState.characters.map(char => {
-              if (char.id === characterId) {
-                return { ...char, alive: !char.alive };
-              }
-              return char;
-            });
-          }
-          
-          console.log(`💀 切换存活状态: ${characterId}`);
-          
-          broadcastState();
-          break;
-        }
-
-        // 移动角色
-        case 'MOVE_CHARACTER': {
-          const { characterId, location } = data.payload;
-          
-          if (serverState.gameState) {
-            serverState.gameState.characters = serverState.gameState.characters.map(char => {
-              if (char.id === characterId) {
-                return { ...char, location };
-              }
-              return char;
-            });
-          }
-          
-          console.log(`🏃 移动角色: ${characterId} -> ${location}`);
-          
-          broadcastState();
+          broadcastRoomState(room);
           break;
         }
         
-        // 重置游戏
-        case 'RESET_GAME': {
-          serverState.initialized = false;
-          serverState.gameState = null;
-          serverState.mastermindDeck = null;
-          serverState.protagonistDeck = null;
-          serverState.currentMastermindCards = [];
-          serverState.currentProtagonistCards = [];
+        // 切换存活状态
+        case 'TOGGLE_LIFE': {
+          const room = rooms.get(ws.roomId);
+          if (!room || !room.gameState) return;
           
-          // 同时清理玩家角色，让大家重新选择
-          serverState.players.mastermind = null;
-          serverState.players.protagonist = null;
+          const { characterId } = data.payload;
           
-          // 清理所有连接上的角色标记
-          wss.clients.forEach(client => {
-            delete client.playerRole;
+          room.gameState.characters = room.gameState.characters.map(char => {
+            if (char.id === characterId) {
+              return { ...char, alive: !char.alive };
+            }
+            return char;
           });
           
-          console.log('🔄 游戏和玩家位置已重置');
+          console.log(`💀 [${ws.roomId}] 切换存活状态: ${characterId}`);
           
-          broadcast({ type: 'GAME_RESET' });
-          broadcastPlayerStatus(); // 同步告知所有人位置已空
+          broadcastRoomState(room);
+          break;
+        }
+        
+        // 移动角色
+        case 'MOVE_CHARACTER': {
+          const room = rooms.get(ws.roomId);
+          if (!room || !room.gameState) return;
+          
+          const { characterId, location } = data.payload;
+          
+          room.gameState.characters = room.gameState.characters.map(char => {
+            if (char.id === characterId) {
+              return { ...char, location };
+            }
+            return char;
+          });
+          
+          console.log(`🏃 [${ws.roomId}] 移动角色: ${characterId} -> ${location}`);
+          
+          broadcastRoomState(room);
+          break;
+        }
+        
+        // 重置游戏（仅重置游戏，不清除角色）
+        case 'RESET_GAME': {
+          const room = rooms.get(ws.roomId);
+          if (!room) return;
+          
+          room.initialized = false;
+          room.gameState = null;
+          room.mastermindDeck = null;
+          room.protagonistDeck = null;
+          room.currentMastermindCards = [];
+          room.currentProtagonistCards = [];
+          
+          // 清理角色
+          room.players.mastermind = null;
+          room.players.protagonist = null;
+          
+          // 清理房间内玩家的角色标记
+          wss.clients.forEach(client => {
+            if (client.roomId === ws.roomId) {
+              delete client.playerRole;
+            }
+          });
+          
+          console.log(`🔄 [${ws.roomId}] 游戏已重置`);
+          
+          broadcastToRoom(room, { type: 'GAME_RESET' });
+          broadcastPlayerStatus(room);
+          broadcastRoomList();
           break;
         }
         
@@ -434,18 +630,28 @@ wss.on('connection', (ws) => {
   });
 
   ws.on('close', () => {
+    const roomId = ws.roomId;
+    const room = rooms.get(roomId);
     const role = ws.playerRole;
-    if (role && serverState.players[role] === ws) {
-      serverState.players[role] = null;
-      console.log(`👋 ${role === 'mastermind' ? '剧作家' : '主人公'} 离开`);
-      broadcastPlayerStatus();
+    
+    if (room && role && room.players[role] === ws) {
+      room.players[role] = null;
+      console.log(`👋 [${roomId}] ${role === 'mastermind' ? '剧作家' : '主人公'} 离开`);
+      broadcastPlayerStatus(room);
+      broadcastRoomList();
     }
   });
 });
 
+// 定期清理空房间
+setInterval(cleanupEmptyRooms, 60000);
+
 // 定期显示状态
 setInterval(() => {
-  const mm = serverState.players.mastermind ? '✅' : '❌';
-  const pro = serverState.players.protagonist ? '✅' : '❌';
-  console.log(`[状态] 剧作家${mm} 主人公${pro} | 阶段: ${serverState.gameState?.phase || '未开始'}`);
+  console.log(`[状态] 房间数: ${rooms.size} | 连接数: ${wss.clients.size}`);
+  rooms.forEach((room, id) => {
+    const mm = isPlayerConnected(room, 'mastermind') ? '✅' : '❌';
+    const pro = isPlayerConnected(room, 'protagonist') ? '✅' : '❌';
+    console.log(`  [${id}] ${room.name} - 剧作家${mm} 主人公${pro}`);
+  });
 }, 30000);

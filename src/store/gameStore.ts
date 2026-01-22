@@ -25,12 +25,13 @@ import {
   canUseAbility,
   useCharacterAbility,
 } from '@/game/engine';
-import { FS01_SCRIPT1_PUBLIC, FS01_SCRIPT1_PRIVATE, FS01_CHARACTERS } from '@/game/scripts/fs-01';
+import { FS01_SCRIPT1_PUBLIC, FS01_SCRIPT1_PRIVATE, FS01_CHARACTERS, generatePublicInfo, type ScriptTemplate } from '@/game/scripts/fs-01';
 
 interface GameStore {
   // 游戏状态
   gameState: GameState | null;
   playerRole: PlayerRole;
+  currentScript: ScriptTemplate | null;  // 当前使用的脚本
   
   // 牌组状态（每个玩家有自己的牌组）
   mastermindDeck: PlayerDeck;
@@ -50,6 +51,7 @@ interface GameStore {
 
   // 动作
   initializeGame: (role: PlayerRole) => void;
+  initializeWithScript: (role: PlayerRole, script: ScriptTemplate) => void;
   playCard: (card: PlayedCard) => void;
   retreatCard: (cardId: string) => void;  // 撤回牌
   
@@ -89,6 +91,7 @@ interface GameStore {
 export const useGameStore = create<GameStore>((set, get) => ({
   gameState: null,
   playerRole: 'protagonist',
+  currentScript: null,
   mastermindDeck: createMastermindDeck(),
   protagonistDeck: createProtagonistDeck(),
   currentMastermindCards: [],
@@ -136,11 +139,48 @@ export const useGameStore = create<GameStore>((set, get) => ({
     set({
       gameState,
       playerRole: role,
+      currentScript: null,
       mastermindDeck: createMastermindDeck(),
       protagonistDeck: createProtagonistDeck(),
       currentMastermindCards: [],
       currentProtagonistCards: [],
     });
+  },
+
+  // 使用指定脚本初始化游戏
+  initializeWithScript: (role: PlayerRole, script: ScriptTemplate) => {
+    const publicInfo = generatePublicInfo(script);
+    // 注意：privateInfo 需要剧作家在后续步骤中配置角色身份
+    // 这里暂时使用默认的私有信息结构
+    const privateInfo = role === 'mastermind' ? {
+      ruleY: 'murder_plan' as const,
+      ruleX: 'circle_of_friends' as const,
+      roles: script.characters.map(charId => ({
+        characterId: charId,
+        role: 'civilian' as const,  // 默认平民，剧作家后续分配
+      })),
+      incidents: script.incidents.map((inc, i) => ({
+        id: `incident_${i}`,
+        day: inc.day,
+        actorId: script.characters[0], // 默认第一个角色，剧作家后续分配
+        type: inc.type,
+        description: '',
+      })),
+    } : null;
+    
+    const gameState = initializeGameState(publicInfo, privateInfo);
+    
+    set({
+      gameState,
+      playerRole: role,
+      currentScript: script,
+      mastermindDeck: createMastermindDeck(),
+      protagonistDeck: createProtagonistDeck(),
+      currentMastermindCards: [],
+      currentProtagonistCards: [],
+    });
+    
+    console.log('🎭 游戏初始化完成，脚本:', script.name, '角色:', script.characters);
   },
 
   playCard: (playedCard: PlayedCard) => {

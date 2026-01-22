@@ -1,6 +1,6 @@
 /**
  * 多人联机上下文提供者
- * 确保每个浏览器标签页有独立的状态，同时在同一标签页内的组件共享连接
+ * 支持多房间功能
  */
 
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
@@ -8,20 +8,41 @@ import { useGameStore } from '@/store/gameStore';
 import type { GameState, PlayerDeck, PlayerRole, CharacterId, LocationType } from '@/types/game';
 
 // WebSocket 服务器地址
-// 本地开发：3001 端口
-// 生产环境：设置 NEXT_PUBLIC_WS_URL 环境变量
 const WS_URL = typeof window !== 'undefined' 
   ? (process.env.NEXT_PUBLIC_WS_URL || `ws://${window.location.hostname}:3001`)
   : 'ws://localhost:3001';
 
+// 房间信息类型
+interface RoomInfo {
+  id: string;
+  name: string;
+  hasPassword: boolean;
+  playerCount: number;
+  players: { mastermind: boolean; protagonist: boolean };
+  initialized: boolean;
+}
+
 interface MultiplayerContextType {
+  // 连接状态
   isConnected: boolean;
+  connect: () => void;
+  disconnect: () => void;
+  
+  // 房间相关
+  rooms: RoomInfo[];
+  currentRoom: { id: string; name: string } | null;
+  createRoom: (name: string, password?: string) => void;
+  joinRoom: (roomId: string, password?: string) => void;
+  leaveRoom: () => void;
+  refreshRooms: () => void;
+  
+  // 角色相关
   myRole: PlayerRole | null;
   availableRoles: string[];
   players: { mastermind: boolean; protagonist: boolean };
-  connect: () => void;
-  disconnect: () => void;
   selectRole: (role: PlayerRole) => void;
+  
+  // 游戏操作
   updateGameState: (updates: any) => void;
   adjustIndicator: (characterId: CharacterId, type: 'goodwill' | 'anxiety' | 'intrigue', delta: number) => void;
   toggleCharacterLife: (characterId: CharacterId) => void;
@@ -33,13 +54,13 @@ const MultiplayerContext = createContext<MultiplayerContextType | null>(null);
 
 export function MultiplayerProvider({ children }: { children: React.ReactNode }) {
   const [isConnected, setIsConnected] = useState(false);
+  const [rooms, setRooms] = useState<RoomInfo[]>([]);
+  const [currentRoom, setCurrentRoom] = useState<{ id: string; name: string } | null>(null);
   const [myRole, setMyRole] = useState<PlayerRole | null>(null);
   const [availableRoles, setAvailableRoles] = useState<string[]>(['mastermind', 'protagonist']);
   const [players, setPlayers] = useState({ mastermind: false, protagonist: false });
   
   const wsRef = useRef<WebSocket | null>(null);
-  
-  // 引用 store 的方法
   const setPlayerRole = useGameStore((s) => s.setPlayerRole);
 
   const disconnect = useCallback(() => {
@@ -47,7 +68,9 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
       wsRef.current.close();
       wsRef.current = null;
       setIsConnected(false);
+      setCurrentRoom(null);
       setMyRole(null);
+      setRooms([]);
     }
   }, []);
 
@@ -69,13 +92,38 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
         console.log('📨 收到:', data.type);
 
         switch (data.type) {
+          // 欢迎消息，包含房间列表
           case 'WELCOME':
-            setAvailableRoles(data.payload.availableRoles || ['mastermind', 'protagonist']);
-            if (data.payload.players) {
-              setPlayers(data.payload.players);
+            if (data.payload.rooms) {
+              setRooms(data.payload.rooms);
             }
             break;
 
+          // 房间列表更新
+          case 'ROOM_LIST':
+            setRooms(data.payload.rooms || []);
+            break;
+
+          // 成功加入房间
+          case 'ROOM_JOINED':
+            setCurrentRoom({ id: data.payload.roomId, name: data.payload.roomName });
+            setAvailableRoles(data.payload.availableRoles || ['mastermind', 'protagonist']);
+            setPlayers(data.payload.players || { mastermind: false, protagonist: false });
+            console.log('🏠 已加入房间:', data.payload.roomId);
+            break;
+
+          // 离开房间
+          case 'ROOM_LEFT':
+            setCurrentRoom(null);
+            setMyRole(null);
+            setPlayerRole(null);
+            if (data.payload.rooms) {
+              setRooms(data.payload.rooms);
+            }
+            console.log('🚶 已离开房间');
+            break;
+
+          // 角色确认
           case 'ROLE_CONFIRMED':
             const role = data.payload.role;
             setMyRole(role);
@@ -83,15 +131,16 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
             console.log('🎭 角色确认:', role);
             break;
 
+          // 玩家状态更新
           case 'PLAYERS_UPDATE':
             setPlayers(data.payload);
-            // 更新可用角色列表
             const updatedAvailable = Object.entries(data.payload)
               .filter(([, connected]) => !connected)
               .map(([r]) => r as PlayerRole);
             setAvailableRoles(updatedAvailable);
             break;
 
+          // 状态同步
           case 'STATE_SYNC':
             const payload = data.payload;
             useGameStore.setState({
@@ -107,7 +156,6 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
             });
             if (payload.players) {
               setPlayers(payload.players);
-              // 同步更新可用角色列表
               const syncAvailable = Object.entries(payload.players)
                 .filter(([, connected]) => !connected)
                 .map(([r]) => r as PlayerRole);
@@ -115,13 +163,17 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
             }
             break;
 
+          // 游戏重置
           case 'GAME_RESET':
+            setMyRole(null);
+            setPlayerRole(null);
             useGameStore.getState().resetGame?.();
             break;
 
+          // 错误
           case 'ERROR':
-            console.error('❌ 服务器错误:', data.message);
-            alert(data.message);
+            console.error('❌ 服务器错误:', data.payload?.message);
+            alert(data.payload?.message || '发生错误');
             break;
         }
       } catch (e) {
@@ -133,6 +185,7 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
       console.log('❌ 连接断开');
       wsRef.current = null;
       setIsConnected(false);
+      setCurrentRoom(null);
       setMyRole(null);
     };
 
@@ -142,15 +195,47 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
     };
   }, [setPlayerRole]);
 
+  // 房间操作
+  const createRoom = useCallback((name: string, password?: string) => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({
+        type: 'CREATE_ROOM',
+        payload: { name, password: password || '' },
+      }));
+    }
+  }, []);
+
+  const joinRoom = useCallback((roomId: string, password?: string) => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({
+        type: 'JOIN_ROOM',
+        payload: { roomId, password: password || '' },
+      }));
+    }
+  }, []);
+
+  const leaveRoom = useCallback(() => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: 'LEAVE_ROOM' }));
+    }
+  }, []);
+
+  const refreshRooms = useCallback(() => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: 'REFRESH_ROOMS' }));
+    }
+  }, []);
+
+  // 角色选择
   const selectRole = useCallback((role: PlayerRole) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({ type: 'SELECT_ROLE', role }));
     }
   }, []);
 
+  // 游戏状态更新
   const updateGameState = useCallback((updates: any) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
-      // 序列化 deck 数据（将 Set 转为数组）
       const serializeDeck = (deck: any) => {
         if (!deck) return undefined;
         return {
@@ -186,7 +271,6 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
         payload: { characterId, type, delta } 
       }));
     } else {
-      // 离线模式
       useGameStore.getState().adjustIndicator(characterId as any, type as any, delta);
     }
   }, []);
@@ -198,7 +282,6 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
         payload: { characterId } 
       }));
     } else {
-      // 离线模式
       useGameStore.getState().toggleCharacterLife(characterId as any);
     }
   }, []);
@@ -210,18 +293,23 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
         payload: { characterId, location } 
       }));
     } else {
-      // 离线模式
       useGameStore.getState().moveCharacter(characterId as any, location as any);
     }
   }, []);
 
   const value = {
     isConnected,
+    connect,
+    disconnect,
+    rooms,
+    currentRoom,
+    createRoom,
+    joinRoom,
+    leaveRoom,
+    refreshRooms,
     myRole,
     availableRoles,
     players,
-    connect,
-    disconnect,
     selectRole,
     updateGameState,
     adjustIndicator,
