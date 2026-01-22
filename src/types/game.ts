@@ -69,14 +69,15 @@ export type IncidentType = 'murder' | 'hospital_incident' | 'suicide' | 'faraway
 
 /** 游戏阶段 */
 export type GamePhase = 
-  | 'dawn'              // 黎明阶段：亲友角色自动+1友好
-  | 'mastermind_action' // 剧作家行动阶段：打出最多3张牌
-  | 'protagonist_action'// 主人公行动阶段：打出最多3张牌
-  | 'resolution'        // 结算阶段：翻开并结算所有牌
-  | 'ability'           // 友好能力使用阶段
-  | 'incident'          // 事件检查阶段
-  | 'night'             // 夜晚阶段：杀手/杀人狂能力
-  | 'game_over';        // 游戏结束
+  | 'dawn'                 // 黎明阶段：亲友角色自动+1友好
+  | 'mastermind_action'    // 剧作家行动阶段：打出最多3张牌
+  | 'protagonist_action'   // 主人公行动阶段：打出最多3张牌
+  | 'resolution'           // 结算阶段：翻开并结算所有牌
+  | 'mastermind_ability'   // 剧作家能力阶段：剧作家可调整token（被动能力等）
+  | 'protagonist_ability'  // 主人公能力阶段：主人公可调整token（友好技能）
+  | 'incident'             // 事件检查阶段
+  | 'night'                // 夜晚阶段：剧作家可调整token（杀手/杀人狂能力）
+  | 'game_over';           // 游戏结束
 
 /** 游戏阶段名称映射 */
 export const PHASE_NAMES: Record<GamePhase, string> = {
@@ -84,7 +85,8 @@ export const PHASE_NAMES: Record<GamePhase, string> = {
   mastermind_action: '剧作家行动',
   protagonist_action: '主人公行动',
   resolution: '结算阶段',
-  ability: '友好能力',
+  mastermind_ability: '剧作家能力',
+  protagonist_ability: '主人公能力',
   incident: '事件检查',
   night: '夜晚阶段',
   game_over: '游戏结束',
@@ -355,20 +357,6 @@ export interface GameState {
   /** 今日已打出卡片数（每轮最多3张） */
   cardsPlayedToday: number;
 }
-
-/** 游戏阶段 */
-export type GamePhase = 
-  | 'loop_start'
-  | 'day_start'
-  | 'mastermind_action'
-  | 'protagonist_action'
-  | 'resolution'
-  | 'mastermind_ability'
-  | 'protagonist_ability'
-  | 'incident_check'
-  | 'day_end'
-  | 'loop_end'
-  | 'game_end';
 
 /** 玩家角色 */
 export type PlayerRole = 'mastermind' | 'protagonist';

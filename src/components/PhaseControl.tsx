@@ -27,7 +27,8 @@ const PHASE_ICONS: Record<GamePhase, React.ReactNode> = {
   mastermind_action: <UserCircle className="w-5 h-5" />,
   protagonist_action: <Users className="w-5 h-5" />,
   resolution: <CheckCircle className="w-5 h-5" />,
-  ability: <Sparkles className="w-5 h-5" />,
+  mastermind_ability: <Sparkles className="w-5 h-5" />,
+  protagonist_ability: <Sparkles className="w-5 h-5" />,
   incident: <AlertTriangle className="w-5 h-5" />,
   night: <Moon className="w-5 h-5" />,
   game_over: <AlertTriangle className="w-5 h-5" />,
@@ -38,7 +39,8 @@ const PHASE_COLORS: Record<GamePhase, string> = {
   mastermind_action: 'bg-red-500/20 border-red-500 text-red-200',
   protagonist_action: 'bg-blue-500/20 border-blue-500 text-blue-200',
   resolution: 'bg-green-500/20 border-green-500 text-green-200',
-  ability: 'bg-purple-500/20 border-purple-500 text-purple-200',
+  mastermind_ability: 'bg-red-500/20 border-red-400 text-red-200',
+  protagonist_ability: 'bg-blue-500/20 border-blue-400 text-blue-200',
   incident: 'bg-orange-500/20 border-orange-500 text-orange-200',
   night: 'bg-indigo-500/20 border-indigo-500 text-indigo-200',
   game_over: 'bg-red-900/50 border-red-700 text-red-300',
@@ -50,7 +52,8 @@ const PHASE_ORDER: GamePhase[] = [
   'mastermind_action', 
   'protagonist_action',
   'resolution',
-  'ability',
+  'mastermind_ability',
+  'protagonist_ability',
   'incident',
   'night',
 ];
@@ -121,69 +124,80 @@ export function PhaseControl() {
           label: '进入剧作家行动',
           action: () => advanceToPhase('mastermind_action'),
           description: '剧作家开始打出行动牌（最多3张）',
+          operator: 'any' as const,
         };
       case 'mastermind_action':
         return {
           label: '进入主人公行动',
           action: () => advanceToPhase('protagonist_action'),
           description: '主人公开始打出行动牌（最多3张）',
+          operator: 'mastermind' as const,
         };
       case 'protagonist_action':
         return {
           label: '开始结算',
           action: () => advanceToPhase('resolution'),
           description: '翻开所有牌并结算效果',
+          operator: 'protagonist' as const,
         };
       case 'resolution':
         return {
-          label: '进入友好能力阶段',
-          action: () => advanceToPhase('ability'),
-          description: '玩家可以使用角色的友好能力',
+          label: '进入剧作家能力阶段',
+          action: () => advanceToPhase('mastermind_ability'),
+          description: '剧作家点击指示物调整（角色能力）',
+          operator: 'any' as const,
         };
-      case 'ability':
+      case 'mastermind_ability':
+        return {
+          label: '进入主人公能力阶段',
+          action: () => advanceToPhase('protagonist_ability'),
+          description: '主人公点击指示物调整（友好技能）',
+          operator: 'mastermind' as const,
+        };
+      case 'protagonist_ability':
         return {
           label: '进入事件检查',
           action: () => advanceToPhase('incident'),
           description: '检查是否触发事件',
+          operator: 'protagonist' as const,
         };
       case 'incident':
         return {
           label: '进入夜晚阶段',
           action: () => advanceToPhase('night'),
-          description: '杀手/杀人狂能力发动',
+          description: '剧作家点击指示物调整（杀手等能力）',
+          operator: 'any' as const,
         };
       case 'night':
         return {
           label: '进入下一天',
           action: () => advanceToPhase('dawn'),
           description: '新的一天从黎明阶段开始',
+          operator: 'mastermind' as const,
         };
       case 'game_over':
         return {
           label: '游戏结束',
           action: () => {},
           description: '游戏已结束',
+          operator: 'any' as const,
         };
       default:
         return {
           label: '继续',
           action: () => {},
           description: '',
+          operator: 'any' as const,
         };
     }
   };
 
   const nextAction = getNextAction();
 
-  // 在行动阶段，只有对应玩家能推进
+  // 检查当前玩家是否能推进阶段
   const canProceed = () => {
-    if (currentPhase === 'mastermind_action' && playerRole !== 'mastermind') {
-      return false;
-    }
-    if (currentPhase === 'protagonist_action' && playerRole !== 'protagonist') {
-      return false;
-    }
-    return true;
+    if (nextAction.operator === 'any') return true;
+    return nextAction.operator === playerRole;
   };
 
   return (
@@ -228,12 +242,17 @@ export function PhaseControl() {
         )}
         {currentPhase === 'resolution' && (
           <div className="mt-2 text-sm opacity-90">
-            📋 翻开所有牌 → 移动 → 指示物 → 角色被动
+            📋 翻开所有牌 → 移动 → 指示物
           </div>
         )}
-        {currentPhase === 'ability' && (
+        {currentPhase === 'mastermind_ability' && (
           <div className="mt-2 text-sm opacity-90">
-            ✨ 达到友好度要求的角色可以使用能力
+            🎭 剧作家点击指示物调整（角色能力）
+          </div>
+        )}
+        {currentPhase === 'protagonist_ability' && (
+          <div className="mt-2 text-sm opacity-90">
+            ✨ 主人公点击指示物调整（友好技能）
           </div>
         )}
         {currentPhase === 'incident' && (
@@ -243,7 +262,7 @@ export function PhaseControl() {
         )}
         {currentPhase === 'night' && (
           <div className="mt-2 text-sm opacity-90">
-            🌙 杀手/杀人狂能力发动
+            🌙 剧作家点击指示物调整（杀手等能力）
           </div>
         )}
       </motion.div>

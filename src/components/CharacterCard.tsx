@@ -38,9 +38,30 @@ export function CharacterCard({
   const hasCards = myPlacedCards.length > 0 || opponentPlacedCards.length > 0;
   
   const { isConnected, updateGameState } = useMultiplayer();
+  const gameState = useGameStore((s) => s.gameState);
+  const playerRole = useGameStore((s) => s.playerRole);
+
+  // 判断当前阶段是否允许当前玩家调整指示物
+  const canEditIndicators = (() => {
+    if (isDead) return false;
+    const phase = gameState?.phase;
+    
+    // 剧作家能力阶段 / 夜晚阶段：仅剧作家可操作
+    if (phase === 'mastermind_ability' || phase === 'night') {
+      return playerRole === 'mastermind';
+    }
+    // 主人公能力阶段：仅主人公可操作
+    if (phase === 'protagonist_ability') {
+      return playerRole === 'protagonist';
+    }
+    // 其他阶段不允许调整
+    return false;
+  })();
 
   // 调整指示物并同步到服务器
   const handleAdjustIndicator = useCallback((type: keyof Indicators, delta: number) => {
+    if (!canEditIndicators) return;
+    
     useGameStore.getState().adjustIndicator(characterState.id, type, delta);
     
     // 联机模式下同步
@@ -50,7 +71,7 @@ export function CharacterCard({
         updateGameState({ gameState: state.gameState });
       }, 50);
     }
-  }, [characterState.id, isConnected, updateGameState]);
+  }, [characterState.id, isConnected, updateGameState, canEditIndicators]);
   
   const handleClick = (e: React.MouseEvent) => {
     // 死亡角色无法交互
@@ -288,7 +309,7 @@ export function CharacterCard({
         <IndicatorDisplay 
           indicators={characterState.indicators} 
           className="justify-between"
-          editable={!isDead}
+          editable={canEditIndicators}
           onChange={handleAdjustIndicator}
         />
       </div>

@@ -41,14 +41,27 @@ console.log(`⏳ 等待玩家连接...\n`);
 
 // ========== 工具函数 ==========
 
+function isPlayerConnected(role) {
+  const ws = serverState.players[role];
+  if (!ws) return false;
+  if (ws.readyState !== WebSocket.OPEN) {
+    serverState.players[role] = null; // 清理失效连接
+    return false;
+  }
+  return true;
+}
+
 function getPlayerCount() {
-  return Object.values(serverState.players).filter(Boolean).length;
+  let count = 0;
+  if (isPlayerConnected('mastermind')) count++;
+  if (isPlayerConnected('protagonist')) count++;
+  return count;
 }
 
 function getAvailableRoles() {
   const roles = [];
-  if (!serverState.players.mastermind) roles.push('mastermind');
-  if (!serverState.players.protagonist) roles.push('protagonist');
+  if (!isPlayerConnected('mastermind')) roles.push('mastermind');
+  if (!isPlayerConnected('protagonist')) roles.push('protagonist');
   return roles;
 }
 
@@ -68,7 +81,10 @@ function sendTo(ws, data) {
 }
 
 function broadcastState() {
-  // 广播完整状态给所有客户端
+  // 检查连接有效性后再广播
+  const mmConnected = isPlayerConnected('mastermind');
+  const proConnected = isPlayerConnected('protagonist');
+
   broadcast({
     type: 'STATE_SYNC',
     payload: {
@@ -78,20 +94,22 @@ function broadcastState() {
       currentMastermindCards: serverState.currentMastermindCards,
       currentProtagonistCards: serverState.currentProtagonistCards,
       players: {
-        mastermind: !!serverState.players.mastermind,
-        protagonist: !!serverState.players.protagonist,
+        mastermind: mmConnected,
+        protagonist: proConnected,
       },
     },
   });
 }
 
 function broadcastPlayerStatus() {
+  const status = {
+    mastermind: isPlayerConnected('mastermind'),
+    protagonist: isPlayerConnected('protagonist'),
+  };
+  console.log('📢 广播玩家状态:', status);
   broadcast({
     type: 'PLAYERS_UPDATE',
-    payload: {
-      mastermind: !!serverState.players.mastermind,
-      protagonist: !!serverState.players.protagonist,
-    },
+    payload: status,
   });
 }
 
@@ -100,11 +118,15 @@ function broadcastPlayerStatus() {
 wss.on('connection', (ws) => {
   console.log('✅ 新连接');
   
-  // 发送可用角色列表
+  // 发送可用角色列表和当前占用状态
   sendTo(ws, {
     type: 'WELCOME',
     payload: {
       availableRoles: getAvailableRoles(),
+      players: {
+        mastermind: !!serverState.players.mastermind,
+        protagonist: !!serverState.players.protagonist,
+      },
       initialized: serverState.initialized,
     },
   });
@@ -351,9 +373,19 @@ wss.on('connection', (ws) => {
           serverState.currentMastermindCards = [];
           serverState.currentProtagonistCards = [];
           
-          console.log('🔄 游戏已重置');
+          // 同时清理玩家角色，让大家重新选择
+          serverState.players.mastermind = null;
+          serverState.players.protagonist = null;
+          
+          // 清理所有连接上的角色标记
+          wss.clients.forEach(client => {
+            delete client.playerRole;
+          });
+          
+          console.log('🔄 游戏和玩家位置已重置');
           
           broadcast({ type: 'GAME_RESET' });
+          broadcastPlayerStatus(); // 同步告知所有人位置已空
           break;
         }
         

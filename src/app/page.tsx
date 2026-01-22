@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { useGameStore } from '@/store/gameStore';
 import { useMultiplayer } from '@/lib/useMultiplayer';
 import { GameBoard } from '@/components/GameBoard';
-import { RoleSelector } from '@/components/RoleSelector';
+import { LobbyScreen } from '@/components/LobbyScreen';
 import { GameInfo } from '@/components/GameInfo';
 import { ActionHand } from '@/components/ActionHand';
 import { DeckReference } from '@/components/DeckReference';
@@ -28,7 +28,7 @@ export default function Home() {
     endLoop 
   } = useGameStore();
   
-  const { isConnected, updateGameState } = useMultiplayer();
+  const { isConnected, updateGameState, myRole } = useMultiplayer();
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -146,25 +146,9 @@ export default function Home() {
     }
   };
 
-  if (!gameState) {
-    return (
-      <main className="flex min-h-screen flex-col items-center justify-center p-24 bg-slate-950 text-white relative overflow-hidden">
-        {/* Background Elements */}
-        <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0 pointer-events-none">
-          <div className="absolute top-10 left-10 w-96 h-96 bg-purple-900/20 blur-[100px] rounded-full" />
-          <div className="absolute bottom-10 right-10 w-96 h-96 bg-blue-900/20 blur-[100px] rounded-full" />
-        </div>
-        
-        <div className="z-10 text-center mb-12">
-            <h1 className="text-6xl font-black mb-4 tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-red-500 via-purple-500 to-blue-500">
-                惨剧轮回
-            </h1>
-            <p className="text-xl text-slate-400 font-light tracking-widest uppercase">Tragedy Looper</p>
-        </div>
-
-        <RoleSelector onSelect={() => {}} />
-      </main>
-    );
+  // 未选择角色时显示大厅（即使 gameState 已被其他玩家初始化）
+  if (!myRole || !gameState) {
+    return <LobbyScreen onGameStart={() => {}} />;
   }
 
   return (
