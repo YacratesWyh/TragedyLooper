@@ -357,6 +357,46 @@ export const useGameStore = create<GameStore>((set, get) => ({
     });
   },
 
+  // 切换角色存活状态
+  toggleCharacterLife: (characterId: CharacterId) => {
+    const { gameState } = get();
+    if (!gameState) return;
+
+    const updatedCharacters = gameState.characters.map(char => {
+      if (char.id === characterId) {
+        return { ...char, alive: !char.alive };
+      }
+      return char;
+    });
+
+    set({
+      gameState: {
+        ...gameState,
+        characters: updatedCharacters,
+      },
+    });
+  },
+
+  // 移动角色到新地点
+  moveCharacter: (characterId: CharacterId, location: LocationType) => {
+    const { gameState } = get();
+    if (!gameState) return;
+
+    const updatedCharacters = gameState.characters.map(char => {
+      if (char.id === characterId) {
+        return { ...char, location };
+      }
+      return char;
+    });
+
+    set({
+      gameState: {
+        ...gameState,
+        characters: updatedCharacters,
+      },
+    });
+  },
+
   // 切换玩家视角（单人调试模式）
   switchRole: () => {
     const { playerRole } = get();

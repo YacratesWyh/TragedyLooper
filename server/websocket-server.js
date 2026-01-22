@@ -363,6 +363,44 @@ wss.on('connection', (ws) => {
           broadcastState();
           break;
         }
+
+        // 切换存活状态
+        case 'TOGGLE_LIFE': {
+          const { characterId } = data.payload;
+          
+          if (serverState.gameState) {
+            serverState.gameState.characters = serverState.gameState.characters.map(char => {
+              if (char.id === characterId) {
+                return { ...char, alive: !char.alive };
+              }
+              return char;
+            });
+          }
+          
+          console.log(`💀 切换存活状态: ${characterId}`);
+          
+          broadcastState();
+          break;
+        }
+
+        // 移动角色
+        case 'MOVE_CHARACTER': {
+          const { characterId, location } = data.payload;
+          
+          if (serverState.gameState) {
+            serverState.gameState.characters = serverState.gameState.characters.map(char => {
+              if (char.id === characterId) {
+                return { ...char, location };
+              }
+              return char;
+            });
+          }
+          
+          console.log(`🏃 移动角色: ${characterId} -> ${location}`);
+          
+          broadcastState();
+          break;
+        }
         
         // 重置游戏
         case 'RESET_GAME': {

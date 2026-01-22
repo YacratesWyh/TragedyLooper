@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { 
   BookOpen, X, ChevronDown, ChevronRight,
-  Skull, Users, Zap, Heart, Eye, AlertTriangle
+  Skull, Users, Zap, Heart, Eye, AlertTriangle,
+  Image as ImageIcon, Maximize2
 } from 'lucide-react';
 import { useGameStore } from '@/store/gameStore';
 import { FS01_BEGINNER_PUBLIC } from '@/game/scripts/fs-01';
@@ -210,6 +211,95 @@ const PROTAGONIST_HAND: HandCardInfo[] = [
   { type: 'anxiety', name: '不安-1', effect: '目标角色不安-1', oncePerLoop: true },
   { type: 'intrigue', name: '禁止密谋', effect: '抵消对方密谋牌效果', count: 1 },
 ];
+
+// ===== 剧本速查组件 =====
+interface ScriptImage {
+  id: string;
+  title: string;
+  path: string;
+}
+
+interface ScriptConfig {
+  images: ScriptImage[];
+}
+
+function ScriptReference() {
+  const [config, setConfig] = useState<ScriptConfig | null>(null);
+  const [zoomedImage, setZoomedImage] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch('/assets/fs/config.json')
+      .then(res => res.json())
+      .then(data => setConfig(data))
+      .catch(err => console.error('Failed to load script config:', err));
+  }, []);
+
+  if (!config || config.images.length === 0) {
+    return (
+      <div className="text-xs text-slate-500 py-4 text-center border border-dashed border-slate-700 rounded-lg">
+        暂无剧本图片数据
+        <p className="mt-1">请在 public/assets/fs/config.json 中配置</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-3">
+        {config.images.map((img) => (
+          <div key={img.id} className="group relative">
+            <div 
+              className="aspect-[3/4] rounded-lg overflow-hidden border border-slate-700 bg-slate-800 cursor-pointer hover:border-amber-500/50 transition-colors relative"
+              onClick={() => setZoomedImage(`/assets/fs/${img.path}`)}
+            >
+              <img 
+                src={`/assets/fs/${img.path}`} 
+                alt={img.title}
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+              />
+              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                <Maximize2 size={20} className="text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+              </div>
+            </div>
+            <p className="mt-1.5 text-xs text-center text-slate-400 font-medium truncate" title={img.title}>
+              {img.title}
+            </p>
+          </div>
+        ))}
+      </div>
+
+      {/* Zoomed Image Overlay */}
+      <AnimatePresence>
+        {zoomedImage && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={() => setZoomedImage(null)}
+          >
+            <motion.button
+              initial={{ scale: 0.5, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="absolute top-6 right-6 p-2 bg-slate-800/50 hover:bg-slate-700 text-white rounded-full transition-colors"
+            >
+              <X size={24} />
+            </motion.button>
+            <motion.img
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              src={zoomedImage}
+              alt="Zoomed reference"
+              className="max-w-full max-h-full object-contain shadow-2xl rounded-lg"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
 
 // ===== 组件 =====
 interface CollapsibleSectionProps {
@@ -524,6 +614,11 @@ export function RulesReference() {
                 {/* 事件速查 - 只显示当前剧本的事件 */}
                 <CollapsibleSection title="本剧本事件" icon={<AlertTriangle size={16} />} defaultOpen>
                   <ScriptIncidents />
+                </CollapsibleSection>
+
+                {/* 剧本速查 - 图片参考 */}
+                <CollapsibleSection title="剧本图文速查" icon={<ImageIcon size={16} />} defaultOpen>
+                  <ScriptReference />
                 </CollapsibleSection>
 
                 {/* 角色速查 */}

@@ -1,13 +1,13 @@
 import React, { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import type { CharacterState, Character, PlayedCard, Indicators } from '@/types/game';
+import type { CharacterState, Character, PlayedCard, Indicators, CharacterId } from '@/types/game';
 import { IndicatorDisplay } from './IndicatorDisplay';
 import { PlacedCards } from './PlacedCards';
 import { cn } from '@/lib/utils';
 import { getCharacterSpriteStyle, hasCharacterAsset } from '@/lib/characterAssets';
 import { useGameStore } from '@/store/gameStore';
 import { useMultiplayer } from '@/lib/useMultiplayer';
-import { BookOpen, X } from 'lucide-react';
+import { BookOpen, X, Skull, RefreshCw } from 'lucide-react';
 
 interface CharacterCardProps {
   characterState: CharacterState;
@@ -22,6 +22,8 @@ interface CharacterCardProps {
   /** 是否正在放牌模式（有选中的牌） */
   isPlacingCard?: boolean;
   onClick?: (e: React.MouseEvent) => void;
+  /** 拖拽结束回调 */
+  onDragEnd?: (charId: CharacterId, x: number, y: number) => void;
 }
 
 export function CharacterCard({ 
@@ -32,31 +34,36 @@ export function CharacterCard({
   opponentPlacedCards = [],
   onRetreatCard,
   isPlacingCard = false,
-  onClick 
+  onClick,
+  onDragEnd
 }: CharacterCardProps) {
   const [showAbilities, setShowAbilities] = useState(false);
   const hasCards = myPlacedCards.length > 0 || opponentPlacedCards.length > 0;
   
-  const { isConnected, updateGameState } = useMultiplayer();
+  const { isConnected, updateGameState, toggleCharacterLife } = useMultiplayer();
   const gameState = useGameStore((s) => s.gameState);
   const playerRole = useGameStore((s) => s.playerRole);
 
-  // 判断当前阶段是否允许当前玩家调整指示物
-  const canEditIndicators = (() => {
-    if (isDead) return false;
-    const phase = gameState?.phase;
+  const phase = gameState?.phase;
+
+  // 判断是否允许拖拽（事件阶段）
+  const canDrag = phase === 'incident';
+
+  // 是否允许手动编辑指示物（用于手动处理能力、纠错或剧作家操作）
+  const canEditIndicators = true;
+
+  // 切换死亡状态
+  const handleToggleLife = (e: React.MouseEvent) => {
+    e.stopPropagation();
     
-    // 剧作家能力阶段 / 夜晚阶段：仅剧作家可操作
-    if (phase === 'mastermind_ability' || phase === 'night') {
-      return playerRole === 'mastermind';
+    // 仅在非打牌阶段允许手动切换死亡状态
+    const phase = gameState?.phase;
+    if (phase === 'mastermind_action' || phase === 'protagonist_action') {
+      return;
     }
-    // 主人公能力阶段：仅主人公可操作
-    if (phase === 'protagonist_ability') {
-      return playerRole === 'protagonist';
-    }
-    // 其他阶段不允许调整
-    return false;
-  })();
+    
+    toggleCharacterLife(characterState.id);
+  };
 
   // 调整指示物并同步到服务器
   const handleAdjustIndicator = useCallback((type: keyof Indicators, delta: number) => {
@@ -142,19 +149,37 @@ export function CharacterCard({
   return (
     <motion.div
       layoutId={`char-${characterState.id}`}
+      drag={canDrag}
+      dragSnapToOrigin
+      onDragEnd={(_, info) => onDragEnd?.(characterState.id, info.point.x, info.point.y)}
       className={cn(
         "relative w-full max-w-[200px] border-2 rounded-lg p-3 shadow-lg select-none transition-all duration-300",
         anxietyStyles.bgClass,
         anxietyStyles.borderClass,
         anxietyStyles.glowClass,
         isDead ? "cursor-not-allowed" : "cursor-pointer",
+        canDrag && "cursor-grab active:cursor-grabbing",
         hasCards && !isDead && "ring-2 ring-amber-500/50", // 有牌时高亮
-        "flex flex-col gap-2"
+        "flex flex-col gap-2 z-10",
+        canDrag && "z-50" // 拖拽时置顶
       )}
       onClick={handleClick}
       whileHover={{ scale: 1.02 }}
-      whileTap={{ scale: 0.98 }}
+      whileTap={{ scale: canDrag ? 1 : 0.98 }}
     >
+      {/* 死亡/复活切换按钮 */}
+      <button
+        onClick={handleToggleLife}
+        className={cn(
+          "absolute -bottom-2 -left-2 p-1.5 rounded-full shadow-lg z-20 transition-all active:scale-90",
+          isDead ? "bg-green-600 hover:bg-green-500" : "bg-red-600 hover:bg-red-500",
+          "text-white"
+        )}
+        title={isDead ? "复活角色" : "宣告死亡"}
+      >
+        {isDead ? <RefreshCw size={14} /> : <Skull size={14} />}
+      </button>
+
       {/* 已放置的牌显示（点击可撤回） */}
       {hasCards && (
         <div className="absolute -top-3 -right-2 z-10">

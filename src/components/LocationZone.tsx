@@ -22,6 +22,8 @@ interface LocationZoneProps {
   onCharacterClick?: (charId: string) => void;
   /** 是否正在放牌（有选中的牌） */
   isPlacingCard?: boolean;
+  /** 角色拖拽落下回调 */
+  onCharacterDragEnd?: (charId: string, x: number, y: number) => void;
 }
 
 const LOCATION_COLORS: Record<LocationType, string> = {
@@ -49,7 +51,8 @@ export function LocationZone({
   className, 
   onLocationClick, 
   onCharacterClick,
-  isPlacingCard = false
+  isPlacingCard = false,
+  onCharacterDragEnd
 }: LocationZoneProps) {
   // 筛选打在地点上的牌（targetLocation === type）
   const myLocationCards = myPlacedCards.filter(pc => pc.targetLocation === type && !pc.targetCharacterId);
@@ -65,6 +68,7 @@ export function LocationZone({
   return (
     <div 
       onClick={() => onLocationClick?.(type)}
+      data-zone-type={type}
       className={cn(
         "relative rounded-xl border-2 p-4 min-h-[300px] flex flex-col gap-4 transition-all duration-300 cursor-pointer",
         LOCATION_COLORS[type],
@@ -114,9 +118,10 @@ export function LocationZone({
               isPlacingCard={isPlacingCard}
               onClick={(e) => {
                 e.stopPropagation();
-                onCharacterClick?.(charState.id);
-              }}
-            />
+              onCharacterClick?.(charState.id);
+            }}
+            onDragEnd={onCharacterDragEnd}
+          />
           );
         })}
       </div>

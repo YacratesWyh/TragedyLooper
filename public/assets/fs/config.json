@@ -1,0 +1,34 @@
+{
+  "images": [
+    {
+      "id": "fs-01-summary",
+      "title": "剧本简述",
+      "path": "firststep.png"
+    },
+    {
+      "id": "ref-1",
+      "title": "剧本参考 1",
+      "path": "httpcloud3steamusercontentcomugc12446313085324123033424B1665DFED8BD307CA90B89D32BD2D2FEFD3D.jpg"
+    },
+    {
+      "id": "ref-2",
+      "title": "剧本参考 2",
+      "path": "httpcloud3steamusercontentcomugc124463130853241458736CCBF0CEF7B0761ADAE6CA5CDB5DF48953D19E2.jpg"
+    },
+    {
+      "id": "ref-3",
+      "title": "剧本参考 3",
+      "path": "httpcloud3steamusercontentcomugc124463130853241620080A6AB68651E7EB0BEE7BD7FEA5BA1E973135EB5.jpg"
+    },
+    {
+      "id": "ref-4",
+      "title": "剧本参考 4",
+      "path": "httpcloud3steamusercontentcomugc124463130853241904379C0B114B60CAD1B450F192725102AC653E9C5B6.jpg"
+    },
+    {
+      "id": "ref-5",
+      "title": "剧本参考 5",
+      "path": "httpcloud3steamusercontentcomugc13211945238771675662C92FC2C093D3ADC1A7DB714CD152E1F793BBE0A.jpg"
+    }
+  ]
+}

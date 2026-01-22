@@ -19,7 +19,22 @@ export function GameBoard({ onLocationClick, onCharacterClick, isPlacingCard = f
   const protagonistCards = useGameStore((state) => state.currentProtagonistCards);
   const storeRetreatCard = useGameStore((state) => state.retreatCard);
   
-  const { isConnected, updateGameState } = useMultiplayer();
+  const { isConnected, updateGameState, moveCharacter } = useMultiplayer();
+
+  // 处理角色拖拽落下
+  const handleDragEnd = useCallback((charId: string, x: number, y: number) => {
+    // 查找落点在哪个区域
+    const elements = document.elementsFromPoint(x, y);
+    const zoneElement = elements.find(el => el.hasAttribute('data-zone-type'));
+    
+    if (zoneElement) {
+      const newLocation = zoneElement.getAttribute('data-zone-type') as LocationType;
+      if (newLocation) {
+        console.log(`📍 角色 ${charId} 移动到 ${newLocation}`);
+        moveCharacter(charId, newLocation);
+      }
+    }
+  }, [moveCharacter]);
 
   // 撤回牌并同步到服务器
   const retreatCard = useCallback((cardId: string) => {
@@ -67,6 +82,7 @@ export function GameBoard({ onLocationClick, onCharacterClick, isPlacingCard = f
         onLocationClick={onLocationClick}
         onCharacterClick={onCharacterClick}
         isPlacingCard={isPlacingCard}
+        onCharacterDragEnd={handleDragEnd}
       />
 
       {/* Top Right: Shrine */}
@@ -81,6 +97,7 @@ export function GameBoard({ onLocationClick, onCharacterClick, isPlacingCard = f
         onLocationClick={onLocationClick}
         onCharacterClick={onCharacterClick}
         isPlacingCard={isPlacingCard}
+        onCharacterDragEnd={handleDragEnd}
       />
 
       {/* Bottom Left: City */}
@@ -95,6 +112,7 @@ export function GameBoard({ onLocationClick, onCharacterClick, isPlacingCard = f
         onLocationClick={onLocationClick}
         onCharacterClick={onCharacterClick}
         isPlacingCard={isPlacingCard}
+        onCharacterDragEnd={handleDragEnd}
       />
 
       {/* Bottom Right: School */}
@@ -109,6 +127,7 @@ export function GameBoard({ onLocationClick, onCharacterClick, isPlacingCard = f
         onLocationClick={onLocationClick}
         onCharacterClick={onCharacterClick}
         isPlacingCard={isPlacingCard}
+        onCharacterDragEnd={handleDragEnd}
       />
     </div>
   );

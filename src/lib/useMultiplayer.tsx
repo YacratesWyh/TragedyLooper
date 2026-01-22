@@ -21,6 +21,9 @@ interface MultiplayerContextType {
   disconnect: () => void;
   selectRole: (role: PlayerRole) => void;
   updateGameState: (updates: any) => void;
+  adjustIndicator: (characterId: CharacterId, type: 'goodwill' | 'anxiety' | 'intrigue', delta: number) => void;
+  toggleCharacterLife: (characterId: CharacterId) => void;
+  moveCharacter: (characterId: CharacterId, location: LocationType) => void;
   resetGame: () => void;
 }
 
@@ -174,6 +177,42 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
     }
   }, []);
 
+  const adjustIndicator = useCallback((characterId: string, type: string, delta: number) => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ 
+        type: 'ADJUST_INDICATOR', 
+        payload: { characterId, type, delta } 
+      }));
+    } else {
+      // 离线模式
+      useGameStore.getState().adjustIndicator(characterId as any, type as any, delta);
+    }
+  }, []);
+
+  const toggleCharacterLife = useCallback((characterId: string) => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ 
+        type: 'TOGGLE_LIFE', 
+        payload: { characterId } 
+      }));
+    } else {
+      // 离线模式
+      useGameStore.getState().toggleCharacterLife(characterId as any);
+    }
+  }, []);
+
+  const moveCharacter = useCallback((characterId: string, location: string) => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ 
+        type: 'MOVE_CHARACTER', 
+        payload: { characterId, location } 
+      }));
+    } else {
+      // 离线模式
+      useGameStore.getState().moveCharacter(characterId as any, location as any);
+    }
+  }, []);
+
   const value = {
     isConnected,
     myRole,
@@ -183,6 +222,9 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
     disconnect,
     selectRole,
     updateGameState,
+    adjustIndicator,
+    toggleCharacterLife,
+    moveCharacter,
     resetGame,
   };
 
