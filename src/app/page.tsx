@@ -29,7 +29,8 @@ export default function Home() {
     resolveDay, 
     endLoop,
     resolutionMessages,
-    clearMessages
+    clearMessages,
+    getSyncPayload
   } = useGameStore();
   
   const { isConnected, isReconnecting, updateGameState, myRole } = useMultiplayer();
@@ -135,14 +136,7 @@ export default function Home() {
     if (isConnected) {
       // 延迟一点让本地状态先更新
       setTimeout(() => {
-        const state = useGameStore.getState();
-        updateGameState({
-          gameState: state.gameState,
-          mastermindDeck: state.mastermindDeck,
-          protagonistDeck: state.protagonistDeck,
-          currentMastermindCards: state.currentMastermindCards,
-          currentProtagonistCards: state.currentProtagonistCards,
-        });
+        updateGameState(getSyncPayload());
       }, 50);
     }
   };

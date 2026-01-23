@@ -16,16 +16,23 @@ const getWsUrl = () => {
   return `${wsProtocol}//${window.location.host}/ws`;
 };
 
-// 存储 key
-const SESSION_KEY = 'tl_session';
-const USERNAME_KEY = 'tl_username';
+// 存储 key（使用 v2 后缀强制刷新旧的 localStorage 数据，并切换到 sessionStorage 以支持多标签页隔离）
+const SESSION_KEY = 'tl_session_v2';
+const USERNAME_KEY = 'tl_username_v2';
 const SESSION_TTL = 5 * 60 * 1000; // 5 分钟
 
-// 获取/设置用户名（使用 localStorage 持久化）
+// 强制清理旧的 localStorage 数据（迁移到 sessionStorage）
+if (typeof window !== 'undefined') {
+  localStorage.removeItem('tl_session');
+  localStorage.removeItem('tl_username');
+  localStorage.removeItem('tl_tab_id');
+}
+
+// 获取/设置用户名（使用 sessionStorage 实现标签页隔离）
 function getStoredUsername(): string | null {
   if (typeof window === 'undefined') return null;
   try {
-    return localStorage.getItem(USERNAME_KEY);
+    return sessionStorage.getItem(USERNAME_KEY);
   } catch {
     return null;
   }
@@ -34,14 +41,14 @@ function getStoredUsername(): string | null {
 function setStoredUsername(username: string): void {
   if (typeof window === 'undefined') return;
   try {
-    localStorage.setItem(USERNAME_KEY, username);
+    sessionStorage.setItem(USERNAME_KEY, username);
   } catch {}
 }
 
 function clearStoredUsername(): void {
   if (typeof window === 'undefined') return;
   try {
-    localStorage.removeItem(USERNAME_KEY);
+    sessionStorage.removeItem(USERNAME_KEY);
   } catch {}
 }
 
@@ -55,13 +62,13 @@ interface SessionData {
 
 function saveSession(data: Omit<SessionData, 'timestamp'>) {
   try {
-    localStorage.setItem(SESSION_KEY, JSON.stringify({ ...data, timestamp: Date.now() }));
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify({ ...data, timestamp: Date.now() }));
   } catch {}
 }
 
 function loadSession(): SessionData | null {
   try {
-    const raw = localStorage.getItem(SESSION_KEY);
+    const raw = sessionStorage.getItem(SESSION_KEY);
     if (!raw) return null;
     const data = JSON.parse(raw) as SessionData;
     // 检查是否过期
@@ -77,7 +84,7 @@ function loadSession(): SessionData | null {
 
 function clearSession() {
   try {
-    localStorage.removeItem(SESSION_KEY);
+    sessionStorage.removeItem(SESSION_KEY);
   } catch {}
 }
 
@@ -403,6 +410,7 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
               currentProtagonistCards: payload.currentProtagonistCards !== undefined 
                 ? payload.currentProtagonistCards 
                 : useGameStore.getState().currentProtagonistCards,
+              dayHistory: payload.dayHistory || useGameStore.getState().dayHistory,
             });
             if (payload.players) {
               const normalizedPlayers = normalizePlayersInfo(payload.players);

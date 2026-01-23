@@ -75,17 +75,12 @@ export function CharacterCard({
     // 联机模式下同步
     if (isConnected) {
       setTimeout(() => {
-        const state = useGameStore.getState();
-        updateGameState({ gameState: state.gameState });
+        updateGameState(useGameStore.getState().getSyncPayload());
       }, 50);
     }
   }, [characterState.id, isConnected, updateGameState, canEditIndicators]);
   
   const handleClick = (e: React.MouseEvent) => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/df9bca65-781a-458b-9960-6fc7c150cd89',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CharacterCard.tsx:84',message:'Card clicked',data:{isPlacingCard,hasSpriteAsset,currentZoomState:showZoomedImage},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'D'})}).catch(()=>{});
-    // #endregion
-    
     // 放牌模式下，传递点击事件给父组件
     if (isPlacingCard) {
       onClick?.(e);
@@ -94,9 +89,6 @@ export function CharacterCard({
     
     // 非放牌模式下，点击放大图片
     if (hasSpriteAsset) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/df9bca65-781a-458b-9960-6fc7c150cd89',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CharacterCard.tsx:93',message:'Opening zoom modal',data:{characterId:characterState.id,charName:characterDef.name},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
       setShowZoomedImage(true);
     }
   };
@@ -314,20 +306,7 @@ export function CharacterCard({
               exit={{ opacity: 0 }}
               transition={{ duration: 0.15, ease: 'easeOut' }}
               className="fixed inset-0 z-[200] bg-black/90 flex items-center justify-center p-8"
-              onAnimationStart={() => {
-                // #region agent log
-                fetch('http://127.0.0.1:7242/ingest/df9bca65-781a-458b-9960-6fc7c150cd89',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CharacterCard.tsx:310',message:'Modal animation started',data:{state:'opening'},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'B'})}).catch(()=>{});
-                // #endregion
-              }}
-              onAnimationComplete={() => {
-                // #region agent log
-                fetch('http://127.0.0.1:7242/ingest/df9bca65-781a-458b-9960-6fc7c150cd89',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CharacterCard.tsx:315',message:'Modal animation completed',data:{state:'open'},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'B'})}).catch(()=>{});
-                // #endregion
-              }}
               onClick={() => {
-                // #region agent log
-                fetch('http://127.0.0.1:7242/ingest/df9bca65-781a-458b-9960-6fc7c150cd89',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CharacterCard.tsx:320',message:'Modal backdrop clicked',data:{closing:true},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'D'})}).catch(()=>{});
-                // #endregion
                 setShowZoomedImage(false);
               }}
             >
@@ -336,8 +315,7 @@ export function CharacterCard({
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.95, opacity: 0 }}
                 transition={{ duration: 0.15, ease: 'easeOut' }}
-                className="relative max-w-2xl"
-                onClick={(e) => e.stopPropagation()}
+                className="relative max-w-2xl cursor-pointer"
               >
                 {/* 关闭按钮 */}
                 <button

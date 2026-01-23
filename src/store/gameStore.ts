@@ -104,6 +104,13 @@ interface GameStore {
   // 设置玩家角色（联机模式用）
   setPlayerRole: (role: 'mastermind' | 'protagonist' | null) => void;
 
+  // 导出/导入游戏状态
+  exportState: () => void;
+  importState: (file: File) => Promise<void>;
+
+  // 获取需要同步的完整状态包
+  getSyncPayload: () => any;
+
   // 历史回放
   saveDaySnapshot: () => void;  // 保存当天状态到历史
   viewHistoryDay: (index: number) => void;  // 查看历史某天
@@ -163,6 +170,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const privateInfo = role === 'mastermind' ? FS01_SCRIPT1_PRIVATE : null;
     const gameState = initializeGameState(FS01_SCRIPT1_PUBLIC, privateInfo);
     
+    // 初始状态快照
+    const initialSnapshot: DaySnapshot = {
+      day: 1,
+      loop: 1,
+      phase: 'dawn',
+      characters: JSON.parse(JSON.stringify(gameState.characters)),
+      boardIntrigue: { ...gameState.boardIntrigue },
+    };
+
     set({
       gameState,
       playerRole: role,
@@ -171,6 +187,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       protagonistDeck: createProtagonistDeck(),
       currentMastermindCards: [],
       currentProtagonistCards: [],
+      dayHistory: [initialSnapshot],  // 保存初始状态
+      currentHistoryIndex: null,
     });
   },
 
@@ -537,6 +555,100 @@ export const useGameStore = create<GameStore>((set, get) => ({
       set({ playerRole: role });
     }
     // null 时不改变，保持当前角色
+  },
+
+  // 导出当前存档
+  exportState: () => {
+    const { 
+      gameState, 
+      mastermindDeck, 
+      protagonistDeck, 
+      currentMastermindCards, 
+      currentProtagonistCards,
+      dayHistory,
+      currentScript
+    } = get();
+
+    if (!gameState) {
+      alert('没有正在进行的游戏可以保存');
+      return;
+    }
+
+    const saveData = {
+      version: '0.0.8',
+      timestamp: new Date().toISOString(),
+      gameState,
+      mastermindDeck,
+      protagonistDeck,
+      currentMastermindCards,
+      currentProtagonistCards,
+      dayHistory,
+      currentScript
+    };
+
+    const blob = new Blob([JSON.stringify(saveData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `tragedy-looper-save-${new Date().getTime()}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  },
+
+  // 读取存档
+  importState: async (file: File) => {
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+
+      // 基本验证
+      if (!data.gameState || !data.mastermindDeck || !data.protagonistDeck) {
+        throw new Error('无效的存档文件格式');
+      }
+
+      // 处理 Set 序列化问题（存档中是数组，store 中需要是 Set 的地方由 store 处理逻辑保证）
+      // 这里的逻辑需要确保 deck 中的 usedToday/usedThisLoop 能正确恢复
+      // 目前 markCardUsed 等函数会处理数组或 Set 的兼容性
+
+      set({
+        gameState: data.gameState,
+        mastermindDeck: data.mastermindDeck,
+        protagonistDeck: data.protagonistDeck,
+        currentMastermindCards: data.currentMastermindCards || [],
+        currentProtagonistCards: data.currentProtagonistCards || [],
+        dayHistory: data.dayHistory || [],
+        currentScript: data.currentScript || null,
+        currentHistoryIndex: null // 恢复后默认不处于回放模式
+      });
+
+      console.log('📂 存档读取成功');
+    } catch (error) {
+      console.error('读取存档失败:', error);
+      alert('读取存档失败: ' + (error instanceof Error ? error.message : '未知错误'));
+    }
+  },
+
+  // 获取需要同步的完整状态包
+  getSyncPayload: () => {
+    const { 
+      gameState, 
+      mastermindDeck, 
+      protagonistDeck, 
+      currentMastermindCards, 
+      currentProtagonistCards,
+      dayHistory 
+    } = get();
+    
+    return {
+      gameState,
+      mastermindDeck,
+      protagonistDeck,
+      currentMastermindCards,
+      currentProtagonistCards,
+      dayHistory
+    };
   },
 
   // 保存当天状态到历史

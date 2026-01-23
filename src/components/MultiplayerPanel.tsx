@@ -4,14 +4,24 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { useMultiplayer } from '@/lib/useMultiplayer';
-import { Wifi, WifiOff, ChevronDown, Check } from 'lucide-react';
+import { 
+  Wifi, 
+  WifiOff, 
+  ChevronDown, 
+  Check, 
+  Download, 
+  Upload, 
+  LogOut,
+  RefreshCw
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export function MultiplayerPanel() {
   const [showMenu, setShowMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-  const { 
+    const { 
     username,
+    clearUsername,
     isConnected, 
     isReconnecting,
     connect, 
@@ -20,7 +30,30 @@ export function MultiplayerPanel() {
     availableRoles,
     players,
     selectRole,
+    updateGameState
   } = useMultiplayer();
+
+  const { exportState, importState, getSyncPayload } = useGameStore();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      await importState(file);
+      // 如果已连接，同步到服务器
+      if (isConnected) {
+        setTimeout(() => {
+          updateGameState(getSyncPayload());
+        }, 100);
+      }
+      // Reset input
+      e.target.value = '';
+    }
+  };
 
   // 点击外部关闭菜单
   useEffect(() => {
@@ -95,9 +128,37 @@ export function MultiplayerPanel() {
       {/* 下拉菜单 */}
       {showMenu && (
         <div 
-          className="absolute top-full right-0 mt-2 w-56 p-3 rounded-lg border border-slate-600 bg-slate-900 backdrop-blur-md shadow-2xl z-[100]"
+          className="absolute top-full right-0 mt-2 w-64 p-3 rounded-lg border border-slate-600 bg-slate-900 backdrop-blur-md shadow-2xl z-[100]"
           onClick={(e) => e.stopPropagation()}
         >
+          {/* 存档管理 (系统功能) */}
+          <div className="mb-3 pb-3 border-b border-slate-700 space-y-2">
+            <div className="text-xs text-slate-400 mb-2 px-1">游戏存档</div>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                onClick={exportState}
+                className="flex items-center justify-center gap-2 px-3 py-2 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm transition-all border border-slate-700"
+              >
+                <Download size={14} />
+                <span>导出存档</span>
+              </button>
+              <button
+                onClick={handleImportClick}
+                className="flex items-center justify-center gap-2 px-3 py-2 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 text-sm transition-all border border-slate-700"
+              >
+                <Upload size={14} />
+                <span>读取存档</span>
+              </button>
+            </div>
+            <input 
+              type="file" 
+              ref={fileInputRef} 
+              onChange={handleFileChange} 
+              accept=".json" 
+              className="hidden" 
+            />
+          </div>
+
           {/* 未连接 */}
           {!isConnected && (
             <button
@@ -172,6 +233,19 @@ export function MultiplayerPanel() {
                 className="w-full mt-2 px-3 py-1.5 rounded bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs transition-all"
               >
                 断开连接
+              </button>
+
+              <button
+                onClick={() => {
+                  if (confirm('确定要更换名字并断开连接吗？')) {
+                    disconnect();
+                    clearUsername();
+                    setShowMenu(false);
+                  }
+                }}
+                className="w-full mt-1 px-3 py-1.5 rounded bg-red-900/30 hover:bg-red-900/50 text-red-300 text-[10px] transition-all border border-red-700/30"
+              >
+                更换名字 (注销)
               </button>
             </div>
           )}

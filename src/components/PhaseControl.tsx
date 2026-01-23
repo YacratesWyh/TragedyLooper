@@ -76,6 +76,7 @@ export function PhaseControl() {
     saveDaySnapshot,
     viewHistoryDay,
     exitHistoryView,
+    getSyncPayload,
   } = useGameStore();
   const { isConnected, myRole, players, updateGameState, resetGame } = useMultiplayer();
 
@@ -166,19 +167,7 @@ export function PhaseControl() {
     // 如果联机，同步到服务器 (立即同步阶段变化)
     if (isConnected) {
       console.log('📤 发送阶段同步到服务器:', nextPhase);
-      const syncPayload: any = { gameState: newGameState };
-      
-      // 如果是进入新的一天，同时重置卡牌
-      if (nextPhase === 'dawn' && currentPhase === 'night') {
-        const { mastermindDeck, protagonistDeck } = useGameStore.getState();
-        syncPayload.currentMastermindCards = [];
-        syncPayload.currentProtagonistCards = [];
-        // 必须明确同步重置后的牌组状态（usedToday 设为空 Set，updateGameState 会自动序列化为数组）
-        syncPayload.mastermindDeck = { ...mastermindDeck, usedToday: new Set() };
-        syncPayload.protagonistDeck = { ...protagonistDeck, usedToday: new Set() };
-      }
-      
-      updateGameState(syncPayload);
+      updateGameState(getSyncPayload());
     }
 
     // 结算阶段特殊处理
@@ -189,11 +178,8 @@ export function PhaseControl() {
         resolveDay();
         // 结算完成后再次同步状态（包含最新的指示物数值）
         if (isConnected) {
-          const resolvedState = useGameStore.getState().gameState;
-          if (resolvedState) {
-            console.log('📤 发送结算结果同步到服务器');
-            updateGameState({ gameState: resolvedState });
-          }
+          console.log('📤 发送结算结果同步到服务器');
+          updateGameState(getSyncPayload());
         }
       }, 1000); // 增加到 1 秒，让翻牌动画更明显
     }
@@ -490,7 +476,7 @@ export function PhaseControl() {
                 revertPhaseState();
                 if (isConnected) {
                   setTimeout(() => {
-                    updateGameState({ gameState: useGameStore.getState().gameState });
+                    updateGameState(getSyncPayload());
                   }, 50);
                 }
               }}

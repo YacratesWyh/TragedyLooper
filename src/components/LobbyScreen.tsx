@@ -16,9 +16,10 @@ interface LobbyScreenProps {
 }
 
 export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
-  const { 
+    const { 
     username,
     setUsername,
+    clearUsername,
     isConnected, 
     isReconnecting,
     connect, 
@@ -111,13 +112,7 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
     setTimeout(() => {
       const state = useGameStore.getState();
       if (state.gameState) {
-        updateGameState({
-          gameState: state.gameState,
-          mastermindDeck: state.mastermindDeck,
-          protagonistDeck: state.protagonistDeck,
-          currentMastermindCards: [],
-          currentProtagonistCards: [],
-        });
+        updateGameState(state.getSyncPayload());
       }
     }, 150);
   };
@@ -583,12 +578,23 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.15 }}
-        className="mb-4"
+        className="mb-4 flex items-center gap-2"
       >
         <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-slate-800/80 border border-slate-600 text-slate-300">
           <span className="text-slate-500 text-sm">玩家:</span>
           <span className="font-bold text-white">{username}</span>
         </div>
+        <button
+          onClick={() => {
+            if (confirm('确定要更换名字吗？')) {
+              clearUsername();
+            }
+          }}
+          className="p-2 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 transition-all"
+          title="更换名字"
+        >
+          <RefreshCw className="w-4 h-4" />
+        </button>
       </motion.div>
 
       {/* 连接状态 */}
