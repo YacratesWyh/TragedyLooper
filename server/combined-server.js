@@ -60,7 +60,10 @@ function handleWebSocketMessage(ws, message) {
   try {
     data = JSON.parse(message);
   } catch (e) {
-    console.error('Invalid JSON:', message);
+    // 只记录非心跳的无效消息
+    if (message && !message.toLowerCase().includes('ping')) {
+      console.error('Invalid JSON:', message.substring(0, 100));
+    }
     return;
   }
 
@@ -419,13 +422,16 @@ app.prepare().then(() => {
 
     ws.on('message', (message) => {
       ws.isAlive = true; // 收到消息也算活跃
-      const msgStr = message.toString();
+      const msgStr = message.toString().trim();
       
-      // 处理客户端心跳
-      if (msgStr === 'ping') {
+      // 处理客户端心跳（忽略大小写和空格）
+      if (msgStr.toLowerCase() === 'ping') {
         ws.send('pong');
         return;
       }
+      
+      // 跳过空消息
+      if (!msgStr) return;
       
       handleWebSocketMessage(ws, msgStr);
     });

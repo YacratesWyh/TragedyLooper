@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { 
   BookOpen, X, ChevronDown, ChevronRight,
-  Skull, Users, Zap, Heart, Eye, AlertTriangle,
+  Skull, Users, Zap, Heart, AlertTriangle,
   Image as ImageIcon, Maximize2, Lock
 } from 'lucide-react';
 import { useGameStore } from '@/store/gameStore';
@@ -180,38 +180,6 @@ const CHARACTERS: CharacterInfo[] = [
     goodwillRequired: 2,
     goodwillAbility: '可以置信息，以此来除险或者增加别人的不安，但作家或许并非通过你们的做法都不是家所用，在确认他值得信赖之前，暂且不要放置友好指示物吧。'
   },
-];
-
-// ===== 手牌数据 =====
-interface HandCardInfo {
-  type: 'movement' | 'goodwill' | 'anxiety' | 'intrigue';
-  name: string;
-  effect: string;
-  count?: number;
-  oncePerLoop?: boolean;
-}
-
-const MASTERMIND_HAND: HandCardInfo[] = [
-  { type: 'movement', name: '移动↑', effect: '纵向移动', count: 1 },
-  { type: 'movement', name: '移动→', effect: '横向移动', count: 1 },
-  { type: 'movement', name: '斜向移动', effect: '斜向移动', oncePerLoop: true },
-  { type: 'anxiety', name: '不安+1', effect: '目标角色不安+1', count: 2 },
-  { type: 'anxiety', name: '不安-1', effect: '目标角色不安-1', count: 1 },
-  { type: 'anxiety', name: '禁止不安', effect: '抵消对方不安牌效果', count: 1 },
-  { type: 'goodwill', name: '禁止友好', effect: '抵消对方友好牌效果', count: 1 },
-  { type: 'intrigue', name: '密谋+1', effect: '目标密谋+1', count: 1 },
-  { type: 'intrigue', name: '密谋+2', effect: '目标密谋+2', oncePerLoop: true },
-];
-
-const PROTAGONIST_HAND: HandCardInfo[] = [
-  { type: 'movement', name: '移动↑', effect: '纵向移动', count: 1 },
-  { type: 'movement', name: '移动→', effect: '横向移动', count: 1 },
-  { type: 'movement', name: '禁止移动', effect: '抵消对方移动牌效果', oncePerLoop: true },
-  { type: 'goodwill', name: '友好+1', effect: '目标角色友好+1', count: 1 },
-  { type: 'goodwill', name: '友好+2', effect: '目标角色友好+2', oncePerLoop: true },
-  { type: 'anxiety', name: '不安+1', effect: '目标角色不安+1', count: 1 },
-  { type: 'anxiety', name: '不安-1', effect: '目标角色不安-1', oncePerLoop: true },
-  { type: 'intrigue', name: '禁止密谋', effect: '抵消对方密谋牌效果', count: 1 },
 ];
 
 // ===== 剧本速查组件 =====
@@ -524,49 +492,6 @@ function OtherIncidentsSection({ incidents }: { incidents: IncidentInfo[] }) {
   );
 }
 
-function HandTable({ cards, title }: { cards: HandCardInfo[]; title: string }) {
-  return (
-    <div>
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="text-left text-slate-400 border-b border-slate-700">
-            <th className="pb-2">牌名</th>
-            <th className="pb-2">效果</th>
-            <th className="pb-2 text-center">数量</th>
-          </tr>
-        </thead>
-        <tbody>
-          {cards.map((card, i) => (
-            <tr key={i} className="border-b border-slate-800 last:border-b-0">
-              <td className="py-2">
-                <span className={cn(
-                  'inline-flex items-center gap-1',
-                  card.type === 'movement' && 'text-blue-400',
-                  card.type === 'goodwill' && 'text-pink-400',
-                  card.type === 'anxiety' && 'text-purple-400',
-                  card.type === 'intrigue' && 'text-slate-300',
-                )}>
-                  {card.name}
-                </span>
-              </td>
-              <td className="py-2 text-slate-400">{card.effect}</td>
-              <td className="py-2 text-center">
-                {card.oncePerLoop ? (
-                  <span className="text-amber-400">1*</span>
-                ) : (
-                  card.count
-                )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      <p className="text-xs text-slate-500 mt-2">
-        <span className="text-amber-400">*</span> = 每轮限一次
-      </p>
-    </div>
-  );
-}
 
 export function RulesReference() {
   const [isOpen, setIsOpen] = useState(false);
@@ -686,19 +611,6 @@ export function RulesReference() {
                       </div>
                     ))}
                   </div>
-                </CollapsibleSection>
-
-                {/* 剧作家手牌 */}
-                <CollapsibleSection title="剧作家手牌 (红)" icon={<Eye size={16} />}>
-                  <HandTable cards={MASTERMIND_HAND} title="剧作家" />
-                </CollapsibleSection>
-
-                {/* 主人公手牌 */}
-                <CollapsibleSection title="主人公手牌 (蓝)" icon={<Heart size={16} />}>
-                  <HandTable cards={PROTAGONIST_HAND} title="主人公" />
-                  <p className="text-xs text-slate-500 mt-2">
-                    主人公方1-3人各有一套牌
-                  </p>
                 </CollapsibleSection>
 
                 {/* 事件触发条件 */}
