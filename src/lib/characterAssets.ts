@@ -39,6 +39,12 @@ export const CHARACTER_ASSETS: Record<string, CharacterAssetConfig> = {
     name: '女学生',
     gridPosition: [1, 0],  // x620, y0
   },
+  rich_man: {
+    id: 'rich_man',
+    name: '大小姐',
+    gridPosition: [2, 0],  // x1240, y0
+  },
+  // 兼容旧ID
   rich_man_daughter: {
     id: 'rich_man_daughter',
     name: '大小姐',
@@ -59,6 +65,12 @@ export const CHARACTER_ASSETS: Record<string, CharacterAssetConfig> = {
     name: '上班族',
     gridPosition: [5, 0],  // x3100, y0
   },
+  informer: {
+    id: 'informer',
+    name: '情报贩子',
+    gridPosition: [6, 0],  // x3720, y0
+  },
+  // 兼容旧ID
   informant: {
     id: 'informant',
     name: '情报贩子',
@@ -71,9 +83,9 @@ export const CHARACTER_ASSETS: Record<string, CharacterAssetConfig> = {
   },
 
   // === 第2行 (y=866) ===
-  dollmaker: {
-    id: 'dollmaker',
-    name: '人偶师',
+  patient: {
+    id: 'patient',
+    name: '入院患者',
     gridPosition: [0, 1],  // x0, y866
   },
   class_rep: {
@@ -81,6 +93,12 @@ export const CHARACTER_ASSETS: Record<string, CharacterAssetConfig> = {
     name: '班长',
     gridPosition: [1, 1],  // x620, y866
   },
+  factor: {
+    id: 'factor',
+    name: '意外因素',
+    gridPosition: [2, 1],  // x1240, y866
+  },
+  // 兼容旧ID
   accident_factor: {
     id: 'accident_factor',
     name: '意外因素',
@@ -91,6 +109,12 @@ export const CHARACTER_ASSETS: Record<string, CharacterAssetConfig> = {
     name: '异世界人',
     gridPosition: [3, 1],  // x1860, y866
   },
+  godly_being: {
+    id: 'godly_being',
+    name: '神格',
+    gridPosition: [4, 1],  // x2480, y866
+  },
+  // 兼容旧ID
   divinity: {
     id: 'divinity',
     name: '神格',
@@ -106,6 +130,12 @@ export const CHARACTER_ASSETS: Record<string, CharacterAssetConfig> = {
     name: '媒体记者',
     gridPosition: [6, 1],  // x3720, y866
   },
+  boss: {
+    id: 'boss',
+    name: '大人物',
+    gridPosition: [7, 1],  // x4340, y866
+  },
+  // 兼容旧ID
   vip: {
     id: 'vip',
     name: '大人物',
@@ -123,6 +153,12 @@ export const CHARACTER_ASSETS: Record<string, CharacterAssetConfig> = {
     name: '手下',
     gridPosition: [1, 2],  // x620, y1732
   },
+  scientist: {
+    id: 'scientist',
+    name: '学者',
+    gridPosition: [2, 2],  // x1240, y1732
+  },
+  // 兼容旧ID
   scholar: {
     id: 'scholar',
     name: '学者',
@@ -133,6 +169,12 @@ export const CHARACTER_ASSETS: Record<string, CharacterAssetConfig> = {
     name: '幻觉',
     gridPosition: [3, 2],  // x1860, y1732
   },
+  forensic: {
+    id: 'forensic',
+    name: '刑侦警察',
+    gridPosition: [4, 2],  // x2480, y1732
+  },
+  // 兼容旧ID
   police: {
     id: 'police',
     name: '刑侦警察',
@@ -155,11 +197,17 @@ export const CHARACTER_ASSETS: Record<string, CharacterAssetConfig> = {
   },
 
   // === 第4行 (y=2598) ===
-  scientist: {
-    id: 'scientist',
-    name: '科学家',
+  soldier: {
+    id: 'soldier',
+    name: '军人',
     gridPosition: [0, 3],  // x0, y2598
   },
+  black_cat: {
+    id: 'black_cat',
+    name: '黑猫',
+    gridPosition: [1, 3],  // x620, y2598
+  },
+  // 兼容旧ID
   cat: {
     id: 'cat',
     name: '黑猫',
@@ -180,8 +228,8 @@ export const CHARACTER_ASSETS: Record<string, CharacterAssetConfig> = {
     name: '模仿者',
     gridPosition: [4, 3],  // x2480, y2598
   },
-  boss: {
-    id: 'boss',
+  goshinboku: {
+    id: 'goshinboku',
     name: '御神木',
     gridPosition: [5, 3],  // x3100, y2598
   },
