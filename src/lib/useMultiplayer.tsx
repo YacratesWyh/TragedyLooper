@@ -7,23 +7,11 @@ import React, { createContext, useContext, useState, useCallback, useRef, useEff
 import { useGameStore } from '@/store/gameStore';
 import type { PlayerRole, CharacterId, LocationType } from '@/types/game';
 
-// WebSocket 服务器地址
-// 本地开发: ws://localhost:3001
-// 生产环境: 通过环境变量 NEXT_PUBLIC_WS_URL 配置
+// WebSocket 服务器地址：同端口 /ws 路径
 const getWsUrl = () => {
-  if (typeof window === 'undefined') return 'ws://localhost:3001';
+  if (typeof window === 'undefined') return 'ws://localhost:8080/ws';
   if (process.env.NEXT_PUBLIC_WS_URL) return process.env.NEXT_PUBLIC_WS_URL;
   
-  const { hostname } = window.location;
-  
-  // 本地开发：WebSocket 服务器固定在 3001
-  if (hostname === 'localhost' || hostname === '127.0.0.1') {
-    return 'ws://localhost:3001';
-  }
-  
-  // 生产环境：需要配置 NEXT_PUBLIC_WS_URL
-  // 例如 Zeabur 部署时设置为 wss://your-domain.zeabur.app/ws
-  console.warn('生产环境未配置 NEXT_PUBLIC_WS_URL，尝试使用 /ws 路径');
   const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   return `${wsProtocol}//${window.location.host}/ws`;
 };
@@ -116,19 +104,37 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
   
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectAttemptsRef = useRef(0);
   const maxReconnectAttempts = 5;
   const intentionalDisconnectRef = useRef(false);
   
   const setPlayerRole = useGameStore((s) => s.setPlayerRole);
 
-  // 清理重连定时器
-  const clearReconnectTimeout = useCallback(() => {
+  // 清理定时器
+  const clearTimers = useCallback(() => {
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
       reconnectTimeoutRef.current = null;
     }
+    if (heartbeatIntervalRef.current) {
+      clearInterval(heartbeatIntervalRef.current);
+      heartbeatIntervalRef.current = null;
+    }
   }, []);
+
+  // 启动心跳（25秒间隔，比服务器30秒检测更短）
+  const startHeartbeat = useCallback(() => {
+    if (heartbeatIntervalRef.current) return;
+    heartbeatIntervalRef.current = setInterval(() => {
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
+        wsRef.current.send('ping');
+      }
+    }, 25000);
+  }, []);
+
+  // 兼容旧名称
+  const clearReconnectTimeout = clearTimers;
 
   // 断开连接
   const disconnect = useCallback(() => {
@@ -167,6 +173,9 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
       setIsReconnecting(false);
       reconnectAttemptsRef.current = 0;
       
+      // 启动心跳
+      startHeartbeat();
+      
       // 检查是否有会话需要恢复
       const session = loadSession();
       if (session) {
@@ -182,6 +191,9 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
     };
 
     ws.onmessage = (event) => {
+      // 忽略心跳响应
+      if (event.data === 'pong') return;
+      
       try {
         const data = JSON.parse(event.data);
         console.log('📨 收到:', data.type);
@@ -307,6 +319,12 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
       wsRef.current = null;
       setIsConnected(false);
       
+      // 停止心跳
+      if (heartbeatIntervalRef.current) {
+        clearInterval(heartbeatIntervalRef.current);
+        heartbeatIntervalRef.current = null;
+      }
+      
       // 如果不是主动断开且有会话，尝试重连
       const session = loadSession();
       if (!intentionalDisconnectRef.current && session && reconnectAttemptsRef.current < maxReconnectAttempts) {
@@ -328,7 +346,7 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
     ws.onerror = (error) => {
       console.error('WebSocket 错误:', error);
     };
-  }, [setPlayerRole, currentRoom]);
+  }, [setPlayerRole, currentRoom, startHeartbeat]);
 
   // 组件卸载时清理
   useEffect(() => {

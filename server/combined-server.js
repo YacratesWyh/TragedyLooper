@@ -399,16 +399,35 @@ app.prepare().then(() => {
   // 暴露给消息处理函数
   global.broadcastRoomList = broadcastRoomList;
 
+  // 心跳检测：30秒间隔
+  const HEARTBEAT_INTERVAL = 30000;
+  
+  function heartbeat() {
+    this.isAlive = true;
+  }
+
   wss.on('connection', (ws) => {
     console.log('WebSocket 客户端连接');
     ws.roomId = null;
+    ws.isAlive = true;
 
     // 发送欢迎消息和房间列表
     ws.send(JSON.stringify({ type: 'WELCOME', payload: { message: '连接成功' } }));
     ws.send(JSON.stringify({ type: 'ROOM_LIST', payload: { rooms: getRoomList() } }));
 
+    ws.on('pong', heartbeat);
+
     ws.on('message', (message) => {
-      handleWebSocketMessage(ws, message.toString());
+      ws.isAlive = true; // 收到消息也算活跃
+      const msgStr = message.toString();
+      
+      // 处理客户端心跳
+      if (msgStr === 'ping') {
+        ws.send('pong');
+        return;
+      }
+      
+      handleWebSocketMessage(ws, msgStr);
     });
 
     ws.on('close', () => {
@@ -420,6 +439,18 @@ app.prepare().then(() => {
       console.error('WebSocket 错误:', error);
     });
   });
+
+  // 定期检查连接活跃性
+  const heartbeatInterval = setInterval(() => {
+    wss.clients.forEach((ws) => {
+      if (ws.isAlive === false) {
+        console.log('心跳超时，断开连接');
+        return ws.terminate();
+      }
+      ws.isAlive = false;
+      ws.ping();
+    });
+  }, HEARTBEAT_INTERVAL);
 
   server.listen(PORT, () => {
     console.log(`🚀 Tragedy Looper 服务已启动`);

@@ -3,18 +3,13 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "node server/combined-server.js",
     "build": "next build",
     "start": "node server/combined-server.js",
-    "start:separate": "node server/start.js",
-    "start:frontend": "next start",
-    "start:server": "node server/websocket-server.js",
-    "lint": "eslint",
-    "multiplayer": "concurrently \"npm run dev\" \"npm run start:server\""
+    "lint": "eslint"
   },
   "dependencies": {
     "clsx": "^2.1.1",
-    "concurrently": "^9.2.1",
     "framer-motion": "^12.27.5",
     "lucide-react": "^0.562.0",
     "next": "16.1.4",

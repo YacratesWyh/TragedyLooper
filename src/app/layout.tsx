@@ -29,7 +29,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-slate-950`}
       >
         <ClientWrapper>
-          {children}
+        {children}
         </ClientWrapper>
       </body>
     </html>

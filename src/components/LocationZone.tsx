@@ -93,12 +93,12 @@ export function LocationZone({
               onRetreat={onRetreatCard}
             />
           )}
-          {intrigueCount > 0 && (
-              <div className="flex items-center gap-1 bg-slate-900/80 px-3 py-1 rounded-full border border-slate-700">
-                  <span className="text-slate-400 text-xs">地点密谋</span>
-                  <span className="text-white font-bold">{intrigueCount}</span>
-              </div>
-          )}
+        {intrigueCount > 0 && (
+            <div className="flex items-center gap-1 bg-slate-900/80 px-3 py-1 rounded-full border border-slate-700">
+                <span className="text-slate-400 text-xs">地点密谋</span>
+                <span className="text-white font-bold">{intrigueCount}</span>
+            </div>
+        )}
         </div>
       </div>
 
@@ -107,16 +107,16 @@ export function LocationZone({
         {characters.map((charState) => {
           const cards = getCharacterCards(charState.id as CharacterId);
           return (
-            <CharacterCard 
-              key={charState.id}
-              characterState={charState}
-              characterDef={characterDefs[charState.id]}
-              isDead={!charState.alive}
+          <CharacterCard 
+            key={charState.id}
+            characterState={charState}
+            characterDef={characterDefs[charState.id]}
+            isDead={!charState.alive}
               myPlacedCards={cards.my}
               opponentPlacedCards={cards.opp}
               onRetreatCard={onRetreatCard}
               isPlacingCard={isPlacingCard}
-              onClick={(e) => {
+            onClick={(e) => {
                 e.stopPropagation();
               onCharacterClick?.(charState.id);
             }}

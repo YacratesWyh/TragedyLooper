@@ -93,7 +93,7 @@ export function ActionCard({ card, isSelected, onClick, disabled, size = 'normal
             {card.movementType === 'vertical' && '纵'}
             {card.movementType === 'diagonal' && '斜'}
             {card.movementType === 'forbid' && '禁'}
-          </div>
+            </div>
         ) : null}
       </div>
 
