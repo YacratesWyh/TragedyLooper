@@ -71,6 +71,69 @@ export function GameIntroPanel() {
                   </p>
                 </div>
 
+                {/* 我该怎么做 */}
+                <div className="bg-gradient-to-br from-amber-900/30 to-slate-900/50 rounded-lg p-4 border border-amber-700/50">
+                  <div className="font-bold text-amber-300 mb-3 text-lg">🤔 我该怎么做？</div>
+                  
+                  {/* 主人公策略 */}
+                  <div className="bg-blue-900/20 rounded-lg p-3 mb-3 border border-blue-800/30">
+                    <div className="font-bold text-blue-300 mb-2 flex items-center gap-2">
+                      <span>☀️</span> 主人公
+                    </div>
+                    <ul className="text-sm text-slate-300 space-y-1.5">
+                      <li className="flex gap-2">
+                        <span className="text-blue-400">•</span>
+                        <span><strong className="text-pink-300">增加角色好感</strong>，解锁友好能力获取更多信息</span>
+                      </li>
+                      <li className="flex gap-2">
+                        <span className="text-blue-400">•</span>
+                        <span>观察剧作家的行动，推理角色身份和事件当事人</span>
+                      </li>
+                      <li className="flex gap-2">
+                        <span className="text-blue-400">•</span>
+                        <span>只要在<strong className="text-amber-300">最后一个轮回前</strong>破解谜题即可</span>
+                      </li>
+                    </ul>
+                  </div>
+                  
+                  {/* 剧作家策略 */}
+                  <div className="bg-red-900/20 rounded-lg p-3 border border-red-800/30">
+                    <div className="font-bold text-red-300 mb-2 flex items-center gap-2">
+                      <span>🌑</span> 剧作家
+                    </div>
+                    <ul className="text-sm text-slate-300 space-y-1.5">
+                      <li className="flex gap-2">
+                        <span className="text-red-400">•</span>
+                        <span><strong className="text-amber-300">尽量迷惑主人公</strong>，制造虚假线索</span>
+                      </li>
+                      <li className="flex gap-2">
+                        <span className="text-red-400">•</span>
+                        <span>加入除了真实信息以外的<strong className="text-red-300">干扰信息</strong></span>
+                      </li>
+                      <li className="flex gap-2">
+                        <span className="text-red-400">•</span>
+                        <span>让主人公<strong className="text-slate-400">无法判断场上情况</strong>，消耗轮回次数</span>
+                      </li>
+                      <li className="flex gap-2">
+                        <span className="text-red-400">•</span>
+                        <span>用<strong className="text-amber-300">同一种方法</strong>触发轮回结束 = 主人公少获取一种胜利渠道；用<strong className="text-red-300">两种方法</strong>阻止 = 下轮回少一种胜利方法</span>
+                      </li>
+                    </ul>
+                  </div>
+                </div>
+
+                {/* 剧本规则强调 */}
+                <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-700/50">
+                  <div className="flex items-center gap-3 text-sm">
+                    <span className="text-slate-400">📜 剧本规则：</span>
+                    <span className="px-2 py-0.5 bg-red-600 text-white font-bold rounded text-xs">主线</span>
+                    <span className="text-white">1 个</span>
+                    <span className="text-slate-600">+</span>
+                    <span className="px-2 py-0.5 bg-blue-600 text-white font-bold rounded text-xs">支线</span>
+                    <span className="text-white">1-2 个</span>
+                  </div>
+                </div>
+
                 {/* 主人公胜利 */}
                 <div className="bg-blue-900/30 border border-blue-700/50 rounded-lg p-4">
                   <div className="flex items-center gap-2 mb-3">
@@ -92,7 +155,7 @@ export function GameIntroPanel() {
                       <li>• <strong className="text-red-300">身份能力</strong>：杀手/连环杀手的击杀效果</li>
                     </ul>
                     <p className="text-xs text-slate-500 mt-2 italic">
-                      📋 FS剧本：主线1个 + 支线≤2个，具体规则见剧情速查
+                      📋 详见上方「剧本规则构成」及剧情速查
                     </p>
                   </div>
                 </div>
