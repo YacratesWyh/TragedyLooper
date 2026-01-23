@@ -25,7 +25,7 @@ const rooms = new Map();
 const userSessions = new Map();
 // 断线玩家的重连等待
 const pendingDisconnects = new Map();
-const RECONNECT_GRACE_PERIOD = 30000; // 30秒
+const RECONNECT_GRACE_PERIOD = 120000; // 2分钟
 
 function generateRoomId() {
   return crypto.randomBytes(3).toString('hex').toUpperCase();
@@ -499,7 +499,7 @@ function handleWebSocketClose(ws) {
       
       // 如果有 userId 且有角色，给予重连宽限期
       if (ws.userId && playerInfo?.role) {
-        console.log(`用户 ${ws.userId} 断开，保留角色 ${playerInfo.role} 30秒等待重连`);
+        console.log(`用户 ${ws.userId} 断开，保留角色 ${playerInfo.role} 2分钟等待重连`);
         
         // 从房间中移除这个 WebSocket，但保留 userSession
         room.players.delete(ws);
@@ -509,7 +509,7 @@ function handleWebSocketClose(ws) {
         if (existingTimeout) clearTimeout(existingTimeout);
         
         pendingDisconnects.set(ws.userId, setTimeout(() => {
-          // 30秒后如果没有重连，清除会话
+          // 2分钟后如果没有重连，清除会话
           const session = getUserSession(ws.userId);
           if (session && session.ws === ws) {
             // WebSocket 还是旧的，说明没有重连

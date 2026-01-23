@@ -236,7 +236,7 @@ export const CHARACTER_ASSETS: Record<string, CharacterAssetConfig> = {
   sister: {
     id: 'sister',
     name: '妹妹',
-    gridPosition: [6, 3],  // x4340, y2598
+    gridPosition: [6, 3],  // x3720, y2598
   },
 
   // === 兼容旧ID ===
@@ -264,8 +264,8 @@ export function getCharacterSpriteStyle(
   const [col, row] = asset.gridPosition;
   const { cols, rows } = SPRITE_CONFIG;
   
-  // 使用百分比定位，这样不需要知道显示尺寸就能自动缩放
-  // 公式: (col / (cols - 1)) * 100
+  // 使用百分比定位，遵循 CSS background-position 标准公式：(offset / (imageSize - containerSize))
+  // 对于 N 列的精灵图，第 i 列的百分比位置应该是 (i / (N - 1)) * 100
   const posXPercent = (col / (cols - 1)) * 100;
   const posYPercent = (row / (rows - 1)) * 100;
 

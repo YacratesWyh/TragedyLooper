@@ -1,9 +1,12 @@
+'use client';
+
 /**
  * 多人联机控制面板 - 顶栏内联版
  */
 
 import React, { useState, useRef, useEffect } from 'react';
-import { useMultiplayer } from '@/lib/useMultiplayer';
+import { useMultiplayer } from '../lib/useMultiplayer';
+import { useGameStore } from '../store/gameStore';
 import { 
   Wifi, 
   WifiOff, 
@@ -19,7 +22,8 @@ import { cn } from '@/lib/utils';
 export function MultiplayerPanel() {
   const [showMenu, setShowMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-    const { 
+  
+  const { 
     username,
     clearUsername,
     isConnected, 

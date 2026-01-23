@@ -4,7 +4,7 @@
  */
 
 import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
-import { useGameStore } from '@/store/gameStore';
+import { useGameStore } from '../store/gameStore';
 import type { PlayerRole, CharacterId, LocationType } from '@/types/game';
 
 // WebSocket 服务器地址：同端口 /ws 路径
@@ -185,7 +185,7 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectAttemptsRef = useRef(0);
-  const maxReconnectAttempts = 5;
+  const maxReconnectAttempts = 15; // 增加重连尝试次数以匹配服务器的 2 分钟窗口
   const intentionalDisconnectRef = useRef(false);
   
   // 初始化时从 localStorage 加载用户名
