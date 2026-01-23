@@ -29,18 +29,6 @@
       "id": "ref-5",
       "title": "剧本参考 5",
       "path": "httpcloud3steamusercontentcomugc13211945238771675662C92FC2C093D3ADC1A7DB714CD152E1F793BBE0A.jpg"
-    },
-    {
-      "id": "scripter-card",
-      "title": "剧作家参考卡",
-      "path": "scripter.jpg",
-      "visibleTo": "mastermind"
-    },
-    {
-      "id": "protagonist-card",
-      "title": "主人公参考卡",
-      "path": "protagonist.jpg",
-      "visibleTo": "protagonist"
     }
   ]
 }

@@ -3,9 +3,10 @@
 /**
  * 剧本图文速查 - 独立浮动组件
  * 直接显示在屏幕边缘，点击展开大图
+ * 支持加载公共图片 + 剧本专属图片
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { X, ChevronLeft, ChevronRight, Lock, Image as ImageIcon } from 'lucide-react';
@@ -17,36 +18,97 @@ interface ScriptImage {
   id: string;
   title: string;
   path: string;
+  basePath: string; // 图片所在的基础路径
   visibleTo?: PlayerRole;
 }
 
 interface ScriptConfig {
-  images: ScriptImage[];
+  images: Array<{
+    id: string;
+    title: string;
+    path: string;
+    visibleTo?: PlayerRole;
+  }>;
+}
+
+// 根据剧本名称获取对应的资源目录
+function getScriptAssetPath(scriptName: string): string {
+  if (scriptName.includes('Basic Tragedy') || scriptName.includes('基本悲剧')) {
+    return 'btx';
+  }
+  // 默认使用 First Steps
+  return 'fs';
 }
 
 export function ScriptImageViewer() {
-  const [config, setConfig] = useState<ScriptConfig | null>(null);
+  const [commonConfig, setCommonConfig] = useState<ScriptConfig | null>(null);
+  const [scriptConfig, setScriptConfig] = useState<ScriptConfig | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [zoomedImage, setZoomedImage] = useState<string | null>(null);
   
   const { myRole: multiplayerRole } = useMultiplayer();
   const localRole = useGameStore((s) => s.playerRole);
+  const gameState = useGameStore((s) => s.gameState);
   const currentRole = multiplayerRole || localRole;
+  
+  // 确定当前剧本的资源路径
+  const scriptAssetPath = useMemo(() => {
+    if (gameState?.publicInfo?.scriptName) {
+      return getScriptAssetPath(gameState.publicInfo.scriptName);
+    }
+    return 'fs'; // 默认
+  }, [gameState?.publicInfo?.scriptName]);
 
+  // 加载公共配置
   useEffect(() => {
-    fetch('/assets/fs/config.json')
+    fetch('/assets/common/config.json')
       .then(res => res.json())
-      .then(data => setConfig(data))
-      .catch(err => console.error('Failed to load script config:', err));
+      .then(data => setCommonConfig(data))
+      .catch(err => console.error('Failed to load common config:', err));
   }, []);
 
-  if (!config || config.images.length === 0) {
+  // 加载剧本专属配置
+  useEffect(() => {
+    fetch(`/assets/${scriptAssetPath}/config.json`)
+      .then(res => res.json())
+      .then(data => setScriptConfig(data))
+      .catch(err => console.error('Failed to load script config:', err));
+  }, [scriptAssetPath]);
+
+  // 合并所有图片配置
+  const allImages: ScriptImage[] = useMemo(() => {
+    const images: ScriptImage[] = [];
+    
+    // 添加剧本专属图片
+    if (scriptConfig?.images) {
+      scriptConfig.images.forEach(img => {
+        images.push({
+          ...img,
+          basePath: `/assets/${scriptAssetPath}`,
+        });
+      });
+    }
+    
+    // 添加公共图片
+    if (commonConfig?.images) {
+      commonConfig.images.forEach(img => {
+        images.push({
+          ...img,
+          basePath: '/assets/common',
+        });
+      });
+    }
+    
+    return images;
+  }, [commonConfig, scriptConfig, scriptAssetPath]);
+
+  if (allImages.length === 0) {
     return null;
   }
 
   // 根据角色过滤可见图片
-  const visibleImages = config.images.filter(img => {
+  const visibleImages = allImages.filter(img => {
     if (!img.visibleTo) return true;
     return img.visibleTo === currentRole;
   });
@@ -55,6 +117,9 @@ export function ScriptImageViewer() {
 
   const currentImage = visibleImages[currentIndex];
   const hasMultiple = visibleImages.length > 1;
+  
+  // 获取图片完整路径
+  const getImagePath = (img: ScriptImage) => `${img.basePath}/${img.path}`;
 
   const nextImage = () => {
     setCurrentIndex((i) => (i + 1) % visibleImages.length);
@@ -69,7 +134,7 @@ export function ScriptImageViewer() {
       {/* 收起状态 - 右下角小缩略图 */}
       <div 
         className={cn(
-          "fixed bottom-28 right-4 z-[60] transition-all duration-300",
+          "fixed bottom-28 right-4 z-[90] transition-all duration-300",
           isExpanded ? "opacity-0 pointer-events-none scale-75" : "opacity-100"
         )}
       >
@@ -79,7 +144,7 @@ export function ScriptImageViewer() {
           title="展开剧本速查"
         >
           <img 
-            src={`/assets/fs/${currentImage.path}`}
+            src={getImagePath(currentImage)}
             alt={currentImage.title}
             className="w-full h-full object-cover"
           />
@@ -108,7 +173,7 @@ export function ScriptImageViewer() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsExpanded(false)}
-              className="fixed inset-0 bg-black/40 z-[60]"
+              className="fixed inset-0 bg-black/40 z-[110]"
             />
 
             {/* 主面板 */}
@@ -117,7 +182,7 @@ export function ScriptImageViewer() {
               animate={{ x: 0, opacity: 1 }}
               exit={{ x: 300, opacity: 0 }}
               transition={{ type: 'spring', damping: 25 }}
-              className="fixed top-0 right-0 h-full w-80 bg-slate-900/95 backdrop-blur-md border-l border-slate-700 z-[70] shadow-2xl flex flex-col"
+              className="fixed top-0 right-0 h-full w-80 bg-slate-900/95 backdrop-blur-md border-l border-slate-700 z-[120] shadow-2xl flex flex-col"
             >
               {/* 顶部标题 */}
               <div className="shrink-0 flex items-center justify-between px-4 py-3 border-b border-slate-700 bg-slate-800/50">
@@ -147,12 +212,12 @@ export function ScriptImageViewer() {
                       )}
                       onClick={() => {
                         setCurrentIndex(idx);
-                        setZoomedImage(`/assets/fs/${img.path}`);
+                        setZoomedImage(getImagePath(img));
                       }}
                     >
                       <div className="aspect-[4/3] bg-slate-800">
                         <img 
-                          src={`/assets/fs/${img.path}`}
+                          src={getImagePath(img)}
                           alt={img.title}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                         />
@@ -179,10 +244,10 @@ export function ScriptImageViewer() {
                 </div>
 
                 {/* 隐藏数量提示 */}
-                {config.images.length > visibleImages.length && (
+                {allImages.length > visibleImages.length && (
                   <div className="mt-4 flex items-center gap-2 text-xs text-slate-500 px-2 py-1.5 bg-slate-800/30 rounded-lg border border-slate-700/30">
                     <Lock size={12} />
-                    <span>还有 {config.images.length - visibleImages.length} 张对方阵营专属</span>
+                    <span>还有 {allImages.length - visibleImages.length} 张对方阵营专属</span>
                   </div>
                 )}
               </div>
@@ -217,13 +282,23 @@ export function ScriptImageViewer() {
             {hasMultiple && (
               <>
                 <button
-                  onClick={(e) => { e.stopPropagation(); prevImage(); setZoomedImage(`/assets/fs/${visibleImages[(currentIndex - 1 + visibleImages.length) % visibleImages.length].path}`); }}
+                  onClick={(e) => { 
+                    e.stopPropagation(); 
+                    const prevIdx = (currentIndex - 1 + visibleImages.length) % visibleImages.length;
+                    prevImage(); 
+                    setZoomedImage(getImagePath(visibleImages[prevIdx])); 
+                  }}
                   className="absolute left-4 top-1/2 -translate-y-1/2 p-3 bg-slate-800/80 hover:bg-slate-700 text-white rounded-full transition-colors"
                 >
                   <ChevronLeft size={24} />
                 </button>
                 <button
-                  onClick={(e) => { e.stopPropagation(); nextImage(); setZoomedImage(`/assets/fs/${visibleImages[(currentIndex + 1) % visibleImages.length].path}`); }}
+                  onClick={(e) => { 
+                    e.stopPropagation(); 
+                    const nextIdx = (currentIndex + 1) % visibleImages.length;
+                    nextImage(); 
+                    setZoomedImage(getImagePath(visibleImages[nextIdx])); 
+                  }}
                   className="absolute right-4 top-1/2 -translate-y-1/2 p-3 bg-slate-800/80 hover:bg-slate-700 text-white rounded-full transition-colors"
                 >
                   <ChevronRight size={24} />

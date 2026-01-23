@@ -41,15 +41,35 @@ const DIFFICULTY_NAMES = {
   advanced: '高级',
 };
 
+/** 悲剧配置标签 */
+const TRAGEDY_SET_STYLES = {
+  first_steps: {
+    name: 'First Steps',
+    shortName: 'FS',
+    className: 'bg-emerald-900/50 text-emerald-300 border-emerald-700',
+  },
+  basic_tragedy: {
+    name: 'Basic Tragedy X',
+    shortName: 'BTX',
+    className: 'bg-purple-900/50 text-purple-300 border-purple-700',
+  },
+};
+
 export function ScriptSetup({ onSelect, onCancel }: ScriptSetupProps) {
   const [selectedScript, setSelectedScript] = useState<ScriptTemplate | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [filterSet, setFilterSet] = useState<'all' | 'first_steps' | 'basic_tragedy'>('all');
 
   const handleConfirm = () => {
     if (selectedScript) {
       onSelect(selectedScript);
     }
   };
+
+  // 根据选择的悲剧配置过滤脚本
+  const filteredScripts = filterSet === 'all' 
+    ? SCRIPT_TEMPLATES 
+    : SCRIPT_TEMPLATES.filter(s => s.tragedySet === filterSet);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-8">
@@ -66,9 +86,46 @@ export function ScriptSetup({ onSelect, onCancel }: ScriptSetupProps) {
         <p className="text-slate-400">作为剧作家，选择要使用的剧本</p>
       </motion.div>
 
+      {/* 悲剧配置筛选 */}
+      <div className="max-w-4xl mx-auto mb-6 flex items-center justify-center gap-3">
+        <button
+          onClick={() => setFilterSet('all')}
+          className={cn(
+            "px-4 py-2 rounded-lg text-sm font-bold transition-all",
+            filterSet === 'all'
+              ? "bg-slate-700 text-white"
+              : "bg-slate-800/50 text-slate-400 hover:bg-slate-700/50"
+          )}
+        >
+          全部 ({SCRIPT_TEMPLATES.length})
+        </button>
+        <button
+          onClick={() => setFilterSet('first_steps')}
+          className={cn(
+            "px-4 py-2 rounded-lg text-sm font-bold transition-all",
+            filterSet === 'first_steps'
+              ? "bg-emerald-800 text-emerald-200"
+              : "bg-emerald-900/30 text-emerald-400 hover:bg-emerald-800/50"
+          )}
+        >
+          First Steps ({SCRIPT_TEMPLATES.filter(s => s.tragedySet === 'first_steps').length})
+        </button>
+        <button
+          onClick={() => setFilterSet('basic_tragedy')}
+          className={cn(
+            "px-4 py-2 rounded-lg text-sm font-bold transition-all",
+            filterSet === 'basic_tragedy'
+              ? "bg-purple-800 text-purple-200"
+              : "bg-purple-900/30 text-purple-400 hover:bg-purple-800/50"
+          )}
+        >
+          Basic Tragedy X ({SCRIPT_TEMPLATES.filter(s => s.tragedySet === 'basic_tragedy').length})
+        </button>
+      </div>
+
       {/* 脚本列表 */}
       <div className="max-w-4xl mx-auto space-y-4">
-        {SCRIPT_TEMPLATES.map((script, index) => {
+        {filteredScripts.map((script, index) => {
           const isSelected = selectedScript?.id === script.id;
           const isExpanded = expandedId === script.id;
           
@@ -106,6 +163,12 @@ export function ScriptSetup({ onSelect, onCancel }: ScriptSetupProps) {
                     <div className="flex items-center gap-3 mb-1">
                       <h3 className="text-lg font-bold text-white">{script.name}</h3>
                       <span className="text-sm text-slate-500">{script.nameEn}</span>
+                      <span className={cn(
+                        "px-2 py-0.5 rounded text-xs font-bold border",
+                        TRAGEDY_SET_STYLES[script.tragedySet].className
+                      )}>
+                        {TRAGEDY_SET_STYLES[script.tragedySet].shortName}
+                      </span>
                       <span className={cn(
                         "px-2 py-0.5 rounded text-xs font-bold border",
                         DIFFICULTY_COLORS[script.difficulty]

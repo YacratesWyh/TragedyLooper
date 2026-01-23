@@ -19,10 +19,26 @@ const handle = app.getRequestHandler();
 
 // ============== WebSocket 房间逻辑（从 websocket-server.js 复制）==============
 
+const VERSION = '0.0.6';
 const rooms = new Map();
+// userId -> { ws, roomId, role } 用于追踪用户身份
+const userSessions = new Map();
+// 断线玩家的重连等待
+const pendingDisconnects = new Map();
+const RECONNECT_GRACE_PERIOD = 30000; // 30秒
 
 function generateRoomId() {
   return crypto.randomBytes(3).toString('hex').toUpperCase();
+}
+
+// 通过 userId 获取用户当前的 WebSocket 和状态
+function getUserSession(userId) {
+  return userSessions.get(userId);
+}
+
+// 更新用户会话
+function setUserSession(userId, data) {
+  userSessions.set(userId, { ...userSessions.get(userId), ...data });
 }
 
 function broadcastToRoom(roomId, message, excludeWs = null) {
@@ -70,6 +86,72 @@ function handleWebSocketMessage(ws, message) {
   const { type, payload } = data;
 
   switch (type) {
+    case 'IDENTIFY': {
+      const { userId } = payload;
+      if (!userId) break;
+      
+      ws.userId = userId;
+      
+      // 取消任何待处理的断开超时
+      const pendingTimeout = pendingDisconnects.get(userId);
+      if (pendingTimeout) {
+        clearTimeout(pendingTimeout);
+        pendingDisconnects.delete(userId);
+        console.log(`用户 ${userId} 重连，取消断开超时`);
+      }
+      
+      // 检查此用户是否有之前的会话
+      const oldSession = getUserSession(userId);
+      if (oldSession && oldSession.roomId) {
+        const room = rooms.get(oldSession.roomId);
+        if (room && oldSession.role) {
+          // 用户之前有角色，恢复到房间
+          room.players.set(ws, { role: oldSession.role, userId });
+          ws.roomId = oldSession.roomId;
+          
+          // 计算当前玩家状态
+          const roles = Array.from(room.players.values()).map(p => p.role).filter(Boolean);
+          
+          ws.send(JSON.stringify({
+            type: 'ROOM_JOINED',
+            payload: {
+              roomId: oldSession.roomId,
+              roomName: room.name,
+              availableRoles: ['mastermind', 'protagonist'].filter(r => !roles.includes(r)),
+              gameState: room.gameState,
+              players: {
+                mastermind: roles.includes('mastermind'),
+                protagonist: roles.includes('protagonist'),
+              },
+            },
+          }));
+          
+          ws.send(JSON.stringify({ type: 'ROLE_CONFIRMED', payload: { role: oldSession.role } }));
+          
+          // 如果有游戏状态，发送完整的状态同步
+          if (room.gameState) {
+            ws.send(JSON.stringify({
+              type: 'STATE_SYNC',
+              payload: {
+                gameState: room.gameState,
+                mastermindDeck: room.mastermindDeck,
+                protagonistDeck: room.protagonistDeck,
+                currentMastermindCards: room.currentMastermindCards || [],
+                currentProtagonistCards: room.currentProtagonistCards || [],
+              },
+            }));
+          }
+          
+          console.log(`用户 ${userId} 自动恢复到房间 ${oldSession.roomId} 角色 ${oldSession.role}${room.gameState ? ' (含游戏状态)' : ''}`);
+        }
+      }
+      
+      // 更新会话的 WebSocket
+      setUserSession(userId, { ws, roomId: ws.roomId, role: oldSession?.role });
+      console.log(`用户身份确认: ${userId}`);
+      break;
+    }
+
     case 'LIST_ROOMS':
     case 'REFRESH_ROOMS': {
       ws.send(JSON.stringify({ type: 'ROOM_LIST', payload: { rooms: getRoomList() } }));
@@ -89,8 +171,13 @@ function handleWebSocketMessage(ws, message) {
       rooms.set(roomId, room);
       
       // 创建者自动加入房间
-      room.players.set(ws, { role: null });
+      room.players.set(ws, { role: null, userId: ws.userId });
       ws.roomId = roomId;
+      
+      // 更新用户会话
+      if (ws.userId) {
+        setUserSession(ws.userId, { ws, roomId, role: null });
+      }
       
       ws.send(JSON.stringify({
         type: 'ROOM_JOINED',
@@ -130,17 +217,26 @@ function handleWebSocketMessage(ws, message) {
         }
       }
 
-      room.players.set(ws, { role: null });
+      room.players.set(ws, { role: null, userId: ws.userId });
       ws.roomId = roomId;
+      
+      // 更新用户会话
+      if (ws.userId) {
+        setUserSession(ws.userId, { ws, roomId, role: null });
+      }
 
       const roles = Array.from(room.players.values()).map(p => p.role).filter(Boolean);
       ws.send(JSON.stringify({
         type: 'ROOM_JOINED',
         payload: {
           roomId,
-          name: room.name,
+          roomName: room.name,
           availableRoles: ['mastermind', 'protagonist'].filter(r => !roles.includes(r)),
           gameState: room.gameState,
+          players: {
+            mastermind: roles.includes('mastermind'),
+            protagonist: roles.includes('protagonist'),
+          },
         },
       }));
 
@@ -163,11 +259,23 @@ function handleWebSocketMessage(ws, message) {
           const playerInfo = room.players.get(ws);
           room.players.delete(ws);
           
+          // 计算剩余玩家状态
+          const roles = Array.from(room.players.values()).map(p => p.role).filter(Boolean);
+          
           broadcastToRoom(ws.roomId, {
             type: 'PLAYER_LEFT',
             payload: { 
               playerCount: room.players.size,
               role: playerInfo?.role,
+            },
+          });
+          
+          // 广播更新的玩家状态
+          broadcastToRoom(ws.roomId, {
+            type: 'PLAYERS_UPDATE',
+            payload: {
+              mastermind: roles.includes('mastermind'),
+              protagonist: roles.includes('protagonist'),
             },
           });
 
@@ -178,6 +286,12 @@ function handleWebSocketMessage(ws, message) {
         }
         ws.roomId = null;
       }
+      
+      // 清除用户会话
+      if (ws.userId) {
+        userSessions.delete(ws.userId);
+      }
+      
       ws.send(JSON.stringify({ type: 'ROOM_LEFT' }));
       break;
     }
@@ -199,7 +313,12 @@ function handleWebSocketMessage(ws, message) {
       }
 
       // 设置角色
-      room.players.set(ws, { role });
+      room.players.set(ws, { role, userId: ws.userId });
+      
+      // 更新用户会话
+      if (ws.userId) {
+        setUserSession(ws.userId, { ws, roomId: ws.roomId, role });
+      }
       
       // 计算当前玩家状态
       const updatedRoles = Array.from(room.players.values()).map(p => p.role).filter(Boolean);
@@ -235,6 +354,10 @@ function handleWebSocketMessage(ws, message) {
 
       // 保存完整状态
       if (payload.gameState) room.gameState = payload.gameState;
+      if (payload.mastermindDeck) room.mastermindDeck = payload.mastermindDeck;
+      if (payload.protagonistDeck) room.protagonistDeck = payload.protagonistDeck;
+      if (payload.currentMastermindCards !== undefined) room.currentMastermindCards = payload.currentMastermindCards;
+      if (payload.currentProtagonistCards !== undefined) room.currentProtagonistCards = payload.currentProtagonistCards;
       
       // 广播给其他玩家
       broadcastToRoom(ws.roomId, {
@@ -249,7 +372,26 @@ function handleWebSocketMessage(ws, message) {
       if (!room) return;
 
       room.gameState = null;
+      
+      // 清除所有玩家的角色和会话
+      room.players.forEach((player, playerWs) => {
+        player.role = null;
+        if (player.userId) {
+          const session = getUserSession(player.userId);
+          if (session) {
+            session.role = null;
+          }
+        }
+      });
+      
       broadcastToRoom(ws.roomId, { type: 'GAME_RESET', payload: {} });
+      
+      // 广播玩家状态更新（所有角色都空了）
+      broadcastToRoom(ws.roomId, {
+        type: 'PLAYERS_UPDATE',
+        payload: { mastermind: false, protagonist: false },
+      });
+      
       console.log(`房间 ${ws.roomId} 游戏重置`);
       break;
     }
@@ -358,6 +500,46 @@ function handleWebSocketClose(ws) {
     const room = rooms.get(ws.roomId);
     if (room) {
       const playerInfo = room.players.get(ws);
+      
+      // 如果有 userId 且有角色，给予重连宽限期
+      if (ws.userId && playerInfo?.role) {
+        console.log(`用户 ${ws.userId} 断开，保留角色 ${playerInfo.role} 30秒等待重连`);
+        
+        // 从房间中移除这个 WebSocket，但保留 userSession
+        room.players.delete(ws);
+        
+        // 设置延迟清理
+        const existingTimeout = pendingDisconnects.get(ws.userId);
+        if (existingTimeout) clearTimeout(existingTimeout);
+        
+        pendingDisconnects.set(ws.userId, setTimeout(() => {
+          // 30秒后如果没有重连，清除会话
+          const session = getUserSession(ws.userId);
+          if (session && session.ws === ws) {
+            // WebSocket 还是旧的，说明没有重连
+            userSessions.delete(ws.userId);
+            console.log(`用户 ${ws.userId} 重连超时，会话已清除`);
+            
+            // 更新房间玩家状态
+            const currentRoom = rooms.get(session.roomId);
+            if (currentRoom) {
+              const roles = Array.from(currentRoom.players.values()).map(p => p.role).filter(Boolean);
+              broadcastToRoom(session.roomId, {
+                type: 'PLAYERS_UPDATE',
+                payload: {
+                  mastermind: roles.includes('mastermind'),
+                  protagonist: roles.includes('protagonist'),
+                },
+              });
+            }
+          }
+          pendingDisconnects.delete(ws.userId);
+        }, RECONNECT_GRACE_PERIOD));
+        
+        return; // 不立即广播玩家离开
+      }
+      
+      // 没有 userId 或没有角色，直接删除
       room.players.delete(ws);
       
       broadcastToRoom(ws.roomId, {
@@ -415,7 +597,7 @@ app.prepare().then(() => {
     ws.isAlive = true;
 
     // 发送欢迎消息和房间列表
-    ws.send(JSON.stringify({ type: 'WELCOME', payload: { message: '连接成功' } }));
+    ws.send(JSON.stringify({ type: 'WELCOME', payload: { message: '连接成功', version: VERSION } }));
     ws.send(JSON.stringify({ type: 'ROOM_LIST', payload: { rooms: getRoomList() } }));
 
     ws.on('pong', heartbeat);
@@ -459,7 +641,7 @@ app.prepare().then(() => {
   }, HEARTBEAT_INTERVAL);
 
   server.listen(PORT, () => {
-    console.log(`🚀 Tragedy Looper 服务已启动`);
+    console.log(`🚀 Tragedy Looper 服务已启动 v${VERSION}`);
     console.log(`   地址: http://localhost:${PORT}`);
     console.log(`   WebSocket: ws://localhost:${PORT}/ws`);
     console.log(`   环境: ${dev ? '开发' : '生产'}`);

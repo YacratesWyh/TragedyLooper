@@ -16,7 +16,7 @@ export function GameIntroPanel() {
       {/* Toggle Button - Fixed on left side, below rules reference */}
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed left-0 top-1/2 translate-y-8 z-[60] px-2 py-3 bg-slate-800 border border-slate-700 border-l-0 rounded-r-lg hover:bg-slate-700 transition-colors flex flex-col items-center gap-1"
+        className="fixed left-0 top-1/2 translate-y-8 z-[90] px-2 py-3 bg-slate-800 border border-slate-700 border-l-0 rounded-r-lg hover:bg-slate-700 transition-colors flex flex-col items-center gap-1"
         title="游戏简介"
       >
         <Sparkles size={16} className="text-purple-400" />
@@ -33,7 +33,7 @@ export function GameIntroPanel() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsOpen(false)}
-              className="fixed inset-0 bg-black/60 z-[70]"
+              className="fixed inset-0 bg-black/60 z-[110]"
             />
             
             {/* Panel Content */}
@@ -41,7 +41,7 @@ export function GameIntroPanel() {
               initial={{ x: -400, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
               exit={{ x: -400, opacity: 0 }}
-              className="fixed top-0 left-0 h-full w-96 bg-slate-900 border-r border-slate-700 z-[80] shadow-2xl overflow-hidden flex flex-col"
+              className="fixed top-0 left-0 h-full w-96 bg-slate-900 border-r border-slate-700 z-[120] shadow-2xl overflow-hidden flex flex-col"
             >
               {/* Header */}
               <div className="bg-gradient-to-r from-purple-900/50 to-slate-900 border-b border-slate-700 p-4 flex justify-between items-center shrink-0">
@@ -144,6 +144,49 @@ export function GameIntroPanel() {
                     <li><span className="text-orange-400">7. 事件</span> - 检查并处理当日事件</li>
                     <li><span className="text-slate-500">8. 夜晚</span> - 一天结束</li>
                   </ol>
+                </div>
+
+                {/* 事件触发条件 */}
+                <div className="bg-red-900/20 border border-red-800/50 rounded-lg p-4">
+                  <div className="font-bold text-red-300 mb-3">⚡ 事件触发条件</div>
+                  <p className="text-sm text-red-200 font-medium mb-2">事件发生必须同时满足：</p>
+                  <ol className="list-decimal list-inside space-y-1 text-sm text-slate-300">
+                    <li>今天有该事件（事件日程表）</li>
+                    <li>当事人存活</li>
+                    <li>当事人的不安 ≥ 不安上限</li>
+                  </ol>
+                  <p className="text-slate-400 text-xs mt-3 pt-2 border-t border-red-900/50">
+                    三个条件缺一不可。
+                  </p>
+                  <div className="mt-2 space-y-1 text-slate-300">
+                    <p className="text-xs"><span className="text-green-400">✓</span> 降低不安 → <strong>所有事件</strong>有效</p>
+                    <p className="text-xs"><span className="text-blue-400">✓</span> 移动当事人 → 仅对<strong>特定地点事件</strong>有效（如医院事故）</p>
+                  </div>
+                </div>
+
+                {/* 指示物说明 */}
+                <div className="bg-slate-800/50 border border-slate-700/50 rounded-lg p-4">
+                  <div className="font-bold text-slate-300 mb-3">🎯 指示物说明</div>
+                  <div className="space-y-3 text-sm">
+                    <div className="bg-pink-900/20 border border-pink-800/50 rounded-lg p-3">
+                      <div className="font-bold text-pink-300 mb-1">友好指示物</div>
+                      <p className="text-slate-300">
+                        主人公玩家可以放置。角色身上带有足够的友好指示物后，可以使用其友好能力。
+                      </p>
+                    </div>
+                    <div className="bg-purple-900/20 border border-purple-800/50 rounded-lg p-3">
+                      <div className="font-bold text-purple-300 mb-1">不安指示物</div>
+                      <p className="text-slate-300">
+                        双方玩家都可以放置。角色身上的不安指示物等于或超过其不安限度后，该角色可能会引发事件。
+                      </p>
+                    </div>
+                    <div className="bg-slate-700/50 border border-slate-600/50 rounded-lg p-3">
+                      <div className="font-bold text-slate-300 mb-1">密谋指示物</div>
+                      <p className="text-slate-300">
+                        剧作家玩家可以放置。该指示物达到一定数量后，可能会由规则或者身份能力的效果导致主人公游戏失败。
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </div>
 

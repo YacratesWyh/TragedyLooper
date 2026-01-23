@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 import { getCharacterSpriteStyle, hasCharacterAsset } from '@/lib/characterAssets';
 import { useGameStore } from '@/store/gameStore';
 import { useMultiplayer } from '@/lib/useMultiplayer';
-import { BookOpen, X, Skull, RefreshCw } from 'lucide-react';
+import { X, Skull, RefreshCw } from 'lucide-react';
 
 interface CharacterCardProps {
   characterState: CharacterState;
@@ -37,7 +37,7 @@ export function CharacterCard({
   onClick,
   onDragEnd
 }: CharacterCardProps) {
-  const [showAbilities, setShowAbilities] = useState(false);
+  const [showZoomedImage, setShowZoomedImage] = useState(false);
   const hasCards = myPlacedCards.length > 0 || opponentPlacedCards.length > 0;
   
   const { isConnected, updateGameState, toggleCharacterLife } = useMultiplayer();
@@ -81,17 +81,16 @@ export function CharacterCard({
   }, [characterState.id, isConnected, updateGameState, canEditIndicators]);
   
   const handleClick = (e: React.MouseEvent) => {
-    // 死亡角色无法交互
-    if (isDead) {
-      e.stopPropagation();
+    // 放牌模式下，传递点击事件给父组件
+    if (isPlacingCard) {
+      onClick?.(e);
       return;
     }
     
-    // 只有在非放牌模式下才切换能力显示
-    if (!isPlacingCard) {
-      setShowAbilities(!showAbilities);
+    // 非放牌模式下，点击放大图片
+    if (hasSpriteAsset) {
+      setShowZoomedImage(true);
     }
-    onClick?.(e);
   };
   
   // 检查角色是否有立绘资产
@@ -101,6 +100,12 @@ export function CharacterCard({
   const displayWidth = 180;
   const spriteStyle = hasSpriteAsset 
     ? getCharacterSpriteStyle(characterState.id, displayWidth)
+    : {};
+  
+  // 放大版本的立绘样式（显示宽度400px）
+  const zoomedDisplayWidth = 400;
+  const zoomedSpriteStyle = hasSpriteAsset 
+    ? getCharacterSpriteStyle(characterState.id, zoomedDisplayWidth)
     : {};
 
   // 计算不安预警状态
@@ -214,83 +219,41 @@ export function CharacterCard({
           height: hasSpriteAsset ? `${Math.round(866 * displayWidth / 620)}px` : '96px',
         }}
       >
-        <AnimatePresence mode="wait">
-          {!showAbilities ? (
-            // 默认显示角色立绘
-            <motion.div
-              key="avatar"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 flex items-center justify-center"
-            >
-              {hasSpriteAsset ? (
-                <div 
-                  className={cn(
-                    "w-full h-full bg-center bg-no-repeat transition-all duration-300",
-                    isDead && "grayscale opacity-40"
-                  )}
-                  style={spriteStyle}
-                />
-              ) : (
-                // 备用：无立绘时显示纯色背景
-                <div className="w-full h-full bg-slate-700 flex items-center justify-center">
-                  <span className="text-slate-500 text-xs">{characterDef.name}</span>
-                </div>
+        {/* 角色立绘 */}
+        <div className="absolute inset-0 flex items-center justify-center">
+          {hasSpriteAsset ? (
+            <div 
+              className={cn(
+                "w-full h-full bg-center bg-no-repeat transition-all duration-300 cursor-pointer",
+                isDead && "grayscale opacity-40"
               )}
-              
-              {/* 死亡标记 - 大红X */}
-              {isDead && (
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <X 
-                    size={80} 
-                    className="text-red-600 drop-shadow-[0_0_10px_rgba(220,38,38,0.8)]" 
-                    strokeWidth={6}
-                  />
-                </div>
-              )}
-              
-              {!isDead && characterDef.abilities.length > 0 && (
-                <div className="absolute top-1 right-1 text-[10px] text-white bg-black/50 px-1.5 py-0.5 rounded flex items-center gap-0.5">
-                  <BookOpen size={10} />
-                  能力
-                </div>
-              )}
-            </motion.div>
+              style={spriteStyle}
+            />
           ) : (
-            // 点击后显示能力
-            <motion.div
-              key="abilities"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-slate-800 p-2 overflow-y-auto"
-            >
-              {characterDef.abilities.length > 0 ? (
-                <div className="space-y-1.5">
-                  {characterDef.abilities.map((ability, i) => (
-                    <div key={i} className="text-[10px] leading-tight">
-                      <div className="flex items-center gap-1 text-pink-400 font-bold">
-                        <span>友好≥{ability.goodwillRequired}</span>
-                        {ability.maxUsesPerLoop && (
-                          <span className="text-amber-400">({ability.maxUsesPerLoop}次/轮)</span>
-                        )}
-                      </div>
-                      <div className="text-slate-300">{ability.effect}</div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="h-full flex items-center justify-center text-slate-500 text-xs">
-                  无特殊能力
-                </div>
-              )}
-              <div className="absolute bottom-1 right-1 text-[10px] text-slate-500">
-                点击返回
-              </div>
-            </motion.div>
+            // 备用：无立绘时显示纯色背景
+            <div className="w-full h-full bg-slate-700 flex items-center justify-center">
+              <span className="text-slate-500 text-xs">{characterDef.name}</span>
+            </div>
           )}
-        </AnimatePresence>
+          
+          {/* 死亡标记 - 大红X */}
+          {isDead && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <X 
+                size={80} 
+                className="text-red-600 drop-shadow-[0_0_10px_rgba(220,38,38,0.8)]" 
+                strokeWidth={6}
+              />
+            </div>
+          )}
+          
+          {/* 点击放大提示 */}
+          {hasSpriteAsset && !isDead && !isPlacingCard && (
+            <div className="absolute bottom-1 right-1 text-[9px] text-white/60 bg-black/40 px-1 py-0.5 rounded pointer-events-none">
+              点击放大
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Stats */}
@@ -339,17 +302,82 @@ export function CharacterCard({
         />
       </div>
 
-      {/* Abilities Indicator - 显示有几个能力 */}
-      {characterDef.abilities.length > 0 && (
-        <div className="flex gap-1 mt-1 justify-center items-center">
-          {characterDef.abilities.map((_, i) => (
-            <div key={i} className={cn(
-              "w-1.5 h-1.5 rounded-full transition-colors",
-              showAbilities ? "bg-pink-500" : "bg-blue-500/50"
-            )} />
-          ))}
-        </div>
-      )}
+      {/* 放大查看弹窗 */}
+      <AnimatePresence>
+        {showZoomedImage && hasSpriteAsset && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowZoomedImage(false);
+            }}
+          >
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.8, opacity: 0 }}
+              className="relative max-w-lg w-full"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* 关闭按钮 */}
+              <button
+                onClick={() => setShowZoomedImage(false)}
+                className="absolute -top-3 -right-3 p-2 bg-slate-800/90 hover:bg-slate-700 text-white rounded-full transition-colors z-10"
+              >
+                <X size={20} />
+              </button>
+              
+              {/* 放大的立绘 */}
+              <div 
+                className={cn(
+                  "mx-auto rounded-lg shadow-2xl overflow-hidden",
+                  isDead && "grayscale"
+                )}
+                style={zoomedSpriteStyle}
+              />
+              
+              {/* 角色信息 */}
+              <div className="mt-4 bg-slate-900/90 rounded-lg p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xl font-bold text-white">{characterDef.name}</h3>
+                  <span className="text-purple-400 text-sm">
+                    不安上限: {characterDef.anxietyLimit}
+                  </span>
+                </div>
+                
+                {/* 能力列表 */}
+                {characterDef.abilities.length > 0 ? (
+                  <div className="space-y-2">
+                    <div className="text-sm text-pink-400 font-bold">角色能力</div>
+                    {characterDef.abilities.map((ability, i) => (
+                      <div key={i} className="bg-slate-800/50 rounded p-2">
+                        <div className="flex items-center gap-2 text-sm text-pink-300 font-medium">
+                          <span>友好 ≥ {ability.goodwillRequired}</span>
+                          {ability.maxUsesPerLoop && (
+                            <span className="text-amber-400 text-xs">
+                              (每轮{ability.maxUsesPerLoop}次)
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-sm text-slate-300 mt-1">{ability.effect}</div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-slate-500 text-sm">此角色无特殊能力</div>
+                )}
+              </div>
+              
+              <div className="mt-3 text-center text-slate-500 text-xs">
+                点击任意位置关闭
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }

@@ -1,0 +1,16 @@
+{
+  "images": [
+    {
+      "id": "scripter-card",
+      "title": "剧作家参考卡",
+      "path": "scripter.jpg",
+      "visibleTo": "mastermind"
+    },
+    {
+      "id": "protagonist-card",
+      "title": "主人公参考卡",
+      "path": "protagonist.jpg",
+      "visibleTo": "protagonist"
+    }
+  ]
+}

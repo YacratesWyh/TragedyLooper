@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { 
   BookOpen, X, ChevronDown, ChevronRight,
-  Skull, Users, Zap, Heart, AlertTriangle,
+  Skull, AlertTriangle,
   Image as ImageIcon, Maximize2, Lock
 } from 'lucide-react';
 import { useGameStore } from '@/store/gameStore';
@@ -125,60 +125,6 @@ const INCIDENTS: IncidentInfo[] = [
     id: 'transfer',
     name: '流动',
     effect: '从任意1名角色身上移除2枚【友好】，随后往另外1名角色身上放置2枚【友好】。'
-  },
-];
-
-// ===== 角色数据 =====
-interface CharacterInfo {
-  id: string;
-  name: string;
-  anxietyLimit: number;
-  goodwillAbility: string;
-  goodwillRequired: number;
-}
-
-const CHARACTERS: CharacterInfo[] = [
-  {
-    id: 'boy_student',
-    name: '男学生',
-    anxietyLimit: 2,
-    goodwillRequired: 2,
-    goodwillAbility: '可以获取别的学生（女学生、巫女、偶像）来减少他/她的不安指示物。'
-  },
-  {
-    id: 'girl_student',
-    name: '女学生',
-    anxietyLimit: 3,
-    goodwillRequired: 2,
-    goodwillAbility: '可以获取别的学生（男学生、巫女、偶像）来减少他/她的不安指示物，需要避免引发事件时或许用得上。'
-  },
-  {
-    id: 'shrine_maiden',
-    name: '巫女',
-    anxietyLimit: 2,
-    goodwillRequired: 5,
-    goodwillAbility: '可以借助神力来直接揭露角色的身份，其效果非常强大，十分推荐使用。但是每轮只有3天，所以最多到5（只能+2,+2,+1）这很难达成，需注意。'
-  },
-  {
-    id: 'office_worker',
-    name: '职员',
-    anxietyLimit: 2,
-    goodwillRequired: 3,
-    goodwillAbility: '随后说出自己的身份，触发条件较为轻松，而且基本都能接得有效讯息，因此也比较推荐。'
-  },
-  {
-    id: 'idol',
-    name: '偶像',
-    anxietyLimit: 2,
-    goodwillRequired: 3,
-    goodwillAbility: '可以移除别人的不安指示物。友好度为4时可以让别人身上放置友好指示物。'
-  },
-  {
-    id: 'doctor',
-    name: '医生',
-    anxietyLimit: 2,
-    goodwillRequired: 2,
-    goodwillAbility: '可以置信息，以此来除险或者增加别人的不安，但作家或许并非通过你们的做法都不是家所用，在确认他值得信赖之前，暂且不要放置友好指示物吧。'
   },
 ];
 
@@ -498,10 +444,10 @@ export function RulesReference() {
 
   return (
     <>
-      {/* Toggle Button - Fixed on left side, z-[60] to stay above character cards (z-50 when dragging) */}
+      {/* Toggle Button - Fixed on left side, z-[90] to stay above character cards */}
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed left-0 top-1/2 -translate-y-1/2 z-[60] px-2 py-3 bg-slate-800 border border-slate-700 border-l-0 rounded-r-lg hover:bg-slate-700 transition-colors flex flex-col items-center gap-1"
+        className="fixed left-0 top-1/2 -translate-y-1/2 z-[90] px-2 py-3 bg-slate-800 border border-slate-700 border-l-0 rounded-r-lg hover:bg-slate-700 transition-colors flex flex-col items-center gap-1"
         title="规则速查"
       >
         <BookOpen size={16} className="text-amber-400" />
@@ -518,7 +464,7 @@ export function RulesReference() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsOpen(false)}
-              className="fixed inset-0 bg-black/60 z-[70]"
+              className="fixed inset-0 bg-black/60 z-[110]"
             />
             
             {/* Panel Content */}
@@ -526,7 +472,7 @@ export function RulesReference() {
               initial={{ x: -400, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
               exit={{ x: -400, opacity: 0 }}
-              className="fixed top-0 left-0 h-full w-96 bg-slate-900 border-r border-slate-700 z-[80] shadow-2xl overflow-hidden flex flex-col"
+              className="fixed top-0 left-0 h-full w-96 bg-slate-900 border-r border-slate-700 z-[120] shadow-2xl overflow-hidden flex flex-col"
             >
               {/* Header */}
               <div className="bg-gradient-to-r from-amber-900/50 to-slate-900 border-b border-slate-700 p-4 flex justify-between items-center shrink-0">
@@ -589,72 +535,6 @@ export function RulesReference() {
                   <ScriptReference />
                 </CollapsibleSection>
 
-                {/* 角色速查 */}
-                <CollapsibleSection title="角色能力" icon={<Users size={16} />}>
-                  <div className="space-y-2">
-                    {CHARACTERS.map(char => (
-                      <div key={char.id} className="bg-slate-800/50 rounded-lg p-3 border border-slate-700/50">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="font-bold text-white">{char.name}</span>
-                          <div className="flex gap-2 text-xs">
-                            <span className="px-1.5 py-0.5 bg-purple-900/50 text-purple-300 rounded">
-                              不安上限 {char.anxietyLimit}
-                            </span>
-                            <span className="px-1.5 py-0.5 bg-pink-900/50 text-pink-300 rounded">
-                              友好≥{char.goodwillRequired}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="text-sm text-slate-400 leading-relaxed">
-                          {char.goodwillAbility}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CollapsibleSection>
-
-                {/* 事件触发条件 */}
-                <CollapsibleSection title="事件触发条件" icon={<Zap size={16} />}>
-                  <div className="bg-red-900/20 border border-red-800/50 rounded-lg p-4 text-sm space-y-2">
-                    <p className="text-red-300 font-bold">事件发生必须同时满足：</p>
-                    <ol className="list-decimal list-inside space-y-1 text-slate-300">
-                      <li>今天有该事件（事件日程表）</li>
-                      <li>当事人存活</li>
-                      <li>当事人的不安 ≥ 不安上限</li>
-                    </ol>
-                    <p className="text-slate-400 text-xs mt-3 pt-2 border-t border-red-900/50">
-                      三个条件缺一不可。
-                    </p>
-                    <div className="mt-2 space-y-1 text-slate-300">
-                      <p className="text-xs"><span className="text-green-400">✓</span> 降低不安 → <strong>所有事件</strong>有效</p>
-                      <p className="text-xs"><span className="text-blue-400">✓</span> 移动当事人 → 仅对<strong>特定地点事件</strong>有效（如医院事故）</p>
-                    </div>
-                  </div>
-                </CollapsibleSection>
-
-                {/* 友好指示物说明 */}
-                <CollapsibleSection title="指示物说明" icon={<Heart size={16} />}>
-                  <div className="space-y-3 text-sm">
-                    <div className="bg-pink-900/20 border border-pink-800/50 rounded-lg p-3">
-                      <div className="font-bold text-pink-300 mb-1">友好指示物</div>
-                      <p className="text-slate-300">
-                        主人公玩家可以放置。角色身上带有足够的友好指示物后，可以使用其友好能力。
-                      </p>
-                    </div>
-                    <div className="bg-purple-900/20 border border-purple-800/50 rounded-lg p-3">
-                      <div className="font-bold text-purple-300 mb-1">不安指示物</div>
-                      <p className="text-slate-300">
-                        双方玩家都可以放置。角色身上的不安指示物等于或超过其不安限度后，该角色可能会引发事件。
-                      </p>
-                    </div>
-                    <div className="bg-slate-700/50 border border-slate-600/50 rounded-lg p-3">
-                      <div className="font-bold text-slate-300 mb-1">密谋指示物</div>
-                      <p className="text-slate-300">
-                        剧作家玩家可以放置。该指示物达到一定数量后，可能会由规则或者身份能力的效果导致主人公游戏失败。
-                      </p>
-                    </div>
-                  </div>
-                </CollapsibleSection>
               </div>
 
               {/* Footer */}

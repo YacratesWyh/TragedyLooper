@@ -19,6 +19,7 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
   const { 
     isConnected, 
     connect, 
+    serverVersion,
     rooms,
     currentRoom,
     createRoom,
@@ -704,7 +705,10 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
         transition={{ delay: 0.5 }}
         className="mt-8 text-center text-slate-600 text-sm"
       >
-        创建或加入房间开始游戏
+        <p>创建或加入房间开始游戏</p>
+        {serverVersion && (
+          <p className="text-xs text-slate-700 mt-2">Server v{serverVersion}</p>
+        )}
       </motion.div>
     </div>
   );

@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * 手牌信息面板 - 独立侧边栏组件
+ * 手牌信息面板 - 独立侧边栏组件（右侧）
  */
 
 import React, { useState } from 'react';
@@ -13,31 +13,31 @@ interface HandCardInfo {
   type: 'movement' | 'goodwill' | 'anxiety' | 'intrigue';
   name: string;
   effect: string;
-  count?: number;
   oncePerLoop?: boolean;
 }
 
 const MASTERMIND_HAND: HandCardInfo[] = [
-  { type: 'movement', name: '移动↑', effect: '纵向移动', count: 1 },
-  { type: 'movement', name: '移动→', effect: '横向移动', count: 1 },
+  { type: 'movement', name: '移动↑', effect: '纵向移动' },
+  { type: 'movement', name: '移动→', effect: '横向移动' },
   { type: 'movement', name: '斜向移动', effect: '斜向移动', oncePerLoop: true },
-  { type: 'anxiety', name: '不安+1', effect: '目标角色不安+1', count: 2 },
-  { type: 'anxiety', name: '不安-1', effect: '目标角色不安-1', count: 1 },
-  { type: 'anxiety', name: '禁止不安', effect: '抵消对方不安牌效果', count: 1 },
-  { type: 'goodwill', name: '禁止友好', effect: '抵消对方友好牌效果', count: 1 },
-  { type: 'intrigue', name: '密谋+1', effect: '目标密谋+1', count: 1 },
+  { type: 'anxiety', name: '不安+1', effect: '目标角色不安+1' },
+  { type: 'anxiety', name: '不安+1', effect: '目标角色不安+1' },
+  { type: 'anxiety', name: '不安-1', effect: '目标角色不安-1' },
+  { type: 'anxiety', name: '禁止不安', effect: '抵消对方不安牌效果' },
+  { type: 'goodwill', name: '禁止友好', effect: '抵消对方友好牌效果' },
+  { type: 'intrigue', name: '密谋+1', effect: '目标密谋+1' },
   { type: 'intrigue', name: '密谋+2', effect: '目标密谋+2', oncePerLoop: true },
 ];
 
 const PROTAGONIST_HAND: HandCardInfo[] = [
-  { type: 'movement', name: '移动↑', effect: '纵向移动', count: 1 },
-  { type: 'movement', name: '移动→', effect: '横向移动', count: 1 },
+  { type: 'movement', name: '移动↑', effect: '纵向移动' },
+  { type: 'movement', name: '移动→', effect: '横向移动' },
   { type: 'movement', name: '禁止移动', effect: '抵消对方移动牌效果', oncePerLoop: true },
-  { type: 'goodwill', name: '友好+1', effect: '目标角色友好+1', count: 1 },
+  { type: 'goodwill', name: '友好+1', effect: '目标角色友好+1' },
   { type: 'goodwill', name: '友好+2', effect: '目标角色友好+2', oncePerLoop: true },
-  { type: 'anxiety', name: '不安+1', effect: '目标角色不安+1', count: 1 },
+  { type: 'anxiety', name: '不安+1', effect: '目标角色不安+1' },
   { type: 'anxiety', name: '不安-1', effect: '目标角色不安-1', oncePerLoop: true },
-  { type: 'intrigue', name: '禁止密谋', effect: '抵消对方密谋牌效果', count: 1 },
+  { type: 'intrigue', name: '禁止密谋', effect: '抵消对方密谋牌效果' },
 ];
 
 const TYPE_COLORS: Record<string, string> = {
@@ -68,19 +68,17 @@ function HandTable({ cards, title, color }: { cards: HandCardInfo[]; title: stri
         {cards.map((card, idx) => (
           <div key={idx} className="px-3 py-2 flex items-center gap-2 hover:bg-slate-800/30 transition-colors">
             <span className={cn(
-              "px-1.5 py-0.5 rounded text-[10px] border font-medium",
+              "px-1.5 py-0.5 rounded text-[10px] border font-medium shrink-0",
               TYPE_COLORS[card.type]
             )}>
               {TYPE_NAMES[card.type]}
             </span>
-            <span className="font-medium text-white text-sm flex-1">{card.name}</span>
+            <span className="font-medium text-white text-sm">{card.name}</span>
             <span className="text-xs text-slate-400 flex-1">{card.effect}</span>
-            {card.oncePerLoop ? (
-              <span className="text-[10px] px-1.5 py-0.5 bg-amber-900/50 text-amber-300 rounded border border-amber-700/50">
+            {card.oncePerLoop && (
+              <span className="text-[10px] px-1.5 py-0.5 bg-amber-900/50 text-amber-300 rounded border border-amber-700/50 shrink-0">
                 每轮1次
               </span>
-            ) : (
-              <span className="text-xs text-slate-500">×{card.count || 1}</span>
             )}
           </div>
         ))}
@@ -94,10 +92,10 @@ export function HandCardsPanel() {
 
   return (
     <>
-      {/* Toggle Button - Fixed on left side */}
+      {/* Toggle Button - Fixed on RIGHT side */}
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed left-0 top-1/2 translate-y-20 z-[60] px-2 py-3 bg-slate-800 border border-slate-700 border-l-0 rounded-r-lg hover:bg-slate-700 transition-colors flex flex-col items-center gap-1"
+        className="fixed right-0 top-1/2 translate-y-20 z-[90] px-2 py-3 bg-slate-800 border border-slate-700 border-r-0 rounded-l-lg hover:bg-slate-700 transition-colors flex flex-col items-center gap-1"
         title="手牌参考"
       >
         <Layers size={16} className="text-green-400" />
@@ -114,18 +112,18 @@ export function HandCardsPanel() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsOpen(false)}
-              className="fixed inset-0 bg-black/60 z-[70]"
+              className="fixed inset-0 bg-black/60 z-[110]"
             />
             
-            {/* Panel Content */}
+            {/* Panel Content - Slides from RIGHT */}
             <motion.div
-              initial={{ x: -400, opacity: 0 }}
+              initial={{ x: 400, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
-              exit={{ x: -400, opacity: 0 }}
-              className="fixed top-0 left-0 h-full w-[420px] bg-slate-900 border-r border-slate-700 z-[80] shadow-2xl overflow-hidden flex flex-col"
+              exit={{ x: 400, opacity: 0 }}
+              className="fixed top-0 right-0 h-full w-[420px] bg-slate-900 border-l border-slate-700 z-[120] shadow-2xl overflow-hidden flex flex-col"
             >
               {/* Header */}
-              <div className="bg-gradient-to-r from-green-900/50 to-slate-900 border-b border-slate-700 p-4 flex justify-between items-center shrink-0">
+              <div className="bg-gradient-to-l from-green-900/50 to-slate-900 border-b border-slate-700 p-4 flex justify-between items-center shrink-0">
                 <div className="flex items-center gap-3">
                   <Layers className="text-green-400" size={24} />
                   <div>

@@ -16,9 +16,26 @@ const getWsUrl = () => {
   return `${wsProtocol}//${window.location.host}/ws`;
 };
 
-// 会话存储 key
+// 存储 key
 const SESSION_KEY = 'tl_session';
+const TAB_ID_KEY = 'tl_tab_id';
 const SESSION_TTL = 5 * 60 * 1000; // 5 分钟
+
+// 生成/获取用户 ID（每个标签页独立，使用 sessionStorage）
+function getUserId(): string {
+  if (typeof window === 'undefined') return 'server';
+  try {
+    // 使用 sessionStorage 使每个标签页有独立的 ID
+    let tabId = sessionStorage.getItem(TAB_ID_KEY);
+    if (!tabId) {
+      tabId = `tab_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 8)}`;
+      sessionStorage.setItem(TAB_ID_KEY, tabId);
+    }
+    return tabId;
+  } catch {
+    return `temp_${Math.random().toString(36).substring(2, 10)}`;
+  }
+}
 
 // 保存/读取/清除会话
 interface SessionData {
@@ -69,6 +86,7 @@ interface RoomInfo {
 interface MultiplayerContextType {
   isConnected: boolean;
   isReconnecting: boolean;
+  serverVersion: string | null;
   connect: () => void;
   disconnect: () => void;
   
@@ -96,6 +114,7 @@ const MultiplayerContext = createContext<MultiplayerContextType | null>(null);
 export function MultiplayerProvider({ children }: { children: React.ReactNode }) {
   const [isConnected, setIsConnected] = useState(false);
   const [isReconnecting, setIsReconnecting] = useState(false);
+  const [serverVersion, setServerVersion] = useState<string | null>(null);
   const [rooms, setRooms] = useState<RoomInfo[]>([]);
   const [currentRoom, setCurrentRoom] = useState<{ id: string; name: string } | null>(null);
   const [myRole, setMyRole] = useState<PlayerRole | null>(null);
@@ -176,6 +195,13 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
       // 启动心跳
       startHeartbeat();
       
+      // 发送用户身份标识
+      const userId = getUserId();
+      ws.send(JSON.stringify({
+        type: 'IDENTIFY',
+        payload: { userId },
+      }));
+      
       // 检查是否有会话需要恢复
       const session = loadSession();
       if (session) {
@@ -183,6 +209,7 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
         ws.send(JSON.stringify({
           type: 'REJOIN_ROOM',
           payload: {
+            userId,
             roomId: session.roomId,
             role: session.role,
           },
@@ -200,6 +227,9 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
 
         switch (data.type) {
           case 'WELCOME':
+            if (data.payload.version) {
+              setServerVersion(data.payload.version);
+            }
             if (data.payload.rooms) {
               setRooms(data.payload.rooms);
             }
@@ -213,7 +243,15 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
             setCurrentRoom({ id: data.payload.roomId, name: data.payload.roomName });
             setAvailableRoles(data.payload.availableRoles || ['mastermind', 'protagonist']);
             setPlayers(data.payload.players || { mastermind: false, protagonist: false });
-            console.log('🏠 已加入房间:', data.payload.roomId);
+            // 如果有游戏状态，同步到本地
+            if (data.payload.gameState) {
+              useGameStore.setState({
+                gameState: data.payload.gameState,
+              });
+              console.log('🏠 已加入房间:', data.payload.roomId, '(含游戏状态)');
+            } else {
+              console.log('🏠 已加入房间:', data.payload.roomId);
+            }
             break;
 
           case 'REJOIN_SUCCESS':
@@ -466,6 +504,7 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
   const value = {
     isConnected,
     isReconnecting,
+    serverVersion,
     connect,
     disconnect,
     rooms,

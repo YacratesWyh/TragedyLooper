@@ -340,12 +340,18 @@ export function PhaseControl() {
         )}
         {currentPhase === 'mastermind_ability' && (
           <div className="mt-2 text-sm opacity-90">
-            🎭 剧作家点击指示物调整（角色能力）
+            <div>🎭 剧作家点击指示物调整（角色能力）</div>
+            <div className="text-xs text-slate-400 mt-1">
+              💡 发动<span className="text-red-300">身份能力</span>或<span className="text-amber-300">剧情规则</span>效果
+            </div>
           </div>
         )}
         {currentPhase === 'protagonist_ability' && (
           <div className="mt-2 text-sm opacity-90">
-            ✨ 主人公点击指示物调整（友好技能）
+            <div>✨ 主人公点击指示物调整（友好技能）</div>
+            <div className="text-xs text-slate-400 mt-1">
+              💡 发动<span className="text-pink-300">友好能力</span>（角色友好≥需求时可用）
+            </div>
           </div>
         )}
         {currentPhase === 'incident' && (
