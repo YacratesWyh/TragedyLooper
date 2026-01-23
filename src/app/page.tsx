@@ -11,6 +11,7 @@ import { DeckReference } from '@/components/DeckReference';
 import { RulesReference } from '@/components/RulesReference';
 import { PhaseControl } from '@/components/PhaseControl';
 import { MultiplayerPanel } from '@/components/MultiplayerPanel';
+import { ScriptImageViewer } from '@/components/ScriptImageViewer';
 import type { LocationType, CharacterId } from '@/types/game';
 import { RotateCcw, AlertCircle, X } from 'lucide-react';
 
@@ -192,6 +193,9 @@ export default function Home() {
 
       {/* Rules Reference Panel (left side) */}
       <RulesReference />
+
+      {/* Script Image Viewer (right bottom) */}
+      <ScriptImageViewer />
 
       {/* Deck Reference Panel (right side) */}
       <DeckReference 

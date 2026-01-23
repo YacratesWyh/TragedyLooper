@@ -168,6 +168,47 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
     );
   }
 
+  // 主人公等待剧作家选择剧本
+  if (myRole === 'protagonist' && !gameState && currentRoom) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex flex-col items-center justify-center p-8">
+        <motion.div
+          initial={{ opacity: 0, y: -30 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-center mb-8"
+        >
+          <h1 className="text-4xl font-black text-white tracking-tight mb-2">等待剧作家</h1>
+          <p className="text-slate-400 text-lg">Waiting for Mastermind</p>
+        </motion.div>
+        
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.2 }}
+          className="flex flex-col items-center gap-6"
+        >
+          <div className="flex items-center gap-3 px-6 py-3 rounded-full bg-blue-900/30 border border-blue-600/50 text-blue-300">
+            <Loader2 className="w-5 h-5 animate-spin" />
+            <span className="font-medium">剧作家正在选择剧本...</span>
+          </div>
+          
+          <div className="text-center text-slate-500 text-sm max-w-md">
+            <p>你已选择 <span className="text-blue-400 font-bold">主人公</span> 角色</p>
+            <p className="mt-2">请等待剧作家完成剧本配置后开始游戏</p>
+          </div>
+          
+          <button
+            onClick={leaveRoom}
+            className="mt-4 flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-700 text-slate-500 hover:bg-slate-800 hover:text-slate-300 transition-all text-sm"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            返回大厅
+          </button>
+        </motion.div>
+      </div>
+    );
+  }
+
   // 未连接
   if (!isConnected) {
     return (

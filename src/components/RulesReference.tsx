@@ -573,10 +573,10 @@ export function RulesReference() {
 
   return (
     <>
-      {/* Toggle Button - Fixed on left side */}
+      {/* Toggle Button - Fixed on left side, z-[60] to stay above character cards (z-50 when dragging) */}
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed left-0 top-1/2 -translate-y-1/2 z-30 px-2 py-3 bg-slate-800 border border-slate-700 border-l-0 rounded-r-lg hover:bg-slate-700 transition-colors flex flex-col items-center gap-1"
+        className="fixed left-0 top-1/2 -translate-y-1/2 z-[60] px-2 py-3 bg-slate-800 border border-slate-700 border-l-0 rounded-r-lg hover:bg-slate-700 transition-colors flex flex-col items-center gap-1"
         title="规则速查"
       >
         <BookOpen size={16} className="text-amber-400" />
@@ -593,7 +593,7 @@ export function RulesReference() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsOpen(false)}
-              className="fixed inset-0 bg-black/60 z-40"
+              className="fixed inset-0 bg-black/60 z-[70]"
             />
             
             {/* Panel Content */}
@@ -601,7 +601,7 @@ export function RulesReference() {
               initial={{ x: -400, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
               exit={{ x: -400, opacity: 0 }}
-              className="fixed top-0 left-0 h-full w-96 bg-slate-900 border-r border-slate-700 z-50 shadow-2xl overflow-hidden flex flex-col"
+              className="fixed top-0 left-0 h-full w-96 bg-slate-900 border-r border-slate-700 z-[80] shadow-2xl overflow-hidden flex flex-col"
             >
               {/* Header */}
               <div className="bg-gradient-to-r from-amber-900/50 to-slate-900 border-b border-slate-700 p-4 flex justify-between items-center shrink-0">

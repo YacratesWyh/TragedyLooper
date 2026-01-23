@@ -67,22 +67,42 @@ function handleWebSocketMessage(ws, message) {
   const { type, payload } = data;
 
   switch (type) {
-    case 'LIST_ROOMS': {
-      ws.send(JSON.stringify({ type: 'ROOM_LIST', payload: getRoomList() }));
+    case 'LIST_ROOMS':
+    case 'REFRESH_ROOMS': {
+      ws.send(JSON.stringify({ type: 'ROOM_LIST', payload: { rooms: getRoomList() } }));
       break;
     }
 
     case 'CREATE_ROOM': {
       const { name, password } = payload;
       const roomId = generateRoomId();
-      rooms.set(roomId, {
-        name: name || `房间 ${roomId}`,
+      const roomName = name || `房间 ${roomId}`;
+      const room = {
+        name: roomName,
         password: password || null,
         players: new Map(),
         gameState: null,
-      });
-      ws.send(JSON.stringify({ type: 'ROOM_CREATED', payload: { roomId, name: rooms.get(roomId).name } }));
-      console.log(`房间创建: ${roomId} - ${rooms.get(roomId).name}`);
+      };
+      rooms.set(roomId, room);
+      
+      // 创建者自动加入房间
+      room.players.set(ws, { role: null });
+      ws.roomId = roomId;
+      
+      ws.send(JSON.stringify({
+        type: 'ROOM_JOINED',
+        payload: {
+          roomId,
+          roomName,
+          availableRoles: ['mastermind', 'protagonist'],
+          gameState: null,
+          players: { mastermind: false, protagonist: false },
+        },
+      }));
+      console.log(`房间创建并加入: ${roomId} - ${roomName}`);
+      
+      // 广播房间列表更新
+      if (global.broadcastRoomList) global.broadcastRoomList();
       break;
     }
 
@@ -127,6 +147,9 @@ function handleWebSocketMessage(ws, message) {
       }, ws);
 
       console.log(`玩家加入房间: ${roomId}, 当前人数: ${room.players.size}`);
+      
+      // 广播房间列表更新
+      if (global.broadcastRoomList) global.broadcastRoomList();
       break;
     }
 
@@ -157,7 +180,7 @@ function handleWebSocketMessage(ws, message) {
     }
 
     case 'SELECT_ROLE': {
-      const { role } = payload;
+      const role = payload?.role || data.role;
       const room = rooms.get(ws.roomId);
       
       if (!room) {
@@ -165,15 +188,30 @@ function handleWebSocketMessage(ws, message) {
         return;
       }
 
-      const existingRoles = Array.from(room.players.values()).map(p => p.role);
+      // 检查角色是否已被占用
+      const existingRoles = Array.from(room.players.values()).map(p => p.role).filter(Boolean);
       if (existingRoles.includes(role)) {
         ws.send(JSON.stringify({ type: 'ERROR', payload: { message: '角色已被选择' } }));
         return;
       }
 
+      // 设置角色
       room.players.set(ws, { role });
       
+      // 计算当前玩家状态
       const updatedRoles = Array.from(room.players.values()).map(p => p.role).filter(Boolean);
+      const playerStatus = {
+        mastermind: updatedRoles.includes('mastermind'),
+        protagonist: updatedRoles.includes('protagonist'),
+      };
+      
+      // 广播玩家状态更新（这是客户端需要的）
+      broadcastToRoom(ws.roomId, {
+        type: 'PLAYERS_UPDATE',
+        payload: playerStatus,
+      });
+      
+      // 广播可用角色更新
       broadcastToRoom(ws.roomId, {
         type: 'ROLE_UPDATED',
         payload: {
@@ -181,22 +219,103 @@ function handleWebSocketMessage(ws, message) {
         },
       });
 
-      ws.send(JSON.stringify({ type: 'ROLE_SELECTED', payload: { role } }));
+      // 确认选择
+      ws.send(JSON.stringify({ type: 'ROLE_CONFIRMED', payload: { role } }));
       console.log(`玩家选择角色: ${role} in ${ws.roomId}`);
       break;
     }
 
-    case 'SYNC_GAME_STATE': {
-      const { gameState } = payload;
+    case 'SYNC_GAME_STATE':
+    case 'UPDATE_GAME_STATE': {
       const room = rooms.get(ws.roomId);
-      
       if (!room) return;
 
-      room.gameState = gameState;
+      // 保存完整状态
+      if (payload.gameState) room.gameState = payload.gameState;
+      
+      // 广播给其他玩家
       broadcastToRoom(ws.roomId, {
-        type: 'GAME_STATE_UPDATED',
-        payload: { gameState },
+        type: 'STATE_SYNC',
+        payload: payload,
       }, ws);
+      break;
+    }
+
+    case 'RESET_GAME': {
+      const room = rooms.get(ws.roomId);
+      if (!room) return;
+
+      room.gameState = null;
+      broadcastToRoom(ws.roomId, { type: 'GAME_RESET', payload: {} });
+      console.log(`房间 ${ws.roomId} 游戏重置`);
+      break;
+    }
+
+    case 'ADJUST_INDICATOR': {
+      const room = rooms.get(ws.roomId);
+      if (!room) return;
+
+      broadcastToRoom(ws.roomId, {
+        type: 'INDICATOR_ADJUSTED',
+        payload: payload,
+      });
+      break;
+    }
+
+    case 'TOGGLE_LIFE': {
+      const room = rooms.get(ws.roomId);
+      if (!room) return;
+
+      broadcastToRoom(ws.roomId, {
+        type: 'LIFE_TOGGLED',
+        payload: payload,
+      });
+      break;
+    }
+
+    case 'MOVE_CHARACTER': {
+      const room = rooms.get(ws.roomId);
+      if (!room) return;
+
+      broadcastToRoom(ws.roomId, {
+        type: 'CHARACTER_MOVED',
+        payload: payload,
+      });
+      break;
+    }
+
+    case 'REJOIN_ROOM': {
+      const { roomId, role } = payload;
+      const room = rooms.get(roomId);
+      
+      if (!room) {
+        ws.send(JSON.stringify({ type: 'ERROR', payload: { message: '房间已不存在' } }));
+        return;
+      }
+
+      room.players.set(ws, { role: role || null });
+      ws.roomId = roomId;
+
+      const roles = Array.from(room.players.values()).map(p => p.role).filter(Boolean);
+      ws.send(JSON.stringify({
+        type: 'ROOM_JOINED',
+        payload: {
+          roomId,
+          roomName: room.name,
+          availableRoles: ['mastermind', 'protagonist'].filter(r => !roles.includes(r)),
+          gameState: room.gameState,
+          players: {
+            mastermind: roles.includes('mastermind'),
+            protagonist: roles.includes('protagonist'),
+          },
+        },
+      }));
+
+      if (role) {
+        ws.send(JSON.stringify({ type: 'ROLE_CONFIRMED', payload: { role } }));
+      }
+
+      console.log(`玩家重连房间: ${roomId}, 角色: ${role || '未选择'}`);
       break;
     }
 
@@ -249,6 +368,8 @@ function handleWebSocketClose(ws) {
       if (room.players.size === 0) {
         rooms.delete(ws.roomId);
         console.log(`房间已删除: ${ws.roomId}`);
+        // 广播房间列表更新
+        if (global.broadcastRoomList) global.broadcastRoomList();
       }
     }
   }
@@ -265,9 +386,26 @@ app.prepare().then(() => {
   // WebSocket 服务器挂载到同一个 HTTP 服务器
   const wss = new WebSocket.Server({ server, path: '/ws' });
 
+  // 广播房间列表给所有在大厅的客户端
+  function broadcastRoomList() {
+    const roomList = getRoomList();
+    wss.clients.forEach((client) => {
+      if (client.readyState === WebSocket.OPEN && !client.roomId) {
+        client.send(JSON.stringify({ type: 'ROOM_LIST', payload: { rooms: roomList } }));
+      }
+    });
+  }
+
+  // 暴露给消息处理函数
+  global.broadcastRoomList = broadcastRoomList;
+
   wss.on('connection', (ws) => {
     console.log('WebSocket 客户端连接');
     ws.roomId = null;
+
+    // 发送欢迎消息和房间列表
+    ws.send(JSON.stringify({ type: 'WELCOME', payload: { message: '连接成功' } }));
+    ws.send(JSON.stringify({ type: 'ROOM_LIST', payload: { rooms: getRoomList() } }));
 
     ws.on('message', (message) => {
       handleWebSocketMessage(ws, message.toString());

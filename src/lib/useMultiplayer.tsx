@@ -8,23 +8,24 @@ import { useGameStore } from '@/store/gameStore';
 import type { PlayerRole, CharacterId, LocationType } from '@/types/game';
 
 // WebSocket 服务器地址
-// 统一逻辑：同端口 /ws 路径
-// 唯一例外：next dev (localhost:3000) 需要独立 WebSocket 端口
+// 本地开发: ws://localhost:3001
+// 生产环境: 通过环境变量 NEXT_PUBLIC_WS_URL 配置
 const getWsUrl = () => {
-  if (typeof window === 'undefined') return 'ws://localhost:8080/ws';
+  if (typeof window === 'undefined') return 'ws://localhost:3001';
   if (process.env.NEXT_PUBLIC_WS_URL) return process.env.NEXT_PUBLIC_WS_URL;
   
-  const { protocol, hostname, port, host } = window.location;
-  const wsProtocol = protocol === 'https:' ? 'wss:' : 'ws:';
+  const { hostname } = window.location;
   
-  // next dev 默认端口 3000，不支持 WebSocket，需要独立服务器
-  const isNextDev = hostname === 'localhost' && port === '3000';
-  if (isNextDev) {
+  // 本地开发：WebSocket 服务器固定在 3001
+  if (hostname === 'localhost' || hostname === '127.0.0.1') {
     return 'ws://localhost:3001';
   }
   
-  // 其他情况（npm run start、生产环境）：同端口 /ws 路径
-  return `${wsProtocol}//${host}/ws`;
+  // 生产环境：需要配置 NEXT_PUBLIC_WS_URL
+  // 例如 Zeabur 部署时设置为 wss://your-domain.zeabur.app/ws
+  console.warn('生产环境未配置 NEXT_PUBLIC_WS_URL，尝试使用 /ws 路径');
+  const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  return `${wsProtocol}//${window.location.host}/ws`;
 };
 
 // 会话存储 key
