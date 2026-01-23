@@ -13,7 +13,6 @@ import { PhaseControl } from '@/components/PhaseControl';
 import { MultiplayerPanel } from '@/components/MultiplayerPanel';
 import { ScriptImageViewer } from '@/components/ScriptImageViewer';
 import { GameIntroPanel } from '@/components/GameIntroPanel';
-import { HandCardsPanel } from '@/components/HandCardsPanel';
 import type { LocationType, CharacterId } from '@/types/game';
 import { RotateCcw, AlertCircle, X } from 'lucide-react';
 
@@ -196,7 +195,6 @@ export default function Home() {
       {/* Left Side Panels */}
       <RulesReference />
       <GameIntroPanel />
-      <HandCardsPanel />
 
       {/* Script Image Viewer (right bottom) */}
       <ScriptImageViewer />

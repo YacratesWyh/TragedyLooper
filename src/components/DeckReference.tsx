@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { PlayerDeck, ActionCard } from '@/types/game';
 import { cn } from '@/lib/utils';
-import { ChevronLeft, ChevronRight, Heart, Zap, Eye, Footprints, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronDown, Heart, Zap, Eye, Footprints, X, Layers } from 'lucide-react';
 
 interface DeckReferenceProps {
   deck: PlayerDeck;
@@ -23,6 +23,147 @@ const CARD_COLORS: Record<string, string> = {
   anxiety: 'bg-purple-600',
   intrigue: 'bg-slate-600',
 };
+
+// ===== 手牌参考数据 =====
+interface HandCardInfo {
+  type: 'movement' | 'goodwill' | 'anxiety' | 'intrigue';
+  name: string;
+  effect: string;
+  oncePerLoop?: boolean;
+}
+
+const MASTERMIND_HAND: HandCardInfo[] = [
+  { type: 'movement', name: '移动↑', effect: '纵向移动' },
+  { type: 'movement', name: '移动→', effect: '横向移动' },
+  { type: 'movement', name: '斜向移动', effect: '斜向移动', oncePerLoop: true },
+  { type: 'anxiety', name: '不安+1', effect: '目标角色不安+1' },
+  { type: 'anxiety', name: '不安+1', effect: '目标角色不安+1' },
+  { type: 'anxiety', name: '不安-1', effect: '目标角色不安-1' },
+  { type: 'anxiety', name: '禁止不安', effect: '抵消对方不安牌效果' },
+  { type: 'goodwill', name: '禁止友好', effect: '抵消对方友好牌效果' },
+  { type: 'intrigue', name: '密谋+1', effect: '目标密谋+1' },
+  { type: 'intrigue', name: '密谋+2', effect: '目标密谋+2', oncePerLoop: true },
+];
+
+const PROTAGONIST_HAND: HandCardInfo[] = [
+  { type: 'movement', name: '移动↑', effect: '纵向移动' },
+  { type: 'movement', name: '移动→', effect: '横向移动' },
+  { type: 'movement', name: '禁止移动', effect: '抵消对方移动牌效果', oncePerLoop: true },
+  { type: 'goodwill', name: '友好+1', effect: '目标角色友好+1' },
+  { type: 'goodwill', name: '友好+2', effect: '目标角色友好+2', oncePerLoop: true },
+  { type: 'anxiety', name: '不安+1', effect: '目标角色不安+1' },
+  { type: 'anxiety', name: '不安-1', effect: '目标角色不安-1', oncePerLoop: true },
+  { type: 'intrigue', name: '禁止密谋', effect: '抵消对方密谋牌效果' },
+];
+
+const TYPE_COLORS_REF: Record<string, string> = {
+  movement: 'bg-emerald-900/50 border-emerald-700/50 text-emerald-300',
+  goodwill: 'bg-pink-900/50 border-pink-700/50 text-pink-300',
+  anxiety: 'bg-purple-900/50 border-purple-700/50 text-purple-300',
+  intrigue: 'bg-slate-700/50 border-slate-600/50 text-slate-300',
+};
+
+const TYPE_NAMES: Record<string, string> = {
+  movement: '移动',
+  goodwill: '友好',
+  anxiety: '不安',
+  intrigue: '密谋',
+};
+
+function HandCardsReference() {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  return (
+    <div className="border-t border-slate-700">
+      <button
+        onClick={() => setIsExpanded(!isExpanded)}
+        className="w-full p-3 flex items-center justify-between hover:bg-slate-800/50 transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <Layers size={16} className="text-green-400" />
+          <span className="font-bold text-sm text-slate-300">手牌参考</span>
+        </div>
+        <ChevronDown 
+          size={16} 
+          className={cn(
+            "text-slate-500 transition-transform",
+            isExpanded && "rotate-180"
+          )} 
+        />
+      </button>
+      
+      <AnimatePresence>
+        {isExpanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="p-3 space-y-3 bg-slate-800/30">
+              {/* 剧作家手牌 */}
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <Eye size={12} className="text-red-400" />
+                  <span className="text-xs font-bold text-red-300">剧作家</span>
+                </div>
+                <div className="space-y-0.5">
+                  {MASTERMIND_HAND.map((card, idx) => (
+                    <div key={idx} className="flex items-center gap-1.5 text-xs">
+                      <span className={cn(
+                        "px-1 py-0.5 rounded text-[9px] border",
+                        TYPE_COLORS_REF[card.type]
+                      )}>
+                        {TYPE_NAMES[card.type]}
+                      </span>
+                      <span className="text-white">{card.name}</span>
+                      <span className="text-slate-500 flex-1 truncate">{card.effect}</span>
+                      {card.oncePerLoop && (
+                        <span className="text-[9px] text-amber-400">每轮1次</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* 主人公手牌 */}
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <Heart size={12} className="text-blue-400" />
+                  <span className="text-xs font-bold text-blue-300">主人公</span>
+                </div>
+                <div className="space-y-0.5">
+                  {PROTAGONIST_HAND.map((card, idx) => (
+                    <div key={idx} className="flex items-center gap-1.5 text-xs">
+                      <span className={cn(
+                        "px-1 py-0.5 rounded text-[9px] border",
+                        TYPE_COLORS_REF[card.type]
+                      )}>
+                        {TYPE_NAMES[card.type]}
+                      </span>
+                      <span className="text-white">{card.name}</span>
+                      <span className="text-slate-500 flex-1 truncate">{card.effect}</span>
+                      {card.oncePerLoop && (
+                        <span className="text-[9px] text-amber-400">每轮1次</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* 出牌规则 */}
+              <div className="pt-2 border-t border-slate-700/50 text-[10px] text-slate-500 space-y-0.5">
+                <p>• 每天每角色/地点最多放 1 张牌</p>
+                <p>• 每方每天出 3 张牌</p>
+                <p>• 禁止牌可抵消同类型对方效果</p>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
 
 function CardItem({ card, deck }: { card: ActionCard; deck: PlayerDeck }) {
   // 兼容 Set 和 Array
@@ -184,6 +325,9 @@ export function DeckReference({ deck, playerLabel, side }: DeckReferenceProps) {
                   主人公方有3套牌（1-3人），每人独立管理
                 </p>
               </div>
+
+              {/* 手牌参考 - 折叠区域 */}
+              <HandCardsReference />
             </motion.div>
           </>
         )}
