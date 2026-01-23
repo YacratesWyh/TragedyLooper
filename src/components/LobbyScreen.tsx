@@ -17,7 +17,10 @@ interface LobbyScreenProps {
 
 export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
   const { 
+    username,
+    setUsername,
     isConnected, 
+    isReconnecting,
     connect, 
     serverVersion,
     rooms,
@@ -37,6 +40,9 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
   const initializeWithScript = useGameStore((state) => state.initializeWithScript);
   const { updateGameState } = useMultiplayer();
   
+  // 用户名输入
+  const [usernameInput, setUsernameInput] = useState('');
+  
   // 创建房间表单
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newRoomName, setNewRoomName] = useState('');
@@ -52,12 +58,20 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
   // 剧本选择阶段（剧作家专用）
   const [showScriptSetup, setShowScriptSetup] = useState(false);
 
-  // 自动连接服务器
+  // 设置用户名后自动连接服务器
   useEffect(() => {
-    if (!isConnected) {
+    if (username && !isConnected && !isReconnecting) {
       connect();
     }
-  }, [isConnected, connect]);
+  }, [username, isConnected, isReconnecting, connect]);
+  
+  // 提交用户名
+  const handleSetUsername = () => {
+    const trimmed = usernameInput.trim();
+    if (trimmed.length >= 2 && trimmed.length <= 12) {
+      setUsername(trimmed);
+    }
+  };
 
   const gameState = useGameStore((state) => state.gameState);
 
@@ -142,7 +156,7 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
   // 选择角色
   const handleSelectRole = (role: 'mastermind' | 'protagonist') => {
     if (selectingRole) return;
-    const isTaken = role === 'mastermind' ? players.mastermind : players.protagonist;
+    const isTaken = players[role].connected;
     if (isTaken && myRole !== role) return;
     setSelectingRole(role);
     selectRole(role);
@@ -152,12 +166,73 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
   const getRoleStatus = (role: 'mastermind' | 'protagonist') => {
     if (selectingRole === role) return 'selecting';
     if (myRole === role) return 'self';
-    const isTaken = role === 'mastermind' ? !!players.mastermind : !!players.protagonist;
+    const isTaken = players[role].connected;
     if (isTaken) return 'taken';
     return 'available';
   };
 
   // ========== 渲染 ==========
+
+  // 未设置用户名 - 显示用户名输入界面
+  if (!username) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex flex-col items-center justify-center p-8">
+        <motion.div
+          initial={{ opacity: 0, y: -30 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-center mb-12"
+        >
+          <h1 className="text-5xl font-black text-white tracking-tight mb-2">惨剧轮回</h1>
+          <p className="text-slate-400 text-lg">Tragedy Looper</p>
+        </motion.div>
+        
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="w-full max-w-sm"
+        >
+          <div className="p-6 rounded-2xl bg-slate-800/80 border border-slate-700 shadow-2xl">
+            <h2 className="text-xl font-bold text-white mb-2">设置你的名字</h2>
+            <p className="text-slate-400 text-sm mb-6">其他玩家将通过这个名字识别你</p>
+            
+            <input
+              type="text"
+              value={usernameInput}
+              onChange={(e) => setUsernameInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSetUsername()}
+              placeholder="输入名字 (2-12字符)..."
+              maxLength={12}
+              className="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-600 text-white placeholder-slate-500 focus:border-purple-500 focus:outline-none text-lg"
+              autoFocus
+            />
+            
+            <button
+              onClick={handleSetUsername}
+              disabled={usernameInput.trim().length < 2}
+              className={cn(
+                "w-full mt-4 py-3 rounded-xl font-bold text-lg transition-all",
+                usernameInput.trim().length >= 2
+                  ? "bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white shadow-lg hover:shadow-purple-500/25"
+                  : "bg-slate-700 text-slate-500 cursor-not-allowed"
+              )}
+            >
+              进入大厅
+            </button>
+          </div>
+        </motion.div>
+        
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.4 }}
+          className="mt-8 text-slate-600 text-sm"
+        >
+          名字将保存在本地，用于断线重连
+        </motion.p>
+      </div>
+    );
+  }
 
   // 剧作家选择剧本界面
   if (showScriptSetup && myRole === 'mastermind') {
@@ -172,7 +247,16 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
   // 主人公等待剧作家选择剧本
   if (myRole === 'protagonist' && !gameState && currentRoom) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex flex-col items-center justify-center p-8">
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex flex-col items-center justify-center p-8 relative">
+        {/* 重连提示覆盖层 */}
+        {isReconnecting && (
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center">
+            <div className="flex items-center gap-3 px-6 py-3 rounded-full bg-amber-900/80 border border-amber-500 text-amber-200 shadow-2xl">
+              <Loader2 className="w-5 h-5 animate-spin" />
+              <span className="font-bold">正在重连...</span>
+            </div>
+          </div>
+        )}
         <motion.div
           initial={{ opacity: 0, y: -30 }}
           animate={{ opacity: 1, y: 0 }}
@@ -210,8 +294,9 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
     );
   }
 
-  // 未连接
-  if (!isConnected) {
+  // 未连接（首次连接，非重连状态）
+  // 如果正在重连且有房间/角色信息，保持当前界面而不是跳到连接界面
+  if (!isConnected && !isReconnecting) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex flex-col items-center justify-center p-8">
         <motion.div
@@ -271,10 +356,17 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
           transition={{ delay: 0.2 }}
           className="mb-8"
         >
-          <div className="flex items-center gap-3 px-4 py-2 rounded-full bg-green-900/30 border border-green-600/50 text-green-300">
-            <Wifi className="w-5 h-5" />
-            <span className="font-medium">已连接</span>
-          </div>
+          {isReconnecting ? (
+            <div className="flex items-center gap-3 px-4 py-2 rounded-full bg-amber-900/30 border border-amber-600/50 text-amber-300">
+              <Loader2 className="w-5 h-5 animate-spin" />
+              <span className="font-medium">重连中...</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3 px-4 py-2 rounded-full bg-green-900/30 border border-green-600/50 text-green-300">
+              <Wifi className="w-5 h-5" />
+              <span className="font-medium">已连接</span>
+            </div>
+          )}
         </motion.div>
 
         {/* 角色选择 */}
@@ -484,6 +576,19 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
       >
         <h1 className="text-5xl font-black text-white tracking-tight mb-2">惨剧轮回</h1>
         <p className="text-slate-400 text-lg">Tragedy Looper</p>
+      </motion.div>
+
+      {/* 用户名显示 */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.15 }}
+        className="mb-4"
+      >
+        <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-slate-800/80 border border-slate-600 text-slate-300">
+          <span className="text-slate-500 text-sm">玩家:</span>
+          <span className="font-bold text-white">{username}</span>
+        </div>
       </motion.div>
 
       {/* 连接状态 */}

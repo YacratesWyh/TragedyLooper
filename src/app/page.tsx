@@ -32,7 +32,7 @@ export default function Home() {
     clearMessages
   } = useGameStore();
   
-  const { isConnected, updateGameState, myRole } = useMultiplayer();
+  const { isConnected, isReconnecting, updateGameState, myRole } = useMultiplayer();
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [showMessages, setShowMessages] = useState(false);
@@ -153,7 +153,16 @@ export default function Home() {
   }
 
   return (
-    <main className="flex min-h-screen bg-slate-950 text-slate-200 overflow-hidden font-sans">
+    <main className="flex min-h-screen bg-slate-950 text-slate-200 font-sans relative">
+      {/* 重连提示覆盖层 */}
+      {isReconnecting && (
+        <div className="absolute inset-0 bg-black/40 backdrop-blur-sm z-[100] flex items-center justify-center pointer-events-none">
+          <div className="flex items-center gap-3 px-6 py-3 rounded-full bg-amber-900/80 border border-amber-500 text-amber-200 shadow-2xl">
+            <div className="w-5 h-5 border-2 border-amber-300 border-t-transparent rounded-full animate-spin" />
+            <span className="font-bold">正在重连...</span>
+          </div>
+        </div>
+      )}
       {/* Left Panel: Info + Phase Control */}
       <div className="w-72 flex flex-col border-r border-slate-800 bg-slate-900/50">
         {/* Game Info (上半部分) */}
@@ -207,7 +216,7 @@ export default function Home() {
       />
 
       {/* Main Area */}
-      <div className="flex-1 flex flex-col relative">
+      <div className="flex-1 flex flex-col relative min-w-0 overflow-hidden">
         {/* Top Bar - 包含联机面板 */}
         <div className="h-12 border-b border-slate-800 flex items-center justify-between px-6 bg-slate-900/50 backdrop-blur-sm relative z-50">
             <div className="flex items-center gap-4">
@@ -248,13 +257,14 @@ export default function Home() {
                        <AlertCircle size={20} />
                        结算提示
                      </h3>
-                     <button
-                       onClick={() => {
-                         setShowMessages(false);
-                         clearMessages();
-                       }}
-                       className="p-1 hover:bg-slate-700 rounded transition-colors"
-                     >
+                    <button
+                      onClick={() => {
+                        setShowMessages(false);
+                        clearMessages();
+                      }}
+                      className="p-1 hover:bg-slate-700 rounded transition-colors"
+                      title="关闭"
+                    >
                        <X size={18} className="text-slate-400" />
                      </button>
                    </div>

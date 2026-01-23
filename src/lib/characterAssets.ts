@@ -248,13 +248,11 @@ export const CHARACTER_ASSETS: Record<string, CharacterAssetConfig> = {
 };
 
 /**
- * 获取角色立绘的CSS样式
+ * 获取角色立绘的CSS样式 (响应式百分比版本)
  * @param characterId 角色ID
- * @param displayWidth 显示宽度（像素），高度会自动按比例计算
  */
 export function getCharacterSpriteStyle(
-  characterId: string,
-  displayWidth: number = 200
+  characterId: string
 ): React.CSSProperties {
   const asset = CHARACTER_ASSETS[characterId];
   
@@ -264,19 +262,20 @@ export function getCharacterSpriteStyle(
   }
 
   const [col, row] = asset.gridPosition;
-  const { cellWidth, cellHeight, totalWidth, totalHeight } = SPRITE_CONFIG;
+  const { cols, rows } = SPRITE_CONFIG;
   
-  // 计算缩放比例
-  const scale = displayWidth / cellWidth;
-  const displayHeight = cellHeight * scale;
+  // 使用百分比定位，这样不需要知道显示尺寸就能自动缩放
+  // 公式: (col / (cols - 1)) * 100
+  const posXPercent = (col / (cols - 1)) * 100;
+  const posYPercent = (row / (rows - 1)) * 100;
 
   return {
     backgroundImage: 'url(/assets/characters-grid.png)',
-    backgroundPosition: `-${col * cellWidth * scale}px -${row * cellHeight * scale}px`,
-    backgroundSize: `${totalWidth * scale}px ${totalHeight * scale}px`,
+    backgroundPosition: `${posXPercent}% ${posYPercent}%`,
+    backgroundSize: `${cols * 100}% ${rows * 100}%`,
     backgroundRepeat: 'no-repeat',
-    width: `${displayWidth}px`,
-    height: `${displayHeight}px`,
+    width: '100%',
+    height: '100%',
   };
 }
 

@@ -18,23 +18,31 @@ const getWsUrl = () => {
 
 // 存储 key
 const SESSION_KEY = 'tl_session';
-const TAB_ID_KEY = 'tl_tab_id';
+const USERNAME_KEY = 'tl_username';
 const SESSION_TTL = 5 * 60 * 1000; // 5 分钟
 
-// 生成/获取用户 ID（每个标签页独立，使用 sessionStorage）
-function getUserId(): string {
-  if (typeof window === 'undefined') return 'server';
+// 获取/设置用户名（使用 localStorage 持久化）
+function getStoredUsername(): string | null {
+  if (typeof window === 'undefined') return null;
   try {
-    // 使用 sessionStorage 使每个标签页有独立的 ID
-    let tabId = sessionStorage.getItem(TAB_ID_KEY);
-    if (!tabId) {
-      tabId = `tab_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 8)}`;
-      sessionStorage.setItem(TAB_ID_KEY, tabId);
-    }
-    return tabId;
+    return localStorage.getItem(USERNAME_KEY);
   } catch {
-    return `temp_${Math.random().toString(36).substring(2, 10)}`;
+    return null;
   }
+}
+
+function setStoredUsername(username: string): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(USERNAME_KEY, username);
+  } catch {}
+}
+
+function clearStoredUsername(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.removeItem(USERNAME_KEY);
+  } catch {}
 }
 
 // 保存/读取/清除会话
@@ -73,6 +81,17 @@ function clearSession() {
   } catch {}
 }
 
+// 玩家信息类型
+interface PlayerInfo {
+  connected: boolean;
+  name: string | null;
+}
+
+interface PlayersInfo {
+  mastermind: PlayerInfo;
+  protagonist: PlayerInfo;
+}
+
 // 房间信息类型
 interface RoomInfo {
   id: string;
@@ -84,6 +103,11 @@ interface RoomInfo {
 }
 
 interface MultiplayerContextType {
+  // 用户身份
+  username: string | null;
+  setUsername: (name: string) => void;
+  clearUsername: () => void;
+  
   isConnected: boolean;
   isReconnecting: boolean;
   serverVersion: string | null;
@@ -99,7 +123,7 @@ interface MultiplayerContextType {
   
   myRole: PlayerRole | null;
   availableRoles: string[];
-  players: { mastermind: boolean; protagonist: boolean };
+  players: PlayersInfo;
   selectRole: (role: PlayerRole) => void;
   
   updateGameState: (updates: unknown) => void;
@@ -111,7 +135,33 @@ interface MultiplayerContextType {
 
 const MultiplayerContext = createContext<MultiplayerContextType | null>(null);
 
+// 标准化玩家信息（兼容旧格式和新格式）
+function normalizePlayersInfo(players: unknown): PlayersInfo {
+  if (!players) {
+    return {
+      mastermind: { connected: false, name: null },
+      protagonist: { connected: false, name: null },
+    };
+  }
+  
+  const p = players as Record<string, unknown>;
+  
+  // 新格式: { mastermind: { connected: true, name: 'xxx' }, ... }
+  if (typeof p.mastermind === 'object' && p.mastermind !== null) {
+    return players as PlayersInfo;
+  }
+  
+  // 旧格式: { mastermind: true/false, protagonist: true/false }
+  return {
+    mastermind: { connected: !!p.mastermind, name: null },
+    protagonist: { connected: !!p.protagonist, name: null },
+  };
+}
+
 export function MultiplayerProvider({ children }: { children: React.ReactNode }) {
+  // 用户名状态（从 localStorage 初始化）
+  const [username, setUsernameState] = useState<string | null>(null);
+  
   const [isConnected, setIsConnected] = useState(false);
   const [isReconnecting, setIsReconnecting] = useState(false);
   const [serverVersion, setServerVersion] = useState<string | null>(null);
@@ -119,7 +169,10 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
   const [currentRoom, setCurrentRoom] = useState<{ id: string; name: string } | null>(null);
   const [myRole, setMyRole] = useState<PlayerRole | null>(null);
   const [availableRoles, setAvailableRoles] = useState<string[]>(['mastermind', 'protagonist']);
-  const [players, setPlayers] = useState({ mastermind: false, protagonist: false });
+  const [players, setPlayers] = useState<PlayersInfo>({
+    mastermind: { connected: false, name: null },
+    protagonist: { connected: false, name: null },
+  });
   
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -127,6 +180,29 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
   const reconnectAttemptsRef = useRef(0);
   const maxReconnectAttempts = 5;
   const intentionalDisconnectRef = useRef(false);
+  
+  // 初始化时从 localStorage 加载用户名
+  useEffect(() => {
+    const stored = getStoredUsername();
+    if (stored) {
+      setUsernameState(stored);
+    }
+  }, []);
+  
+  // 设置用户名
+  const setUsername = useCallback((name: string) => {
+    const trimmed = name.trim();
+    if (trimmed) {
+      setStoredUsername(trimmed);
+      setUsernameState(trimmed);
+    }
+  }, []);
+  
+  // 清除用户名
+  const clearUsername = useCallback(() => {
+    clearStoredUsername();
+    setUsernameState(null);
+  }, []);
   
   const setPlayerRole = useGameStore((s) => s.setPlayerRole);
 
@@ -176,12 +252,16 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
 
   // 连接服务器
   const connect = useCallback(() => {
+    if (!username) {
+      console.log('⚠️ 需要先设置用户名');
+      return;
+    }
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
     if (wsRef.current?.readyState === WebSocket.CONNECTING) return;
 
     intentionalDisconnectRef.current = false;
     const wsUrl = getWsUrl();
-    console.log('🔌 正在连接服务器:', wsUrl);
+    console.log('🔌 正在连接服务器:', wsUrl, '用户:', username);
     
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
@@ -195,11 +275,10 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
       // 启动心跳
       startHeartbeat();
       
-      // 发送用户身份标识
-      const userId = getUserId();
+      // 发送用户身份标识（使用用户名作为 userId）
       ws.send(JSON.stringify({
         type: 'IDENTIFY',
-        payload: { userId },
+        payload: { userId: username },
       }));
       
       // 检查是否有会话需要恢复
@@ -209,7 +288,7 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
         ws.send(JSON.stringify({
           type: 'REJOIN_ROOM',
           payload: {
-            userId,
+            userId: username,
             roomId: session.roomId,
             role: session.role,
           },
@@ -242,7 +321,7 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
           case 'ROOM_JOINED':
             setCurrentRoom({ id: data.payload.roomId, name: data.payload.roomName });
             setAvailableRoles(data.payload.availableRoles || ['mastermind', 'protagonist']);
-            setPlayers(data.payload.players || { mastermind: false, protagonist: false });
+            setPlayers(normalizePlayersInfo(data.payload.players));
             // 如果有游戏状态，同步到本地
             if (data.payload.gameState) {
               useGameStore.setState({
@@ -259,7 +338,7 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
             setCurrentRoom({ id: data.payload.roomId, name: data.payload.roomName });
             setMyRole(data.payload.role);
             setPlayerRole(data.payload.role);
-            setPlayers(data.payload.players || { mastermind: false, protagonist: false });
+            setPlayers(normalizePlayersInfo(data.payload.players));
             console.log('🔄 重连成功:', data.payload.roomId, data.payload.role);
             // 更新会话时间戳
             saveSession({
@@ -302,14 +381,15 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
             break;
           }
 
-          case 'PLAYERS_UPDATE':
-            setPlayers(data.payload);
+          case 'PLAYERS_UPDATE': {
+            const normalizedPlayers = normalizePlayersInfo(data.payload);
+            setPlayers(normalizedPlayers);
             setAvailableRoles(
-              Object.entries(data.payload)
-                .filter(([, connected]) => !connected)
-                .map(([r]) => r as PlayerRole)
+              (['mastermind', 'protagonist'] as const)
+                .filter(role => !normalizedPlayers[role].connected)
             );
             break;
+          }
 
           case 'STATE_SYNC': {
             const payload = data.payload;
@@ -325,11 +405,11 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
                 : useGameStore.getState().currentProtagonistCards,
             });
             if (payload.players) {
-              setPlayers(payload.players);
+              const normalizedPlayers = normalizePlayersInfo(payload.players);
+              setPlayers(normalizedPlayers);
               setAvailableRoles(
-                Object.entries(payload.players)
-                  .filter(([, connected]) => !connected)
-                  .map(([r]) => r as PlayerRole)
+                (['mastermind', 'protagonist'] as const)
+                  .filter(role => !normalizedPlayers[role].connected)
               );
             }
             break;
@@ -384,7 +464,7 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
     ws.onerror = (error) => {
       console.error('WebSocket 错误:', error);
     };
-  }, [setPlayerRole, currentRoom, startHeartbeat]);
+  }, [setPlayerRole, currentRoom, startHeartbeat, username]);
 
   // 组件卸载时清理
   useEffect(() => {
@@ -502,6 +582,9 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
   }, []);
 
   const value = {
+    username,
+    setUsername,
+    clearUsername,
     isConnected,
     isReconnecting,
     serverVersion,

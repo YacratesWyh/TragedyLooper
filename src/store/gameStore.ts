@@ -27,11 +27,24 @@ import {
 } from '@/game/engine';
 import { FS01_SCRIPT1_PUBLIC, FS01_SCRIPT1_PRIVATE, FS01_CHARACTERS, generatePublicInfo, type ScriptTemplate } from '@/game/scripts/fs-01';
 
+// 天数历史快照
+interface DaySnapshot {
+  day: number;
+  loop: number;
+  phase: string;
+  characters: GameState['characters'];
+  boardIntrigue: GameState['boardIntrigue'];
+}
+
 interface GameStore {
   // 游戏状态
   gameState: GameState | null;
   playerRole: PlayerRole;
   currentScript: ScriptTemplate | null;  // 当前使用的脚本
+  
+  // 天数历史（用于回放）
+  dayHistory: DaySnapshot[];
+  currentHistoryIndex: number | null;  // null = 当前状态，数字 = 回放中的历史索引
   
   // 结算消息（禁行区域等提示）
   resolutionMessages: string[];
@@ -90,12 +103,19 @@ interface GameStore {
   
   // 设置玩家角色（联机模式用）
   setPlayerRole: (role: 'mastermind' | 'protagonist' | null) => void;
+
+  // 历史回放
+  saveDaySnapshot: () => void;  // 保存当天状态到历史
+  viewHistoryDay: (index: number) => void;  // 查看历史某天
+  exitHistoryView: () => void;  // 退出回放，返回当前状态
 }
 
 export const useGameStore = create<GameStore>((set, get) => ({
   gameState: null,
   playerRole: 'protagonist',
   currentScript: null,
+  dayHistory: [],
+  currentHistoryIndex: null,
   resolutionMessages: [],
   mastermindDeck: createMastermindDeck(),
   protagonistDeck: createProtagonistDeck(),
@@ -177,6 +197,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
     
     const gameState = initializeGameState(publicInfo, privateInfo);
     
+    // 初始状态快照
+    const initialSnapshot: DaySnapshot = {
+      day: 1,
+      loop: 1,
+      phase: 'dawn',
+      characters: JSON.parse(JSON.stringify(gameState.characters)),
+      boardIntrigue: { ...gameState.boardIntrigue },
+    };
+
     set({
       gameState,
       playerRole: role,
@@ -185,6 +214,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       protagonistDeck: createProtagonistDeck(),
       currentMastermindCards: [],
       currentProtagonistCards: [],
+      dayHistory: [initialSnapshot],  // 保存初始状态
+      currentHistoryIndex: null,
     });
     
     console.log('🎭 游戏初始化完成，脚本:', script.name, '角色:', script.characters);
@@ -390,6 +421,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
       protagonistDeck: createProtagonistDeck(),
       currentMastermindCards: [],
       currentProtagonistCards: [],
+      dayHistory: [],
+      currentHistoryIndex: null,
     });
   },
 
@@ -504,5 +537,34 @@ export const useGameStore = create<GameStore>((set, get) => ({
       set({ playerRole: role });
     }
     // null 时不改变，保持当前角色
+  },
+
+  // 保存当天状态到历史
+  saveDaySnapshot: () => {
+    const { gameState, dayHistory } = get();
+    if (!gameState) return;
+
+    const snapshot: DaySnapshot = {
+      day: gameState.currentDay,
+      loop: gameState.currentLoop,
+      phase: gameState.phase,
+      characters: JSON.parse(JSON.stringify(gameState.characters)),
+      boardIntrigue: { ...gameState.boardIntrigue },
+    };
+
+    set({ dayHistory: [...dayHistory, snapshot] });
+  },
+
+  // 查看历史某天
+  viewHistoryDay: (index: number) => {
+    const { dayHistory, gameState } = get();
+    if (index < 0 || index >= dayHistory.length || !gameState) return;
+
+    set({ currentHistoryIndex: index });
+  },
+
+  // 退出回放，返回当前状态
+  exitHistoryView: () => {
+    set({ currentHistoryIndex: null });
   },
 }));

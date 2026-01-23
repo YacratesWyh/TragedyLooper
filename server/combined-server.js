@@ -53,6 +53,18 @@ function broadcastToRoom(roomId, message, excludeWs = null) {
   });
 }
 
+// 获取房间内玩家详细信息（包含用户名）
+function getRoomPlayersInfo(room) {
+  const players = Array.from(room.players.values());
+  const mastermindPlayer = players.find(p => p.role === 'mastermind');
+  const protagonistPlayer = players.find(p => p.role === 'protagonist');
+  
+  return {
+    mastermind: mastermindPlayer ? { connected: true, name: mastermindPlayer.userId || '未知' } : { connected: false, name: null },
+    protagonist: protagonistPlayer ? { connected: true, name: protagonistPlayer.userId || '未知' } : { connected: false, name: null },
+  };
+}
+
 function getRoomList() {
   const list = [];
   rooms.forEach((room, id) => {
@@ -119,10 +131,7 @@ function handleWebSocketMessage(ws, message) {
               roomName: room.name,
               availableRoles: ['mastermind', 'protagonist'].filter(r => !roles.includes(r)),
               gameState: room.gameState,
-              players: {
-                mastermind: roles.includes('mastermind'),
-                protagonist: roles.includes('protagonist'),
-              },
+              players: getRoomPlayersInfo(room),
             },
           }));
           
@@ -186,7 +195,7 @@ function handleWebSocketMessage(ws, message) {
           roomName,
           availableRoles: ['mastermind', 'protagonist'],
           gameState: null,
-          players: { mastermind: false, protagonist: false },
+          players: getRoomPlayersInfo(room),
         },
       }));
       console.log(`房间创建并加入: ${roomId} - ${roomName}`);
@@ -233,10 +242,7 @@ function handleWebSocketMessage(ws, message) {
           roomName: room.name,
           availableRoles: ['mastermind', 'protagonist'].filter(r => !roles.includes(r)),
           gameState: room.gameState,
-          players: {
-            mastermind: roles.includes('mastermind'),
-            protagonist: roles.includes('protagonist'),
-          },
+          players: getRoomPlayersInfo(room),
         },
       }));
 
@@ -273,10 +279,7 @@ function handleWebSocketMessage(ws, message) {
           // 广播更新的玩家状态
           broadcastToRoom(ws.roomId, {
             type: 'PLAYERS_UPDATE',
-            payload: {
-              mastermind: roles.includes('mastermind'),
-              protagonist: roles.includes('protagonist'),
-            },
+            payload: getRoomPlayersInfo(room),
           });
 
           if (room.players.size === 0) {
@@ -322,15 +325,11 @@ function handleWebSocketMessage(ws, message) {
       
       // 计算当前玩家状态
       const updatedRoles = Array.from(room.players.values()).map(p => p.role).filter(Boolean);
-      const playerStatus = {
-        mastermind: updatedRoles.includes('mastermind'),
-        protagonist: updatedRoles.includes('protagonist'),
-      };
       
       // 广播玩家状态更新（这是客户端需要的）
       broadcastToRoom(ws.roomId, {
         type: 'PLAYERS_UPDATE',
-        payload: playerStatus,
+        payload: getRoomPlayersInfo(room),
       });
       
       // 广播可用角色更新
@@ -389,7 +388,7 @@ function handleWebSocketMessage(ws, message) {
       // 广播玩家状态更新（所有角色都空了）
       broadcastToRoom(ws.roomId, {
         type: 'PLAYERS_UPDATE',
-        payload: { mastermind: false, protagonist: false },
+        payload: getRoomPlayersInfo(room),
       });
       
       console.log(`房间 ${ws.roomId} 游戏重置`);
@@ -430,7 +429,7 @@ function handleWebSocketMessage(ws, message) {
     }
 
     case 'REJOIN_ROOM': {
-      const { roomId, role } = payload;
+      const { roomId, role, userId } = payload;
       const room = rooms.get(roomId);
       
       if (!room) {
@@ -438,7 +437,7 @@ function handleWebSocketMessage(ws, message) {
         return;
       }
 
-      room.players.set(ws, { role: role || null });
+      room.players.set(ws, { role: role || null, userId: userId || ws.userId });
       ws.roomId = roomId;
 
       const roles = Array.from(room.players.values()).map(p => p.role).filter(Boolean);
@@ -449,10 +448,7 @@ function handleWebSocketMessage(ws, message) {
           roomName: room.name,
           availableRoles: ['mastermind', 'protagonist'].filter(r => !roles.includes(r)),
           gameState: room.gameState,
-          players: {
-            mastermind: roles.includes('mastermind'),
-            protagonist: roles.includes('protagonist'),
-          },
+          players: getRoomPlayersInfo(room),
         },
       }));
 
@@ -523,13 +519,9 @@ function handleWebSocketClose(ws) {
             // 更新房间玩家状态
             const currentRoom = rooms.get(session.roomId);
             if (currentRoom) {
-              const roles = Array.from(currentRoom.players.values()).map(p => p.role).filter(Boolean);
               broadcastToRoom(session.roomId, {
                 type: 'PLAYERS_UPDATE',
-                payload: {
-                  mastermind: roles.includes('mastermind'),
-                  protagonist: roles.includes('protagonist'),
-                },
+                payload: getRoomPlayersInfo(currentRoom),
               });
             }
           }

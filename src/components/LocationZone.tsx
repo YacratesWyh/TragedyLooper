@@ -70,7 +70,7 @@ export function LocationZone({
       onClick={() => onLocationClick?.(type)}
       data-zone-type={type}
       className={cn(
-        "relative rounded-xl border-2 p-4 min-h-[300px] flex flex-col gap-4 transition-all duration-300 cursor-pointer",
+        "relative rounded-xl border-2 p-4 flex flex-col gap-4 transition-all duration-300 cursor-pointer",
         LOCATION_COLORS[type],
         className
       )}
@@ -103,7 +103,7 @@ export function LocationZone({
       </div>
 
       {/* Character Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-2 gap-4 place-items-start content-start flex-1">
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-4 place-items-start content-start flex-1">
         {characters.map((charState) => {
           const cards = getCharacterCards(charState.id as CharacterId);
           return (

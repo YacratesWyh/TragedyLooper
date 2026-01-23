@@ -19,6 +19,12 @@ export function GameBoard({ onLocationClick, onCharacterClick, isPlacingCard = f
   const protagonistCards = useGameStore((state) => state.currentProtagonistCards);
   const storeRetreatCard = useGameStore((state) => state.retreatCard);
   
+  // 历史回放状态
+  const currentHistoryIndex = useGameStore((state) => state.currentHistoryIndex);
+  const dayHistory = useGameStore((state) => state.dayHistory);
+  const isViewingHistory = currentHistoryIndex !== null;
+  const historySnapshot = isViewingHistory ? dayHistory[currentHistoryIndex] : null;
+  
   const { isConnected, updateGameState, moveCharacter } = useMultiplayer();
 
   // 处理角色拖拽落下
@@ -57,32 +63,48 @@ export function GameBoard({ onLocationClick, onCharacterClick, isPlacingCard = f
 
   if (!gameState) return null;
 
-  // 区分自己的牌和对方的牌
-  const myCards: PlayedCard[] = playerRole === 'mastermind' ? mastermindCards : protagonistCards;
-  const opponentCards: PlayedCard[] = playerRole === 'mastermind' ? protagonistCards : mastermindCards;
+  // 区分自己的牌和对方的牌（回放时不显示牌）
+  const myCards: PlayedCard[] = isViewingHistory ? [] : (playerRole === 'mastermind' ? mastermindCards : protagonistCards);
+  const opponentCards: PlayedCard[] = isViewingHistory ? [] : (playerRole === 'mastermind' ? protagonistCards : mastermindCards);
+
+  // 使用历史快照或当前状态的角色数据
+  const displayCharacters = isViewingHistory && historySnapshot 
+    ? historySnapshot.characters 
+    : gameState.characters;
+  
+  const displayBoardIntrigue = isViewingHistory && historySnapshot
+    ? historySnapshot.boardIntrigue
+    : gameState.boardIntrigue;
 
   // Group characters by location
-  const charsByLocation = gameState.characters.reduce((acc, char) => {
+  const charsByLocation = displayCharacters.reduce((acc, char) => {
     if (!acc[char.location]) acc[char.location] = [];
     acc[char.location].push(char);
     return acc;
-  }, {} as Record<LocationType, typeof gameState.characters>);
+  }, {} as Record<LocationType, typeof displayCharacters>);
 
   return (
-    <div className="w-full h-full p-4 grid grid-cols-1 md:grid-cols-2 gap-4 max-w-6xl mx-auto">
+    <div className="w-full h-full p-4 grid grid-cols-[repeat(auto-fit,minmax(min(100%,450px),1fr))] gap-6 mx-auto relative min-w-[400px]">
+      {/* 历史回放提示 */}
+      {isViewingHistory && historySnapshot && (
+        <div className="absolute top-2 left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-amber-500/90 text-black rounded-full text-sm font-bold shadow-lg">
+          📜 回放：第 {historySnapshot.loop} 轮回 · 第 {historySnapshot.day} 天结束时
+        </div>
+      )}
+
       {/* Top Left: Hospital */}
       <LocationZone 
         type="hospital" 
         characters={charsByLocation['hospital'] || []}
         characterDefs={FS01_CHARACTERS}
-        intrigueCount={gameState.boardIntrigue['hospital']}
+        intrigueCount={displayBoardIntrigue['hospital']}
         myPlacedCards={myCards}
         opponentPlacedCards={opponentCards}
-        onRetreatCard={retreatCard}
-        onLocationClick={onLocationClick}
-        onCharacterClick={onCharacterClick}
-        isPlacingCard={isPlacingCard}
-        onCharacterDragEnd={handleDragEnd}
+        onRetreatCard={isViewingHistory ? undefined : retreatCard}
+        onLocationClick={isViewingHistory ? undefined : onLocationClick}
+        onCharacterClick={isViewingHistory ? undefined : onCharacterClick}
+        isPlacingCard={isViewingHistory ? false : isPlacingCard}
+        onCharacterDragEnd={isViewingHistory ? undefined : handleDragEnd}
       />
 
       {/* Top Right: Shrine */}
@@ -90,14 +112,14 @@ export function GameBoard({ onLocationClick, onCharacterClick, isPlacingCard = f
         type="shrine" 
         characters={charsByLocation['shrine'] || []}
         characterDefs={FS01_CHARACTERS}
-        intrigueCount={gameState.boardIntrigue['shrine']}
+        intrigueCount={displayBoardIntrigue['shrine']}
         myPlacedCards={myCards}
         opponentPlacedCards={opponentCards}
-        onRetreatCard={retreatCard}
-        onLocationClick={onLocationClick}
-        onCharacterClick={onCharacterClick}
-        isPlacingCard={isPlacingCard}
-        onCharacterDragEnd={handleDragEnd}
+        onRetreatCard={isViewingHistory ? undefined : retreatCard}
+        onLocationClick={isViewingHistory ? undefined : onLocationClick}
+        onCharacterClick={isViewingHistory ? undefined : onCharacterClick}
+        isPlacingCard={isViewingHistory ? false : isPlacingCard}
+        onCharacterDragEnd={isViewingHistory ? undefined : handleDragEnd}
       />
 
       {/* Bottom Left: City */}
@@ -105,14 +127,14 @@ export function GameBoard({ onLocationClick, onCharacterClick, isPlacingCard = f
         type="city" 
         characters={charsByLocation['city'] || []}
         characterDefs={FS01_CHARACTERS}
-        intrigueCount={gameState.boardIntrigue['city']}
+        intrigueCount={displayBoardIntrigue['city']}
         myPlacedCards={myCards}
         opponentPlacedCards={opponentCards}
-        onRetreatCard={retreatCard}
-        onLocationClick={onLocationClick}
-        onCharacterClick={onCharacterClick}
-        isPlacingCard={isPlacingCard}
-        onCharacterDragEnd={handleDragEnd}
+        onRetreatCard={isViewingHistory ? undefined : retreatCard}
+        onLocationClick={isViewingHistory ? undefined : onLocationClick}
+        onCharacterClick={isViewingHistory ? undefined : onCharacterClick}
+        isPlacingCard={isViewingHistory ? false : isPlacingCard}
+        onCharacterDragEnd={isViewingHistory ? undefined : handleDragEnd}
       />
 
       {/* Bottom Right: School */}
@@ -120,14 +142,14 @@ export function GameBoard({ onLocationClick, onCharacterClick, isPlacingCard = f
         type="school" 
         characters={charsByLocation['school'] || []}
         characterDefs={FS01_CHARACTERS}
-        intrigueCount={gameState.boardIntrigue['school']}
+        intrigueCount={displayBoardIntrigue['school']}
         myPlacedCards={myCards}
         opponentPlacedCards={opponentCards}
-        onRetreatCard={retreatCard}
-        onLocationClick={onLocationClick}
-        onCharacterClick={onCharacterClick}
-        isPlacingCard={isPlacingCard}
-        onCharacterDragEnd={handleDragEnd}
+        onRetreatCard={isViewingHistory ? undefined : retreatCard}
+        onLocationClick={isViewingHistory ? undefined : onLocationClick}
+        onCharacterClick={isViewingHistory ? undefined : onCharacterClick}
+        isPlacingCard={isViewingHistory ? false : isPlacingCard}
+        onCharacterDragEnd={isViewingHistory ? undefined : handleDragEnd}
       />
     </div>
   );

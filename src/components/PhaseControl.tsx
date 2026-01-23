@@ -20,8 +20,11 @@ import {
   AlertTriangle, 
   Moon,
   ChevronRight,
+  ChevronLeft,
   RotateCcw,
-  RefreshCw
+  RefreshCw,
+  History,
+  X
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -64,10 +67,24 @@ const PHASE_ORDER: GamePhase[] = [
 ];
 
 export function PhaseControl() {
-  const { gameState, resolveDay, revertPhaseState, takePhaseSnapshot } = useGameStore();
-  const { isConnected, myRole, updateGameState } = useMultiplayer();
+  const { 
+    gameState, 
+    resolveDay, 
+    revertPhaseState,
+    dayHistory,
+    currentHistoryIndex,
+    saveDaySnapshot,
+    viewHistoryDay,
+    exitHistoryView,
+  } = useGameStore();
+  const { isConnected, myRole, players, updateGameState, resetGame } = useMultiplayer();
 
   if (!gameState) return null;
+
+  // 是否正在回放历史
+  const isViewingHistory = currentHistoryIndex !== null;
+  // 获取当前显示的历史快照
+  const historySnapshot = isViewingHistory ? dayHistory[currentHistoryIndex] : null;
 
   const currentPhase = gameState.phase;
   const currentPhaseColor = PHASE_COLORS[currentPhase];
@@ -112,6 +129,9 @@ export function PhaseControl() {
 
     // 如果是进入新的一天，更新天数并重置每日状态
     if (nextPhase === 'dawn' && currentPhase === 'night') {
+      // 在进入新一天前，保存当前状态到历史
+      saveDaySnapshot();
+
       // 执行黎明阶段逻辑（亲友+1友好）
       newGameState = processDawnPhase(newGameState);
       newGameState.currentDay = gameState.currentDay + 1;
@@ -120,6 +140,8 @@ export function PhaseControl() {
       const gameOverCheck = isGameOver(newGameState);
       if (gameOverCheck.isOver) {
         newGameState.phase = 'game_over';
+        // 游戏结束时也保存最终状态
+        setTimeout(() => saveDaySnapshot(), 100);
       }
 
       // 清除前一天的卡牌
@@ -312,9 +334,80 @@ export function PhaseControl() {
 
         {/* 游戏结束特殊显示 */}
         {currentPhase === 'game_over' && (
-          <div className="mt-3 p-3 bg-black/40 rounded border border-white/10 text-sm font-medium leading-relaxed italic text-center">
-            "{isGameOver(gameState).reason}"
-          </div>
+          <>
+            <div className="mt-3 p-3 bg-black/40 rounded border border-white/10 text-sm font-medium leading-relaxed italic text-center">
+              "{isGameOver(gameState).reason}"
+            </div>
+            
+            {/* 历史回放控制 */}
+            {dayHistory.length > 0 && (
+              <div className="mt-3 p-3 bg-slate-800/50 rounded border border-slate-700">
+                <div className="flex items-center gap-2 mb-2">
+                  <History size={14} className="text-amber-400" />
+                  <span className="text-sm font-medium text-slate-300">
+                    {isViewingHistory 
+                      ? `回放：第 ${historySnapshot?.loop} 轮回 · 第 ${historySnapshot?.day} 天`
+                      : '回顾本局游戏历史'
+                    }
+                  </span>
+                  {isViewingHistory && (
+                    <button
+                      onClick={exitHistoryView}
+                      className="ml-auto p-1 hover:bg-slate-700 rounded"
+                      title="退出回放"
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => viewHistoryDay(Math.max(0, (currentHistoryIndex ?? dayHistory.length) - 1))}
+                    disabled={currentHistoryIndex === 0}
+                    className="p-2 rounded bg-slate-700 hover:bg-slate-600 disabled:opacity-30 disabled:cursor-not-allowed"
+                    title="上一天"
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+                  <div className="flex-1 flex gap-1 justify-center">
+                    {dayHistory.map((snapshot, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => viewHistoryDay(idx)}
+                        title={`第 ${snapshot.loop} 轮回 · 第 ${snapshot.day} 天`}
+                        className={cn(
+                          "w-6 h-6 rounded-full text-xs font-bold transition-all",
+                          currentHistoryIndex === idx 
+                            ? "bg-amber-500 text-black" 
+                            : "bg-slate-700 hover:bg-slate-600 text-slate-300"
+                        )}
+                      >
+                        {idx + 1}
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    onClick={() => {
+                      if (currentHistoryIndex === null || currentHistoryIndex >= dayHistory.length - 1) {
+                        exitHistoryView();
+                      } else {
+                        viewHistoryDay(currentHistoryIndex + 1);
+                      }
+                    }}
+                    className="p-2 rounded bg-slate-700 hover:bg-slate-600"
+                    title="下一天"
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
+                {!isViewingHistory && (
+                  <p className="text-xs text-slate-500 text-center mt-2">
+                    点击数字查看每天结束时的状态
+                  </p>
+                )}
+              </div>
+            )}
+          </>
         )}
 
         {/* 阶段说明 */}
@@ -417,19 +510,56 @@ export function PhaseControl() {
         </div>
       )}
 
-      {/* 当前角色指示 */}
-      <div className="flex items-center gap-2 px-3 py-2 rounded bg-slate-800/50 border border-slate-700">
-        <span className="text-xs text-slate-400">当前视角：</span>
-        <span className={cn(
-          "text-sm font-bold",
-          playerRole === 'mastermind' ? "text-red-400" : "text-blue-400"
-        )}>
-          {playerRole === 'mastermind' ? '🎭 剧作家' : '🦸 主人公'}
-        </span>
+      {/* 当前角色指示 + 房间内玩家 */}
+      <div className="px-3 py-2 rounded bg-slate-800/50 border border-slate-700 space-y-2">
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-slate-400">当前视角：</span>
+          <span className={cn(
+            "text-sm font-bold",
+            playerRole === 'mastermind' ? "text-red-400" : "text-blue-400"
+          )}>
+            {playerRole === 'mastermind' ? '🎭 剧作家' : '🦸 主人公'}
+          </span>
+          {isConnected && (
+            <span className="text-xs text-green-400 ml-auto">● 联机中</span>
+          )}
+        </div>
+        
+        {/* 房间内玩家名字 */}
         {isConnected && (
-          <span className="text-xs text-green-400 ml-auto">● 联机中</span>
+          <div className="flex flex-col gap-1 text-xs border-t border-slate-700 pt-2">
+            <div className="flex items-center justify-between">
+              <span className="text-red-400">🎭 剧作家</span>
+              <span className={players.mastermind.connected ? 'text-slate-300' : 'text-slate-600'}>
+                {players.mastermind.connected ? players.mastermind.name || '未知' : '等待加入'}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-blue-400">🦸 主人公</span>
+              <span className={players.protagonist.connected ? 'text-slate-300' : 'text-slate-600'}>
+                {players.protagonist.connected ? players.protagonist.name || '未知' : '等待加入'}
+              </span>
+            </div>
+          </div>
         )}
       </div>
+
+      {/* 剧作家重开游戏按钮 */}
+      {playerRole === 'mastermind' && (
+        <motion.button
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          onClick={() => {
+            if (confirm('确定要重新开始游戏吗？所有进度将丢失。')) {
+              resetGame();
+            }
+          }}
+          className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-red-900/50 hover:bg-red-800/50 text-red-300 text-sm border border-red-700/50 transition-all"
+        >
+          <RotateCcw size={14} />
+          <span>重新开始游戏</span>
+        </motion.button>
+      )}
 
       {/* 阶段说明 */}
       {nextAction.description && canProceed() && (

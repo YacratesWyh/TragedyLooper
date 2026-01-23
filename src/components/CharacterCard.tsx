@@ -1,4 +1,5 @@
 import React, { useState, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { CharacterState, Character, PlayedCard, Indicators, CharacterId } from '@/types/game';
 import { IndicatorDisplay } from './IndicatorDisplay';
@@ -81,6 +82,10 @@ export function CharacterCard({
   }, [characterState.id, isConnected, updateGameState, canEditIndicators]);
   
   const handleClick = (e: React.MouseEvent) => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/df9bca65-781a-458b-9960-6fc7c150cd89',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CharacterCard.tsx:84',message:'Card clicked',data:{isPlacingCard,hasSpriteAsset,currentZoomState:showZoomedImage},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
+    
     // 放牌模式下，传递点击事件给父组件
     if (isPlacingCard) {
       onClick?.(e);
@@ -89,6 +94,9 @@ export function CharacterCard({
     
     // 非放牌模式下，点击放大图片
     if (hasSpriteAsset) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/df9bca65-781a-458b-9960-6fc7c150cd89',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CharacterCard.tsx:93',message:'Opening zoom modal',data:{characterId:characterState.id,charName:characterDef.name},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
       setShowZoomedImage(true);
     }
   };
@@ -96,16 +104,14 @@ export function CharacterCard({
   // 检查角色是否有立绘资产
   const hasSpriteAsset = hasCharacterAsset(characterState.id);
   
-  // 获取角色立绘样式（显示宽度180px）
-  const displayWidth = 180;
+  // 获取角色立绘样式
   const spriteStyle = hasSpriteAsset 
-    ? getCharacterSpriteStyle(characterState.id, displayWidth)
+    ? getCharacterSpriteStyle(characterState.id)
     : {};
   
-  // 放大版本的立绘样式（显示宽度400px）
-  const zoomedDisplayWidth = 400;
+  // 放大版本的立绘样式
   const zoomedSpriteStyle = hasSpriteAsset 
-    ? getCharacterSpriteStyle(characterState.id, zoomedDisplayWidth)
+    ? getCharacterSpriteStyle(characterState.id)
     : {};
 
   // 计算不安预警状态
@@ -158,7 +164,7 @@ export function CharacterCard({
       dragSnapToOrigin
       onDragEnd={(_, info) => onDragEnd?.(characterState.id, info.point.x, info.point.y)}
       className={cn(
-        "relative w-full max-w-[200px] border-2 rounded-lg p-3 shadow-lg select-none transition-all duration-300",
+        "relative w-full border-2 rounded-lg p-3 shadow-lg select-none transition-all duration-300",
         anxietyStyles.bgClass,
         anxietyStyles.borderClass,
         anxietyStyles.glowClass,
@@ -211,13 +217,9 @@ export function CharacterCard({
 
       {/* Avatar / Abilities Toggle */}
       <div className={cn(
-        "relative w-full rounded overflow-hidden",
+        "relative w-full rounded overflow-hidden aspect-[620/866]",
         isDead ? "bg-red-950/30" : "bg-slate-700"
       )}
-        style={{ 
-          // 620x866 原始尺寸，按 displayWidth 等比例缩放
-          height: hasSpriteAsset ? `${Math.round(866 * displayWidth / 620)}px` : '96px',
-        }}
       >
         {/* 角色立绘 */}
         <div className="absolute inset-0 flex items-center justify-center">
@@ -302,82 +304,102 @@ export function CharacterCard({
         />
       </div>
 
-      {/* 放大查看弹窗 */}
-      <AnimatePresence>
-        {showZoomedImage && hasSpriteAsset && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4"
-            onClick={(e) => {
-              e.stopPropagation();
-              setShowZoomedImage(false);
-            }}
-          >
+      {/* 放大查看弹窗 - 使用 Portal 渲染到 body */}
+      {typeof window !== 'undefined' && createPortal(
+        <AnimatePresence mode="wait">
+          {showZoomedImage && hasSpriteAsset && (
             <motion.div
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.8, opacity: 0 }}
-              className="relative max-w-lg w-full"
-              onClick={(e) => e.stopPropagation()}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15, ease: 'easeOut' }}
+              className="fixed inset-0 z-[200] bg-black/90 flex items-center justify-center p-8"
+              onAnimationStart={() => {
+                // #region agent log
+                fetch('http://127.0.0.1:7242/ingest/df9bca65-781a-458b-9960-6fc7c150cd89',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CharacterCard.tsx:310',message:'Modal animation started',data:{state:'opening'},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'B'})}).catch(()=>{});
+                // #endregion
+              }}
+              onAnimationComplete={() => {
+                // #region agent log
+                fetch('http://127.0.0.1:7242/ingest/df9bca65-781a-458b-9960-6fc7c150cd89',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CharacterCard.tsx:315',message:'Modal animation completed',data:{state:'open'},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'B'})}).catch(()=>{});
+                // #endregion
+              }}
+              onClick={() => {
+                // #region agent log
+                fetch('http://127.0.0.1:7242/ingest/df9bca65-781a-458b-9960-6fc7c150cd89',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'CharacterCard.tsx:320',message:'Modal backdrop clicked',data:{closing:true},timestamp:Date.now(),sessionId:'debug-session',runId:'pre-fix',hypothesisId:'D'})}).catch(()=>{});
+                // #endregion
+                setShowZoomedImage(false);
+              }}
             >
-              {/* 关闭按钮 */}
-              <button
-                onClick={() => setShowZoomedImage(false)}
-                className="absolute -top-3 -right-3 p-2 bg-slate-800/90 hover:bg-slate-700 text-white rounded-full transition-colors z-10"
+              <motion.div
+                initial={{ scale: 0.95, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.95, opacity: 0 }}
+                transition={{ duration: 0.15, ease: 'easeOut' }}
+                className="relative max-w-2xl"
+                onClick={(e) => e.stopPropagation()}
               >
-                <X size={20} />
-              </button>
-              
-              {/* 放大的立绘 */}
-              <div 
-                className={cn(
-                  "mx-auto rounded-lg shadow-2xl overflow-hidden",
-                  isDead && "grayscale"
-                )}
-                style={zoomedSpriteStyle}
-              />
-              
-              {/* 角色信息 */}
-              <div className="mt-4 bg-slate-900/90 rounded-lg p-4 space-y-3">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xl font-bold text-white">{characterDef.name}</h3>
-                  <span className="text-purple-400 text-sm">
-                    不安上限: {characterDef.anxietyLimit}
-                  </span>
-                </div>
+                {/* 关闭按钮 */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowZoomedImage(false);
+                  }}
+                  className="absolute -top-4 -right-4 p-2 bg-slate-800 hover:bg-slate-700 text-white rounded-full transition-colors shadow-xl z-10"
+                  title="关闭"
+                >
+                  <X size={24} />
+                </button>
                 
-                {/* 能力列表 */}
-                {characterDef.abilities.length > 0 ? (
-                  <div className="space-y-2">
-                    <div className="text-sm text-pink-400 font-bold">角色能力</div>
-                    {characterDef.abilities.map((ability, i) => (
-                      <div key={i} className="bg-slate-800/50 rounded p-2">
-                        <div className="flex items-center gap-2 text-sm text-pink-300 font-medium">
-                          <span>友好 ≥ {ability.goodwillRequired}</span>
-                          {ability.maxUsesPerLoop && (
-                            <span className="text-amber-400 text-xs">
-                              (每轮{ability.maxUsesPerLoop}次)
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-sm text-slate-300 mt-1">{ability.effect}</div>
-                      </div>
-                    ))}
+                {/* 放大的立绘 */}
+                <div 
+                  className={cn(
+                    "mx-auto rounded-lg shadow-2xl overflow-hidden bg-slate-800 aspect-[620/866]",
+                    isDead && "grayscale"
+                  )}
+                  style={{ 
+                    ...zoomedSpriteStyle,
+                    width: 'min(90vw, 400px)',
+                  }}
+                />
+                
+                {/* 角色信息 */}
+                <div className="mt-4 bg-slate-900/95 rounded-lg p-4 space-y-3 border border-slate-700">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-2xl font-bold text-white">{characterDef.name}</h3>
+                    <span className="text-purple-400 text-sm font-medium">
+                      不安上限: {characterDef.anxietyLimit}
+                    </span>
                   </div>
-                ) : (
-                  <div className="text-slate-500 text-sm">此角色无特殊能力</div>
-                )}
-              </div>
-              
-              <div className="mt-3 text-center text-slate-500 text-xs">
-                点击任意位置关闭
-              </div>
+                  
+                  {/* 能力列表 */}
+                  {characterDef.abilities.length > 0 ? (
+                    <div className="space-y-2">
+                      <div className="text-sm text-pink-400 font-bold">角色能力</div>
+                      {characterDef.abilities.map((ability, i) => (
+                        <div key={i} className="bg-slate-800/70 rounded-lg p-3 border border-slate-700/50">
+                          <div className="flex items-center gap-2 text-sm text-pink-300 font-medium mb-1">
+                            <span>友好 ≥ {ability.goodwillRequired}</span>
+                            {ability.maxUsesPerLoop && (
+                              <span className="text-amber-400 text-xs">
+                                (每轮{ability.maxUsesPerLoop}次)
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-sm text-slate-300 leading-relaxed">{ability.effect}</div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-slate-500 text-sm">此角色无特殊能力</div>
+                  )}
+                </div>
+              </motion.div>
             </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
     </motion.div>
   );
 }

@@ -11,7 +11,9 @@ export function MultiplayerPanel() {
   const [showMenu, setShowMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const { 
+    username,
     isConnected, 
+    isReconnecting,
     connect, 
     disconnect, 
     myRole,
@@ -38,10 +40,11 @@ export function MultiplayerPanel() {
 
   // 紧凑的状态显示
   const getStatusText = () => {
+    if (isReconnecting) return '重连中...';
     if (!isConnected) return '离线';
     if (!myRole) return '选择角色';
-    const otherReady = myRole === 'mastermind' ? players.protagonist : players.mastermind;
-    if (!otherReady) return '等待对方';
+    const otherRole = myRole === 'mastermind' ? 'protagonist' : 'mastermind';
+    if (!players[otherRole].connected) return '等待对方';
     return '已就绪';
   };
 
@@ -69,12 +72,14 @@ export function MultiplayerPanel() {
         onClick={() => setShowMenu(!showMenu)}
         className={cn(
           "flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm transition-all",
-          isConnected 
-            ? "bg-green-900/30 border-green-600/50 text-green-300 hover:bg-green-900/50" 
-            : "bg-slate-800/50 border-slate-600 text-slate-400 hover:bg-slate-700"
+          isReconnecting
+            ? "bg-amber-900/30 border-amber-600/50 text-amber-300 hover:bg-amber-900/50"
+            : isConnected 
+              ? "bg-green-900/30 border-green-600/50 text-green-300 hover:bg-green-900/50" 
+              : "bg-slate-800/50 border-slate-600 text-slate-400 hover:bg-slate-700"
         )}
       >
-        {isConnected ? <Wifi className="w-4 h-4" /> : <WifiOff className="w-4 h-4" />}
+        {isReconnecting ? <Wifi className="w-4 h-4 animate-pulse" /> : isConnected ? <Wifi className="w-4 h-4" /> : <WifiOff className="w-4 h-4" />}
         <span className="font-medium">{getStatusText()}</span>
         {myRole && (
           <span className={cn(
@@ -119,7 +124,7 @@ export function MultiplayerPanel() {
                 )}
               >
                 <span>🎭 剧作家</span>
-                {players.mastermind && <Check className="w-4 h-4 text-green-400" />}
+                {players.mastermind.connected && <Check className="w-4 h-4 text-green-400" />}
               </button>
               
               <button
@@ -133,7 +138,7 @@ export function MultiplayerPanel() {
                 )}
               >
                 <span>🦸 主人公</span>
-                {players.protagonist && <Check className="w-4 h-4 text-green-400" />}
+                {players.protagonist.connected && <Check className="w-4 h-4 text-green-400" />}
               </button>
             </div>
           )}
@@ -141,20 +146,24 @@ export function MultiplayerPanel() {
           {/* 已选择角色 */}
           {isConnected && myRole && (
             <div className="space-y-2">
-              {/* 玩家状态 */}
-              <div className="text-xs text-slate-400">联机状态</div>
+              {/* 房间内玩家 */}
+              <div className="text-xs text-slate-400">房间内玩家</div>
               
               <div className="flex items-center justify-between px-2 py-1.5 rounded bg-slate-800/50 text-sm">
                 <span>🎭 剧作家</span>
-                <span className={players.mastermind ? 'text-green-400' : 'text-slate-500'}>
-                  {players.mastermind ? (myRole === 'mastermind' ? '(我)' : '✓') : '—'}
+                <span className={players.mastermind.connected ? 'text-green-400' : 'text-slate-500'}>
+                  {players.mastermind.connected 
+                    ? (players.mastermind.name || '未知') + (myRole === 'mastermind' ? ' (我)' : '')
+                    : '—'}
                 </span>
               </div>
               
               <div className="flex items-center justify-between px-2 py-1.5 rounded bg-slate-800/50 text-sm">
                 <span>🦸 主人公</span>
-                <span className={players.protagonist ? 'text-green-400' : 'text-slate-500'}>
-                  {players.protagonist ? (myRole === 'protagonist' ? '(我)' : '✓') : '—'}
+                <span className={players.protagonist.connected ? 'text-green-400' : 'text-slate-500'}>
+                  {players.protagonist.connected 
+                    ? (players.protagonist.name || '未知') + (myRole === 'protagonist' ? ' (我)' : '')
+                    : '—'}
                 </span>
               </div>
 
