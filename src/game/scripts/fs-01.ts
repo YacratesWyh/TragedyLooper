@@ -11,10 +11,10 @@ import type {
 
 /** 
  * 所有可用角色定义
- * 数据来源：doc/角色技能表整理（2023 年 10 月 1 日）.md
+ * 数据来源：characters-grid.png（8列4行，索引0-30，最后一格为空）
  */
 export const ALL_CHARACTERS: Record<CharacterId, Character> = {
-  // ========== 第1行角色 ==========
+  // ========== 第1行（索引0-7）==========
   boy_student: {
     id: 'boy_student',
     name: '男学生',
@@ -62,7 +62,7 @@ export const ALL_CHARACTERS: Record<CharacterId, Character> = {
     name: '巫女',
     anxietyLimit: 2,
     initialLocation: 'shrine',
-    forbiddenLocation: null,
+    forbiddenLocation: 'city',
     traits: ['student', 'girl'],
     abilities: [{
       goodwillRequired: 2,
@@ -82,7 +82,7 @@ export const ALL_CHARACTERS: Record<CharacterId, Character> = {
       goodwillRequired: 4,
       maxUsesPerLoop: 1,
       description: '友好能力',
-      effect: '公开这个轮回发生的一个事件的私人信息；在同一区域的其中一个角色上放置一枚守护标记，放置守护标记的角色即将死亡的情况下，会改为移除守护标记来阻止死亡发生',
+      effect: '公开这个轮回发生的一个事件的私人信息；在同一区域的其中一个角色上放置一枚守护标记',
     }],
   },
   office_worker: {
@@ -90,7 +90,7 @@ export const ALL_CHARACTERS: Record<CharacterId, Character> = {
     name: '上班族',
     anxietyLimit: 2,
     initialLocation: 'city',
-    forbiddenLocation: null,
+    forbiddenLocation: 'school',
     traits: [],
     abilities: [{
       goodwillRequired: 2,
@@ -124,24 +124,19 @@ export const ALL_CHARACTERS: Record<CharacterId, Character> = {
       goodwillRequired: 2,
       maxUsesPerLoop: null,
       description: '友好能力',
-      effect: '可以消除同一区域内一名角色的一个不安标记，也可以在医院区域使用来消除所有角色的一个不安标记',
+      effect: '可以消除同一区域内一名角色的一个不安标记',
     }],
   },
 
-  // ========== 第2行角色 ==========
-  dollmaker: {
-    id: 'dollmaker',
-    name: '人偶师',
-    anxietyLimit: 3,
-    initialLocation: 'city',
-    forbiddenLocation: null,
-    traits: ['girl'],
-    abilities: [{
-      goodwillRequired: 3,
-      maxUsesPerLoop: 2,
-      description: '友好能力',
-      effect: '召唤1个人偶（无自主行动能力），人偶可替自身承受1次不安标记或死亡效果；人偶被破坏后，本回合无法再次召唤',
-    }],
+  // ========== 第2行（索引8-15）==========
+  patient: {
+    id: 'patient',
+    name: '入院患者',
+    anxietyLimit: 2,
+    initialLocation: 'hospital',
+    forbiddenLocation: ['city', 'school', 'shrine'],
+    traits: [],
+    abilities: [],
   },
   class_rep: {
     id: 'class_rep',
@@ -154,36 +149,40 @@ export const ALL_CHARACTERS: Record<CharacterId, Character> = {
       goodwillRequired: 2,
       maxUsesPerLoop: 1,
       description: '友好能力',
-      effect: '在学校区域可强制让同区域1名角色跟随自身移动；可查看同班级所有学生的不安标记数量',
+      effect: '在学校区域可强制让同区域1名角色跟随自身移动',
     }],
   },
-  mystery_boy: {
-    id: 'mystery_boy',
+  factor: {
+    id: 'factor',
+    name: '意外因素',
+    anxietyLimit: 99,
+    initialLocation: 'city',
+    forbiddenLocation: null,
+    traits: [],
+    abilities: [],
+  },
+  alien: {
+    id: 'alien',
     name: '异世界人',
-    anxietyLimit: 3,
+    anxietyLimit: 2,
     initialLocation: 'shrine',
     forbiddenLocation: 'hospital',
-    traits: [],
+    traits: ['girl'],
     abilities: [{
-      goodwillRequired: 4,
+      goodwillRequired: 2,
       maxUsesPerLoop: 1,
       description: '友好能力',
-      effect: '无视区域限制，随机替换自身与一名角色的位置；可免疫1次阴谋标记的负面效果',
+      effect: '检测同一区域是否有【杀手】或【杀人狂】',
     }],
   },
-  shrine_god: {
-    id: 'shrine_god',
+  godly_being: {
+    id: 'godly_being',
     name: '神格',
-    anxietyLimit: 99, // 无上限
+    anxietyLimit: 3,
     initialLocation: 'shrine',
     forbiddenLocation: null,
     traits: [],
-    abilities: [{
-      goodwillRequired: 6,
-      maxUsesPerLoop: 2,
-      description: '友好能力',
-      effect: '移除全场1个阴谋标记或为任意1名角色添加1个友好标记；自身被攻击时，可反弹1次伤害给攻击者',
-    }],
+    abilities: [],
   },
   idol: {
     id: 'idol',
@@ -196,7 +195,7 @@ export const ALL_CHARACTERS: Record<CharacterId, Character> = {
       goodwillRequired: 3,
       maxUsesPerLoop: 1,
       description: '友好能力',
-      effect: '为同区域所有角色各消除1个不安标记；可让1名角色强制跟随自身移动1回合',
+      effect: '为同区域所有角色各消除1个不安标记',
     }],
   },
   journalist: {
@@ -210,7 +209,7 @@ export const ALL_CHARACTERS: Record<CharacterId, Character> = {
       goodwillRequired: 3,
       maxUsesPerLoop: 2,
       description: '友好能力',
-      effect: '公开任意1名角色的1个特质；可记录1个已发生的事件，后续可随时公开该事件细节',
+      effect: '公开任意1名角色的1个特质',
     }],
   },
   boss: {
@@ -224,11 +223,11 @@ export const ALL_CHARACTERS: Record<CharacterId, Character> = {
       goodwillRequired: 5,
       maxUsesPerLoop: 1,
       description: '友好能力',
-      effect: '指定1名角色获得"庇护"状态（免疫1次不安标记）；可强制终止1个非关键事件的触发',
+      effect: '指定1名角色获得"庇护"状态（免疫1次不安标记）',
     }],
   },
 
-  // ========== 第3行角色 ==========
+  // ========== 第3行（索引16-23）==========
   nurse: {
     id: 'nurse',
     name: '护士',
@@ -240,107 +239,8 @@ export const ALL_CHARACTERS: Record<CharacterId, Character> = {
       goodwillRequired: 2,
       maxUsesPerLoop: null,
       description: '友好能力',
-      effect: '在医院区域可消除任意1名角色的2个不安标记；非医院区域可消除1个不安标记，同时为自身添加1个不安标记',
+      effect: '在医院区域可消除任意1名角色的2个不安标记',
     }],
-  },
-  patient: {
-    id: 'patient',
-    name: '入院患者',
-    anxietyLimit: 2,
-    initialLocation: 'hospital',
-    forbiddenLocation: null,
-    traits: [],
-    abilities: [], // 无友好能力
-  },
-  scientist: {
-    id: 'scientist',
-    name: '学者',
-    anxietyLimit: 2,
-    initialLocation: 'hospital',
-    forbiddenLocation: null,
-    traits: [],
-    abilities: [], // 文档不完整，暂无能力
-  },
-
-  // ========== 特殊角色 ==========
-  factor: {
-    id: 'factor',
-    name: '意外因素',
-    anxietyLimit: 99, // 无上限（不会积累不安）
-    initialLocation: 'city',
-    forbiddenLocation: null,
-    traits: [],
-    abilities: [], // 被动能力，每轮强制触发
-  },
-
-  // ========== 向后兼容 ==========
-  pop_idol: {
-    id: 'pop_idol',
-    name: '偶像',
-    anxietyLimit: 2,
-    initialLocation: 'city',
-    forbiddenLocation: null,
-    traits: ['student', 'girl'],
-    abilities: [{
-      goodwillRequired: 3,
-      maxUsesPerLoop: 1,
-      description: '友好能力',
-      effect: '为同区域所有角色各消除1个不安标记',
-    }],
-  },
-  transfer_student: {
-    id: 'transfer_student',
-    name: '转学生',
-    anxietyLimit: 2,
-    initialLocation: 'school',
-    forbiddenLocation: null,
-    traits: ['student'],
-    abilities: [],
-  },
-  time_traveler: {
-    id: 'time_traveler',
-    name: '时间旅行者',
-    anxietyLimit: 3,
-    initialLocation: 'city',
-    forbiddenLocation: null,
-    traits: [],
-    abilities: [],
-  },
-  soldier: {
-    id: 'soldier',
-    name: '军人',
-    anxietyLimit: 4,
-    initialLocation: 'city',
-    forbiddenLocation: null,
-    traits: [],
-    abilities: [],
-  },
-  illusion: {
-    id: 'illusion',
-    name: '幻影',
-    anxietyLimit: 1,
-    initialLocation: 'shrine',
-    forbiddenLocation: null,
-    traits: [],
-    abilities: [],
-  },
-  ai: {
-    id: 'ai',
-    name: 'AI',
-    anxietyLimit: 99,
-    initialLocation: 'hospital',
-    forbiddenLocation: null,
-    traits: [],
-    abilities: [],
-  },
-  twin: {
-    id: 'twin',
-    name: '双子',
-    anxietyLimit: 2,
-    initialLocation: 'school',
-    forbiddenLocation: null,
-    traits: ['student'],
-    abilities: [],
   },
   henchman: {
     id: 'henchman',
@@ -351,33 +251,134 @@ export const ALL_CHARACTERS: Record<CharacterId, Character> = {
     traits: [],
     abilities: [],
   },
-  student: {
-    id: 'student',
-    name: '男学生',
+  scientist: {
+    id: 'scientist',
+    name: '学者',
+    anxietyLimit: 2,
+    initialLocation: 'hospital',
+    forbiddenLocation: null,
+    traits: [],
+    abilities: [],
+  },
+  illusion: {
+    id: 'illusion',
+    name: '幻想',
+    anxietyLimit: 1,
+    initialLocation: 'shrine',
+    forbiddenLocation: null,
+    traits: [],
+    abilities: [],
+  },
+  forensic: {
+    id: 'forensic',
+    name: '刑侦警察',
+    anxietyLimit: 3,
+    initialLocation: 'city',
+    forbiddenLocation: null,
+    traits: [],
+    abilities: [{
+      goodwillRequired: 4,
+      maxUsesPerLoop: 1,
+      description: '友好能力',
+      effect: '调查已发生事件的详细信息',
+    }],
+  },
+  ai: {
+    id: 'ai',
+    name: 'A.I.',
+    anxietyLimit: 4,
+    initialLocation: 'hospital',
+    forbiddenLocation: ['shrine', 'city', 'school'],
+    traits: [],
+    abilities: [],
+  },
+  teacher: {
+    id: 'teacher',
+    name: '教师',
     anxietyLimit: 2,
     initialLocation: 'school',
     forbiddenLocation: null,
-    traits: ['student', 'boy'],
-    abilities: [{
-      goodwillRequired: 2,
-      maxUsesPerLoop: null,
-      description: '友好能力',
-      effect: '移除同一区域一名【学生】角色的1点不安',
-    }],
-  },
-  alien: {
-    id: 'alien',
-    name: '异界人',
-    anxietyLimit: 2,
-    initialLocation: 'shrine',
-    forbiddenLocation: 'hospital',
-    traits: ['girl'],
+    traits: [],
     abilities: [{
       goodwillRequired: 2,
       maxUsesPerLoop: 1,
-      description: '友好能力1：检测杀手',
-      effect: '检测同一区域是否有【杀手】或【杀人狂】',
+      description: '友好能力',
+      effect: '可查看学校区域所有学生的不安标记数量',
     }],
+  },
+  transfer_student: {
+    id: 'transfer_student',
+    name: '转校生',
+    anxietyLimit: 2,
+    initialLocation: 'school',
+    forbiddenLocation: null,
+    traits: ['student'],
+    abilities: [],
+  },
+
+  // ========== 第4行（索引24-30）==========
+  soldier: {
+    id: 'soldier',
+    name: '军人',
+    anxietyLimit: 3,
+    initialLocation: 'city',
+    forbiddenLocation: null,
+    traits: [],
+    abilities: [],
+  },
+  black_cat: {
+    id: 'black_cat',
+    name: '黑猫',
+    anxietyLimit: 0,
+    initialLocation: 'shrine',
+    forbiddenLocation: null,
+    traits: [],
+    abilities: [],
+  },
+  girl: {
+    id: 'girl',
+    name: '小女孩',
+    anxietyLimit: 1,
+    initialLocation: 'school',
+    forbiddenLocation: ['hospital','city','shrine'],
+    traits: ['girl','student'],
+    abilities: [],
+  },
+  cult_leader: {
+    id: 'cult_leader',
+    name: '教祖',
+    anxietyLimit: 3,
+    initialLocation: 'shrine',
+    forbiddenLocation: null,
+    traits: [],
+    abilities: [],
+  },
+  copycat: {
+    id: 'copycat',
+    name: '模仿者',
+    anxietyLimit: 2,
+    initialLocation: 'city',
+    forbiddenLocation: null,
+    traits: [],
+    abilities: [],
+  },
+  sacred_tree: {
+    id: 'sacred_tree',
+    name: '御神木',
+    anxietyLimit: 4,
+    initialLocation: 'shrine',
+    forbiddenLocation: ['school','city','hospital'],
+    traits: [],
+    abilities: [],
+  },
+  little_sister: {
+    id: 'little_sister',
+    name: '妹妹',
+    anxietyLimit: 3,
+    initialLocation: 'shrine',
+    forbiddenLocation: null,
+    traits: ['girl'],
+    abilities: [],
   },
 };
 
@@ -555,7 +556,7 @@ export const SCRIPT_TEMPLATES: ScriptTemplate[] = [
     days: 7,
     mainPlot: '不明巨型定时炸弹X',
     subPlot: '因果之线 / 友情同好会',
-    characters: ['boy_student', 'class_rep', 'shrine_maiden', 'mystery_boy', 'office_worker', 'informer', 'journalist', 'patient', 'nurse'],
+    characters: ['boy_student', 'class_rep', 'shrine_maiden', 'alien', 'office_worker', 'informer', 'journalist', 'patient', 'nurse'],
     incidents: [
       { day: 2, type: 'suicide' },
       { day: 3, type: 'murder' },
@@ -574,7 +575,7 @@ export const SCRIPT_TEMPLATES: ScriptTemplate[] = [
     days: 7,
     mainPlot: '改变未来计划',
     subPlot: '潜藏的杀人魔 / 恋爱风景',
-    characters: ['boy_student', 'rich_man', 'shrine_maiden', 'shrine_god', 'detective', 'office_worker', 'idol', 'patient', 'nurse'],
+    characters: ['boy_student', 'rich_man', 'shrine_maiden', 'godly_being', 'detective', 'office_worker', 'idol', 'patient', 'nurse'],
     incidents: [
       { day: 2, type: 'suicide' },
       { day: 4, type: 'murder' },

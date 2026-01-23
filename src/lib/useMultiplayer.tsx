@@ -8,13 +8,23 @@ import { useGameStore } from '@/store/gameStore';
 import type { PlayerRole, CharacterId, LocationType } from '@/types/game';
 
 // WebSocket 服务器地址
+// 统一逻辑：同端口 /ws 路径
+// 唯一例外：next dev (localhost:3000) 需要独立 WebSocket 端口
 const getWsUrl = () => {
-  if (typeof window === 'undefined') return 'ws://localhost:3000/ws';
+  if (typeof window === 'undefined') return 'ws://localhost:8080/ws';
   if (process.env.NEXT_PUBLIC_WS_URL) return process.env.NEXT_PUBLIC_WS_URL;
   
-  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const host = window.location.host;
-  return `${protocol}//${host}/ws`;
+  const { protocol, hostname, port, host } = window.location;
+  const wsProtocol = protocol === 'https:' ? 'wss:' : 'ws:';
+  
+  // next dev 默认端口 3000，不支持 WebSocket，需要独立服务器
+  const isNextDev = hostname === 'localhost' && port === '3000';
+  if (isNextDev) {
+    return 'ws://localhost:3001';
+  }
+  
+  // 其他情况（npm run start、生产环境）：同端口 /ws 路径
+  return `${wsProtocol}//${host}/ws`;
 };
 
 // 会话存储 key

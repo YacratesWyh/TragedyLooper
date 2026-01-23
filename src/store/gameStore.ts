@@ -33,6 +33,10 @@ interface GameStore {
   playerRole: PlayerRole;
   currentScript: ScriptTemplate | null;  // 当前使用的脚本
   
+  // 结算消息（禁行区域等提示）
+  resolutionMessages: string[];
+  clearMessages: () => void;
+  
   // 牌组状态（每个玩家有自己的牌组）
   mastermindDeck: PlayerDeck;
   protagonistDeck: PlayerDeck;
@@ -92,10 +96,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
   gameState: null,
   playerRole: 'protagonist',
   currentScript: null,
+  resolutionMessages: [],
   mastermindDeck: createMastermindDeck(),
   protagonistDeck: createProtagonistDeck(),
   currentMastermindCards: [],
   currentProtagonistCards: [],
+
+  clearMessages: () => set({ resolutionMessages: [] }),
 
   // 获取当前玩家可用的手牌
   getMyAvailableCards: () => {
@@ -251,11 +258,13 @@ export const useGameStore = create<GameStore>((set, get) => ({
     if (!gameState) return;
 
     // 使用引擎中的 processResolution 处理结算
-    let updatedState = processResolution(
+    const result = processResolution(
       gameState,
       currentMastermindCards,
       currentProtagonistCards
     );
+
+    let updatedState = result.state;
 
     // 检查游戏是否结束（仅检查关键人物死亡等即时结束条件）
     const gameOverCheck = isGameOver(updatedState);
@@ -263,9 +272,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
       updatedState.phase = 'game_over';
     }
 
-    // 更新状态，但不立即清除卡牌，让玩家看到结算结果
+    // 更新状态，保存结算消息
     set({
       gameState: updatedState,
+      resolutionMessages: result.messages,
     });
   },
 

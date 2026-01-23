@@ -145,13 +145,21 @@ export function combineMovements(directions: MovementDirection[]): MovementDirec
   return result;
 }
 
+/** 移动结果类型 */
+export interface MovementResult {
+  newLocation: LocationType;
+  blocked: boolean;
+  blockReason?: string;
+}
+
 /** 处理移动 */
 export function applyMovement(
   characterId: CharacterId,
   currentLocation: LocationType,
   direction: 'horizontal' | 'vertical' | 'diagonal',
-  forbiddenLocation: LocationType | null
-): LocationType {
+  forbiddenLocation: LocationType | LocationType[] | null,
+  characterName?: string
+): MovementResult {
   const locationGrid: Record<LocationType, { x: number; y: number }> = {
     hospital: { x: 0, y: 0 },
     shrine: { x: 1, y: 0 },
@@ -164,6 +172,13 @@ export function applyMovement(
     '1,0': 'shrine',
     '0,1': 'city',
     '1,1': 'school',
+  };
+
+  const locationNames: Record<LocationType, string> = {
+    hospital: '医院',
+    shrine: '神社',
+    city: '都市',
+    school: '学校',
   };
 
   const current = locationGrid[currentLocation];
@@ -182,12 +197,21 @@ export function applyMovement(
 
   const newLocation = reverseGrid[`${newX},${newY}`];
 
-  // 检查禁行区域
-  if (newLocation === forbiddenLocation) {
-    return currentLocation;
+  // 检查禁行区域（支持单个或数组）
+  if (forbiddenLocation) {
+    const forbidden = Array.isArray(forbiddenLocation) ? forbiddenLocation : [forbiddenLocation];
+    if (forbidden.includes(newLocation)) {
+      const name = characterName || characterId;
+      const targetName = locationNames[newLocation];
+      return {
+        newLocation: currentLocation,
+        blocked: true,
+        blockReason: `${name} 无法进入${targetName}（禁行区域）`,
+      };
+    }
   }
 
-  return newLocation;
+  return { newLocation, blocked: false };
 }
 
 /** 应用指示物变化 */
@@ -301,6 +325,12 @@ export function advanceDay(state: GameState): GameState {
   };
 }
 
+/** 结算结果类型 */
+export interface ResolutionResult {
+  state: GameState;
+  messages: string[];
+}
+
 /** 
  * 处理结算阶段
  * 1. 处理移动
@@ -311,9 +341,10 @@ export function processResolution(
   state: GameState,
   mastermindCards: PlayedCard[],
   protagonistCards: PlayedCard[]
-): GameState {
+): ResolutionResult {
   let updatedState = { ...state };
   const allCards = [...mastermindCards, ...protagonistCards];
+  const messages: string[] = [];
 
   // 辅助函数：检查某目标上是否有对方的"禁止"牌
   const hasForbidCard = (
@@ -363,15 +394,19 @@ export function processResolution(
     const character = FS01_CHARACTERS[charId];
     const charState = updatedState.characters.find(c => c.id === charId);
     if (charState) {
-      const newLocation = applyMovement(
+      const result = applyMovement(
         charId,
         charState.location,
         finalDirection,
-        character.forbiddenLocation
+        character.forbiddenLocation,
+        character.name
       );
       updatedState.characters = updatedState.characters.map(c =>
-        c.id === charId ? { ...c, location: newLocation } : c
+        c.id === charId ? { ...c, location: result.newLocation } : c
       );
+      if (result.blocked && result.blockReason) {
+        messages.push(result.blockReason);
+      }
     }
   });
 
@@ -415,7 +450,7 @@ export function processResolution(
     }
   });
 
-  return updatedState;
+  return { state: updatedState, messages };
 }
 
 /** 检查游戏是否结束 */

@@ -19,47 +19,48 @@ export type MovementType = 'horizontal' | 'vertical' | 'diagonal' | 'forbid';
 
 /** 
  * 角色ID
- * 数据来源：doc/角色技能表整理.md
+ * 数据来源：characters-grid.png 切割顺序（8列4行，最后一格为空）
  */
 export type CharacterId = 
-  // 第1行：男学生、女学生、大小姐、巫女、刑警、上班族、情报贩子、医生
-  | 'boy_student'      // 男学生
-  | 'girl_student'     // 女学生
-  | 'rich_man'         // 大小姐
-  | 'shrine_maiden'    // 巫女
-  | 'detective'        // 刑警
-  | 'office_worker'    // 上班族
-  | 'informer'         // 情报贩子
-  | 'doctor'           // 医生
-  // 第2行：人偶师、班长、意外因素、异世界人、神格、偶像、媒体记者、大人物
-  | 'dollmaker'        // 人偶师
-  | 'class_rep'        // 班长
-  | 'factor'           // 意外因素
-  | 'mystery_boy'      // 异世界人
-  | 'shrine_god'       // 神格
-  | 'idol'             // 偶像
-  | 'journalist'       // 媒体记者
-  | 'boss'             // 大人物
-  // 第3行：护士、入院患者、学者...
-  | 'nurse'            // 护士
-  | 'patient'          // 入院患者
-  | 'scientist'        // 学者
-  // 扩展角色
-  | 'pop_idol'         // 偶像（别名）
-  | 'transfer_student' // 转学生
-  | 'time_traveler'    // 时间旅行者
-  | 'soldier'          // 军人
-  | 'illusion'         // 幻影
-  | 'ai'               // AI
-  | 'twin'             // 双子
-  | 'henchman'         // 手下
-  // 向后兼容
-  | 'student'          // 学生（旧）
-  | 'alien';           // 异界人（旧）
+  // 第1行（索引0-7）：男学生、女学生、大小姐、巫女、刑警、上班族、情报贩子、医生
+  | 'boy_student'      // 0 - 男学生
+  | 'girl_student'     // 1 - 女学生
+  | 'rich_man'         // 2 - 大小姐
+  | 'shrine_maiden'    // 3 - 巫女
+  | 'detective'        // 4 - 刑警
+  | 'office_worker'    // 5 - 上班族
+  | 'informer'         // 6 - 情报贩子
+  | 'doctor'           // 7 - 医生
+  // 第2行（索引8-15）：入院患者、班长、意外因素、异世界人、神格、偶像、媒体记者、大人物
+  | 'patient'          // 8 - 入院患者
+  | 'class_rep'        // 9 - 班长
+  | 'factor'           // 10 - 意外因素
+  | 'alien'            // 11 - 异世界人
+  | 'godly_being'      // 12 - 神格
+  | 'idol'             // 13 - 偶像
+  | 'journalist'       // 14 - 媒体记者
+  | 'boss'             // 15 - 大人物
+  // 第3行（索引16-23）：护士、手下、学者、幻想、刑侦警察、A.I.、教师、转校生
+  | 'nurse'            // 16 - 护士
+  | 'henchman'         // 17 - 手下
+  | 'scientist'        // 18 - 学者
+  | 'illusion'         // 19 - 幻想
+  | 'forensic'         // 20 - 刑侦警察
+  | 'ai'               // 21 - A.I.
+  | 'teacher'          // 22 - 教师
+  | 'transfer_student' // 23 - 转校生
+  // 第4行（索引24-30）：军人、黑猫、小女孩、教祖、模仿者、御神木、妹妹（最后一格为空）
+  | 'soldier'          // 24 - 军人
+  | 'black_cat'        // 25 - 黑猫
+  | 'girl'             // 26 - 小女孩
+  | 'cult_leader'      // 27 - 教祖
+  | 'copycat'          // 28 - 模仿者
+  | 'sacred_tree'      // 29 - 御神木
+  | 'little_sister';   // 30 - 妹妹
 
 /** 角色名称映射 */
 export const CHARACTER_NAMES: Record<CharacterId, string> = {
-  // 第1行
+  // 第1行（索引0-7）
   boy_student: '男学生',
   girl_student: '女学生',
   rich_man: '大小姐',
@@ -68,31 +69,71 @@ export const CHARACTER_NAMES: Record<CharacterId, string> = {
   office_worker: '上班族',
   informer: '情报贩子',
   doctor: '医生',
-  // 第2行
-  dollmaker: '人偶师',
+  // 第2行（索引8-15）
+  patient: '入院患者',
   class_rep: '班长',
   factor: '意外因素',
-  mystery_boy: '异世界人',
-  shrine_god: '神格',
+  alien: '异世界人',
+  godly_being: '神格',
   idol: '偶像',
   journalist: '媒体记者',
   boss: '大人物',
-  // 第3行
+  // 第3行（索引16-23）
   nurse: '护士',
-  patient: '入院患者',
-  scientist: '学者',
-  // 扩展
-  pop_idol: '偶像',
-  transfer_student: '转学生',
-  time_traveler: '时间旅行者',
-  soldier: '军人',
-  illusion: '幻影',
-  ai: 'AI',
-  twin: '双子',
   henchman: '手下',
-  // 向后兼容
-  student: '学生',
-  alien: '异界人',
+  scientist: '学者',
+  illusion: '幻想',
+  forensic: '刑侦警察',
+  ai: 'A.I.',
+  teacher: '教师',
+  transfer_student: '转校生',
+  // 第4行（索引24-30）
+  soldier: '军人',
+  black_cat: '黑猫',
+  girl: '小女孩',
+  cult_leader: '教祖',
+  copycat: '模仿者',
+  sacred_tree: '御神木',
+  little_sister: '妹妹',
+};
+
+/** 角色在 characters-grid.png 中的索引（用于切割图片） */
+export const CHARACTER_GRID_INDEX: Record<CharacterId, number> = {
+  // 第1行
+  boy_student: 0,
+  girl_student: 1,
+  rich_man: 2,
+  shrine_maiden: 3,
+  detective: 4,
+  office_worker: 5,
+  informer: 6,
+  doctor: 7,
+  // 第2行
+  patient: 8,
+  class_rep: 9,
+  factor: 10,
+  alien: 11,
+  godly_being: 12,
+  idol: 13,
+  journalist: 14,
+  boss: 15,
+  // 第3行
+  nurse: 16,
+  henchman: 17,
+  scientist: 18,
+  illusion: 19,
+  forensic: 20,
+  ai: 21,
+  teacher: 22,
+  transfer_student: 23,
+  // 第4行
+  soldier: 24,
+  black_cat: 25,
+  girl: 26,
+  cult_leader: 27,
+  copycat: 28,
+  sacred_tree: 29,
+  little_sister: 30,
 };
 
 /** 身份类型 */
@@ -176,7 +217,7 @@ export interface Character {
   name: string;
   anxietyLimit: number;
   initialLocation: LocationType;
-  forbiddenLocation: LocationType | null;
+  forbiddenLocation: LocationType | LocationType[] | null;
   traits: CharacterTrait[];
   abilities: CharacterAbility[];
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useGameStore } from '@/store/gameStore';
 import { useMultiplayer } from '@/lib/useMultiplayer';
 import { GameBoard } from '@/components/GameBoard';
@@ -12,7 +12,7 @@ import { RulesReference } from '@/components/RulesReference';
 import { PhaseControl } from '@/components/PhaseControl';
 import { MultiplayerPanel } from '@/components/MultiplayerPanel';
 import type { LocationType, CharacterId } from '@/types/game';
-import { RotateCcw, AlertCircle } from 'lucide-react';
+import { RotateCcw, AlertCircle, X } from 'lucide-react';
 
 export default function Home() {
   const { 
@@ -25,12 +25,22 @@ export default function Home() {
     playCard,
     isTargetOccupied,
     resolveDay, 
-    endLoop 
+    endLoop,
+    resolutionMessages,
+    clearMessages
   } = useGameStore();
   
   const { isConnected, updateGameState, myRole } = useMultiplayer();
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [showMessages, setShowMessages] = useState(false);
+
+  // 当有结算消息时自动显示
+  useEffect(() => {
+    if (resolutionMessages.length > 0) {
+      setShowMessages(true);
+    }
+  }, [resolutionMessages]);
 
   // 获取当前玩家的牌组和已打出数量
   const myDeck = playerRole === 'mastermind' ? mastermindDeck : protagonistDeck;
@@ -216,12 +226,52 @@ export default function Home() {
         </div>
 
         {/* Game Board */}
-        <div className="flex-1 overflow-auto bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-black p-4">
+        <div className="flex-1 overflow-auto bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-black p-4 relative">
              <GameBoard 
                 onCharacterClick={(charId) => handleCardPlay(charId, 'character')}
                 onLocationClick={(loc) => handleCardPlay(loc, 'location')}
                 isPlacingCard={!!selectedCardId}
              />
+             
+             {/* 结算消息弹窗 */}
+             {showMessages && resolutionMessages.length > 0 && (
+               <div className="absolute inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm z-50">
+                 <div className="bg-slate-800 border border-amber-500/50 rounded-lg shadow-2xl p-6 max-w-md mx-4 animate-in fade-in zoom-in duration-200">
+                   <div className="flex items-center justify-between mb-4">
+                     <h3 className="text-lg font-bold text-amber-400 flex items-center gap-2">
+                       <AlertCircle size={20} />
+                       结算提示
+                     </h3>
+                     <button
+                       onClick={() => {
+                         setShowMessages(false);
+                         clearMessages();
+                       }}
+                       className="p-1 hover:bg-slate-700 rounded transition-colors"
+                     >
+                       <X size={18} className="text-slate-400" />
+                     </button>
+                   </div>
+                   <div className="space-y-2">
+                     {resolutionMessages.map((msg, idx) => (
+                       <div key={idx} className="flex items-start gap-2 text-slate-200">
+                         <span className="text-amber-400">•</span>
+                         <span>{msg}</span>
+                       </div>
+                     ))}
+                   </div>
+                   <button
+                     onClick={() => {
+                       setShowMessages(false);
+                       clearMessages();
+                     }}
+                     className="mt-4 w-full px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded transition-colors font-medium"
+                   >
+                     确认
+                   </button>
+                 </div>
+               </div>
+             )}
         </div>
 
         {/* Hand - 显示完整牌组，标记已使用的牌 */}
