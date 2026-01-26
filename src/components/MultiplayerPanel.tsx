@@ -5,8 +5,8 @@
  */
 
 import React, { useState, useRef, useEffect } from 'react';
-import { useMultiplayer } from '../lib/useMultiplayer';
-import { useGameStore } from '../store/gameStore';
+import { useMultiplayer } from '@/lib/useMultiplayer';
+import { useGameStore } from '@/store/gameStore';
 import { 
   Wifi, 
   WifiOff, 

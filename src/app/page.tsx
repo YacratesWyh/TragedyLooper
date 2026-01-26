@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useGameStore } from '../store/gameStore';
-import { useMultiplayer } from '../lib/useMultiplayer';
+import { useGameStore } from '@/store/gameStore';
+import { useMultiplayer } from '@/lib/useMultiplayer';
 import { GameBoard } from '@/components/GameBoard';
 import { LobbyScreen } from '@/components/LobbyScreen';
 import { GameInfo } from '@/components/GameInfo';

@@ -19,7 +19,7 @@ const handle = app.getRequestHandler();
 
 // ============== WebSocket 房间逻辑（从 websocket-server.js 复制）==============
 
-const VERSION = '0.0.8';
+const VERSION = '0.1.1';
 const rooms = new Map();
 // userId -> { ws, roomId, role } 用于追踪用户身份
 const userSessions = new Map();

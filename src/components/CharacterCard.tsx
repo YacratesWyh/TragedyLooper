@@ -6,8 +6,8 @@ import { IndicatorDisplay } from './IndicatorDisplay';
 import { PlacedCards } from './PlacedCards';
 import { cn } from '@/lib/utils';
 import { getCharacterSpriteStyle, hasCharacterAsset } from '@/lib/characterAssets';
-import { useGameStore } from '../store/gameStore';
-import { useMultiplayer } from '../lib/useMultiplayer';
+import { useGameStore } from '@/store/gameStore';
+import { useMultiplayer } from '@/lib/useMultiplayer';
 import { X, Skull, RefreshCw } from 'lucide-react';
 
 interface CharacterCardProps {

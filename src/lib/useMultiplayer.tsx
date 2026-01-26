@@ -4,7 +4,7 @@
  */
 
 import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
-import { useGameStore } from '../store/gameStore';
+import { useGameStore } from '@/store/gameStore';
 import type { PlayerRole, CharacterId, LocationType } from '@/types/game';
 
 // WebSocket 服务器地址：同端口 /ws 路径
