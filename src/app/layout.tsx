@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { ClientWrapper } from "@/components/ClientWrapper";
+import { ClientWrapper } from "@/shared/ClientWrapper";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "惨剧轮回 - Tragedy Looper",
-  description: "Tragedy Looper Web Implementation",
+  title: "Board Game Hub",
+  description: "Multi-boardgame platform",
 };
 
 export default function RootLayout({

@@ -560,8 +560,28 @@ app.prepare().then(() => {
     handle(req, res, parsedUrl);
   });
 
-  // WebSocket 服务器挂载到同一个 HTTP 服务器
-  const wss = new WebSocket.Server({ server, path: '/ws' });
+  // noServer 模式：不自动劫持 upgrade，由我们手动路由
+  const wss = new WebSocket.Server({ noServer: true });
+
+  // 手动处理 upgrade：/ws 走游戏 WS，其余交给 Next.js HMR
+  server.on('upgrade', (req, socket, head) => {
+    const { pathname } = parse(req.url, true);
+
+    if (pathname === '/ws') {
+      wss.handleUpgrade(req, socket, head, (ws) => {
+        wss.emit('connection', ws, req);
+      });
+    } else {
+      // Next.js HMR 等其他升级请求，交还给 Next.js 的内置处理
+      // 如果 Next.js 没有注册 upgrade handler，直接销毁即可
+      // app.getUpgradeHandler() 在部分版本可用；不可用时放行不处理
+      if (typeof app.getUpgradeHandler === 'function') {
+        app.getUpgradeHandler()(req, socket, head);
+      }
+      // 对于 Turbopack / webpack-dev-server，Next.js 已通过
+      // createServer 内部自行监听 upgrade，此处不需额外操作
+    }
+  });
 
   // 广播房间列表给所有在大厅的客户端
   function broadcastRoomList() {
@@ -578,7 +598,7 @@ app.prepare().then(() => {
 
   // 心跳检测：30秒间隔
   const HEARTBEAT_INTERVAL = 30000;
-  
+
   function heartbeat() {
     this.isAlive = true;
   }
@@ -588,25 +608,22 @@ app.prepare().then(() => {
     ws.roomId = null;
     ws.isAlive = true;
 
-    // 发送欢迎消息和房间列表
     ws.send(JSON.stringify({ type: 'WELCOME', payload: { message: '连接成功', version: VERSION } }));
     ws.send(JSON.stringify({ type: 'ROOM_LIST', payload: { rooms: getRoomList() } }));
 
     ws.on('pong', heartbeat);
 
     ws.on('message', (message) => {
-      ws.isAlive = true; // 收到消息也算活跃
+      ws.isAlive = true;
       const msgStr = message.toString().trim();
-      
-      // 处理客户端心跳（忽略大小写和空格）
+
       if (msgStr.toLowerCase() === 'ping') {
         ws.send('pong');
         return;
       }
-      
-      // 跳过空消息
+
       if (!msgStr) return;
-      
+
       handleWebSocketMessage(ws, msgStr);
     });
 
@@ -620,7 +637,6 @@ app.prepare().then(() => {
     });
   });
 
-  // 定期检查连接活跃性
   const heartbeatInterval = setInterval(() => {
     wss.clients.forEach((ws) => {
       if (ws.isAlive === false) {
@@ -633,7 +649,7 @@ app.prepare().then(() => {
   }, HEARTBEAT_INTERVAL);
 
   server.listen(PORT, () => {
-    console.log(`🚀 Tragedy Looper 服务已启动 v${VERSION}`);
+    console.log(`🚀 Board Game Hub 服务已启动 v${VERSION}`);
     console.log(`   地址: http://localhost:${PORT}`);
     console.log(`   WebSocket: ws://localhost:${PORT}/ws`);
     console.log(`   环境: ${dev ? '开发' : '生产'}`);
