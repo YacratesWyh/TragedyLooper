@@ -27,17 +27,17 @@ interface LocationZoneProps {
 }
 
 const LOCATION_COLORS: Record<LocationType, string> = {
-  hospital: 'border-cyan-500/50 bg-cyan-950/10 hover:bg-cyan-900/20',
-  shrine: 'border-red-500/50 bg-red-950/10 hover:bg-red-900/20',
-  city: 'border-blue-500/50 bg-blue-950/10 hover:bg-blue-900/20',
-  school: 'border-yellow-500/50 bg-yellow-950/10 hover:bg-yellow-900/20',
+  hospital: 'border-oblivionis/50 bg-oblivionis/10 hover:bg-oblivionis/20',
+  shrine: 'border-amoris/50 bg-amoris/10 hover:bg-amoris/20',
+  city: 'border-timoris/50 bg-timoris/10 hover:bg-timoris/20',
+  school: 'border-doloris/50 bg-doloris/10 hover:bg-doloris/20',
 };
 
 const LOCATION_BG_COLORS: Record<LocationType, string> = {
-  hospital: 'bg-cyan-500',
-  shrine: 'bg-red-500',
-  city: 'bg-blue-500',
-  school: 'bg-yellow-500',
+  hospital: 'bg-oblivionis',
+  shrine: 'bg-amoris',
+  city: 'bg-timoris',
+  school: 'bg-doloris',
 };
 
 export function LocationZone({ 

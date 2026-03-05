@@ -4,7 +4,7 @@
  * 联机模式下通过 WebSocket 同步
  */
 
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import type { GamePhase } from '@/games/tragedy-looper/types';
 import { PHASE_NAMES } from '@/games/tragedy-looper/types';
@@ -82,6 +82,16 @@ export function PhaseControl() {
   const gameMode = useGameStore((s) => s.gameMode);
   const storeRole = useGameStore((s) => s.playerRole);
 
+  // 黎明阶段自动推进（包含游戏开局的初始 dawn）
+  const advanceFromDawnRef = useRef<(() => void) | null>(null);
+  useEffect(() => {
+    if (gameState?.phase !== 'dawn') return;
+    const timer = setTimeout(() => {
+      advanceFromDawnRef.current?.();
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [gameState?.phase]);
+
   if (!gameState) return null;
 
   const isHotseat = gameMode === 'hotseat';
@@ -145,7 +155,6 @@ export function PhaseControl() {
       const gameOverCheck = isGameOver(newGameState);
       if (gameOverCheck.isOver) {
         newGameState.phase = 'game_over';
-        // 游戏结束时也保存最终状态
         setTimeout(() => saveDaySnapshot(), 100);
       }
 
@@ -174,31 +183,28 @@ export function PhaseControl() {
       updateGameState(getSyncPayload());
     }
 
-    // 结算阶段特殊处理
+    // 结算阶段：结算后自动跳至夜晚（跳过能力/事件中间阶段）
     if (nextPhase === 'resolution') {
       console.log('📋 进入结算流程...');
-      // 延迟一点结算，让玩家先看到牌翻开
       setTimeout(() => {
         resolveDay();
-        // 结算完成后再次同步状态（包含最新的指示物数值）
         if (isConnected) {
           console.log('📤 发送结算结果同步到服务器');
           updateGameState(getSyncPayload());
         }
-      }, 1000); // 增加到 1 秒，让翻牌动画更明显
+        // 结算完成后自动进入夜晚，剧作家在此阶段统一处理能力/事件效果
+        setTimeout(() => advanceToPhase('night'), 400);
+      }, 1000);
     }
   };
 
+  // 注册黎明自动推进回调（供 useEffect 使用）
+  advanceFromDawnRef.current = () => advanceToPhase('mastermind_action');
+
   // 根据当前阶段决定下一步动作
+  // 只有打牌阶段和夜晚阶段需要手动点击；其余阶段自动推进，不显示按钮
   const getNextAction = () => {
     switch (currentPhase) {
-      case 'dawn':
-        return {
-          label: '进入剧作家行动',
-          action: () => advanceToPhase('mastermind_action'),
-          description: '剧作家开始打出行动牌（最多3张）',
-          operator: 'any' as const,
-        };
       case 'mastermind_action':
         return {
           label: '进入主人公行动',
@@ -213,34 +219,6 @@ export function PhaseControl() {
           description: '翻开所有牌并结算效果',
           operator: 'protagonist' as const,
         };
-      case 'resolution':
-        return {
-          label: '进入剧作家能力阶段',
-          action: () => advanceToPhase('mastermind_ability'),
-          description: '剧作家点击指示物调整（角色能力）',
-          operator: 'any' as const,
-        };
-      case 'mastermind_ability':
-        return {
-          label: '进入主人公能力阶段',
-          action: () => advanceToPhase('protagonist_ability'),
-          description: '主人公点击指示物调整（友好技能）',
-          operator: 'mastermind' as const,
-        };
-      case 'protagonist_ability':
-        return {
-          label: '进入事件检查',
-          action: () => advanceToPhase('incident'),
-          description: '检查是否触发事件',
-          operator: 'protagonist' as const,
-        };
-      case 'incident':
-        return {
-          label: '进入夜晚阶段',
-          action: () => advanceToPhase('night'),
-          description: '剧作家点击指示物调整（杀手等能力）',
-          operator: 'any' as const,
-        };
       case 'night':
         return {
           label: '进入下一天',
@@ -248,19 +226,11 @@ export function PhaseControl() {
           description: '新的一天从黎明阶段开始',
           operator: 'mastermind' as const,
         };
-      case 'game_over':
-        return {
-          label: '游戏结束',
-          action: () => {},
-          description: '游戏已结束',
-          operator: 'any' as const,
-        };
       case 'loop_end':
         return {
           label: '开始新轮回',
           action: () => {
-            // 重置到新轮回
-            const { endLoop, gameState } = useGameStore.getState();
+            const { endLoop } = useGameStore.getState();
             endLoop();
             if (isConnected) {
               setTimeout(() => {
@@ -279,12 +249,9 @@ export function PhaseControl() {
           operator: 'any' as const,
         };
       default:
-        return {
-          label: '继续',
-          action: () => {},
-          description: '',
-          operator: 'any' as const,
-        };
+        // dawn / resolution / mastermind_ability / protagonist_ability / incident / game_over
+        // 均自动推进，不显示推进按钮
+        return { label: '', action: () => {}, description: '', operator: 'mastermind' as const };
     }
   };
 
@@ -299,7 +266,7 @@ export function PhaseControl() {
   };
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-3 flex-1">
       {/* 当前阶段显示 */}
       <motion.div
         key={currentPhase}
@@ -335,7 +302,7 @@ export function PhaseControl() {
             {dayHistory.length > 0 && (
               <div className="mt-3 p-3 bg-slate-800/50 rounded border border-slate-700">
                 <div className="flex items-center gap-2 mb-2">
-                  <History size={14} className="text-amber-400" />
+                  <History size={14} className="text-doloris" />
                   <span className="text-sm font-medium text-slate-300">
                     {isViewingHistory 
                       ? `回放：第 ${historySnapshot?.loop} 轮回 · 第 ${historySnapshot?.day} 天`
@@ -370,7 +337,7 @@ export function PhaseControl() {
                         className={cn(
                           "w-6 h-6 rounded-full text-xs font-bold transition-all",
                           currentHistoryIndex === idx 
-                            ? "bg-amber-500 text-black" 
+                            ? "bg-doloris text-black" 
                             : "bg-slate-700 hover:bg-slate-600 text-slate-300"
                         )}
                       >
@@ -423,30 +390,34 @@ export function PhaseControl() {
             📋 翻开所有牌 → 移动 → 指示物
           </div>
         )}
-        {currentPhase === 'mastermind_ability' && (
-          <div className="mt-2 text-sm opacity-90">
-            <div>🎭 剧作家点击指示物调整（角色能力）</div>
-            <div className="text-xs text-slate-400 mt-1">
-              💡 发动<span className="text-red-300">身份能力</span>或<span className="text-amber-300">剧情规则</span>效果
-            </div>
-          </div>
-        )}
-        {currentPhase === 'protagonist_ability' && (
-          <div className="mt-2 text-sm opacity-90">
-            <div>✨ 主人公点击指示物调整（友好技能）</div>
-            <div className="text-xs text-slate-400 mt-1">
-              💡 发动<span className="text-pink-300">友好能力</span>（角色友好≥需求时可用）
-            </div>
-          </div>
-        )}
         {currentPhase === 'incident' && (
           <div className="mt-2 text-sm opacity-90">
             ⚠️ 检查事件触发条件（不安≥上限）
           </div>
         )}
         {currentPhase === 'night' && (
-          <div className="mt-2 text-sm opacity-90">
-            🌙 剧作家点击指示物调整（杀手等能力）
+          <div className="mt-2 space-y-1.5 text-xs">
+            <div className="text-slate-400 font-medium mb-1">请按顺序处理以下步骤：</div>
+            <div className="flex items-start gap-2 text-slate-300">
+              <span className="w-5 h-5 rounded-full bg-doloris/40 text-doloris flex items-center justify-center shrink-0 font-bold text-[10px] mt-0.5">④</span>
+              <span><strong className="text-doloris">翻牌结算</strong> — 已自动完成（移动 → 指示物叠加）</span>
+            </div>
+            <div className="flex items-start gap-2 text-slate-300">
+              <span className="w-5 h-5 rounded-full flex items-center justify-center shrink-0 font-bold text-[10px] mt-0.5" style={{ backgroundColor: '#77DD7740', color: '#77DD77' }}>⑤</span>
+              <span><strong style={{ color: '#77DD77' }}>剧作家身份能力</strong> — 主犯、传谣人等任意能力（手动调整指示物）</span>
+            </div>
+            <div className="flex items-start gap-2 text-slate-300">
+              <span className="w-5 h-5 rounded-full bg-blue-500/40 text-blue-300 flex items-center justify-center shrink-0 font-bold text-[10px] mt-0.5">⑥</span>
+              <span><strong className="text-blue-300">主人公友好能力</strong> — 友好度达标的角色可由主人公发动</span>
+            </div>
+            <div className="flex items-start gap-2 text-slate-300">
+              <span className="w-5 h-5 rounded-full bg-yellow-600/40 text-yellow-400 flex items-center justify-center shrink-0 font-bold text-[10px] mt-0.5">⑦</span>
+              <span><strong className="text-yellow-400">事件检查</strong> — 确认当事人存活且不安 ≥ 上限后触发事件</span>
+            </div>
+            <div className="flex items-start gap-2 text-slate-300">
+              <span className="w-5 h-5 rounded-full bg-indigo-500/40 text-indigo-300 flex items-center justify-center shrink-0 font-bold text-[10px] mt-0.5">⑧</span>
+              <span><strong className="text-indigo-300">夜晚能力</strong> — 杀手、杀人狂等强制/任意能力（手动调整指示物）</span>
+            </div>
           </div>
         )}
         {currentPhase === 'loop_end' && (
@@ -456,25 +427,35 @@ export function PhaseControl() {
         )}
       </motion.div>
 
-      {/* 阶段推进按钮 */}
-      {currentPhase !== 'game_over' && canProceed() && (
+      {/* 阶段推进按钮 — 仅打牌阶段和夜晚阶段显示 */}
+      {nextAction.label && currentPhase !== 'game_over' && canProceed() && (
         <div className="flex flex-col gap-2">
           <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.97 }}
             onClick={nextAction.action}
             className={cn(
-              "flex items-center justify-between gap-3 px-4 py-3 rounded-lg",
-              "bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500",
-              "text-white font-bold shadow-lg transition-all"
+              "flex items-center justify-between gap-3 px-5 py-4 rounded-xl",
+              "text-white font-black text-base tracking-wide shadow-xl transition-all",
+              currentPhase === 'mastermind_action' || currentPhase === 'night'
+                ? "bg-timoris hover:bg-timoris/80 shadow-timoris/20"
+                : currentPhase === 'protagonist_action'
+                  ? "bg-oblivionis hover:bg-oblivionis/80 shadow-oblivionis/20"
+                  : "bg-doloris hover:bg-doloris/80 shadow-doloris/20"
             )}
           >
             <span>{nextAction.label}</span>
-            <ChevronRight className="w-5 h-5" />
+            <ChevronRight className="w-6 h-6" />
           </motion.button>
 
-          {/* 复位按钮：允许玩家撤销当前阶段的手动调整 */}
-          {['resolution', 'mastermind_ability', 'protagonist_ability', 'incident', 'night'].includes(currentPhase) && (
+          {nextAction.description && (
+            <div className="text-xs text-slate-400 text-center">
+              {nextAction.description}
+            </div>
+          )}
+
+          {/* 复位按钮（仅夜晚阶段） */}
+          {currentPhase === 'night' && (
             <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
@@ -486,7 +467,7 @@ export function PhaseControl() {
                   }, 50);
                 }
               }}
-              className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 text-sm border border-slate-600 transition-all shadow-md"
+              className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 text-sm border border-slate-600 transition-all"
             >
               <RotateCcw size={14} />
               <span>复位到该阶段前</span>
@@ -495,49 +476,44 @@ export function PhaseControl() {
         </div>
       )}
 
-      {/* 对方行动提示 */}
-      {!canProceed() && (
+      {/* 对方行动提示（仅打牌阶段有效） */}
+      {nextAction.label && !canProceed() && (
         <div className="px-4 py-3 rounded-lg bg-slate-700/50 border border-slate-600 text-slate-300 text-sm text-center">
           ⏳ 等待{playerRole === 'mastermind' ? '主人公' : '剧作家'}行动...
         </div>
       )}
 
-      {/* 当前角色指示 + 房间内玩家 */}
+      {/* 模式 + 当前视角（合并） */}
       <div className={cn(
         "px-3 py-2 rounded border space-y-2",
         isHotseat
           ? playerRole === 'mastermind'
-            ? "bg-red-950/30 border-red-700/50"
-            : "bg-blue-950/30 border-blue-700/50"
+            ? "bg-timoris/10 border-timoris/30"
+            : "bg-oblivionis/10 border-oblivionis/30"
           : "bg-slate-800/50 border-slate-700"
       )}>
         <div className="flex items-center gap-2">
-          <span className="text-xs text-slate-400">当前视角：</span>
           <span className={cn(
             "text-sm font-bold",
-            playerRole === 'mastermind' ? "text-red-400" : "text-blue-400"
+            playerRole === 'mastermind' ? "text-timoris" : "text-oblivionis"
           )}>
             {playerRole === 'mastermind' ? '🎭 剧作家' : '🦸 主人公'}
           </span>
-          {isHotseat && (
-            <span className="text-xs text-amber-400 ml-auto">● 热座</span>
-          )}
-          {isConnected && !isHotseat && (
-            <span className="text-xs text-green-400 ml-auto">● 联机中</span>
-          )}
+          <span className="ml-auto text-xs px-2 py-0.5 rounded bg-slate-700/50 text-slate-400">
+            {isHotseat ? '热座' : isConnected ? '联机中' : '离线'}
+          </span>
         </div>
         
-        {/* 房间内玩家名字（仅联机模式） */}
         {isConnected && !isHotseat && (
           <div className="flex flex-col gap-1 text-xs border-t border-slate-700 pt-2">
             <div className="flex items-center justify-between">
-              <span className="text-red-400">🎭 剧作家</span>
+              <span className="text-timoris">🎭 剧作家</span>
               <span className={players.mastermind.connected ? 'text-slate-300' : 'text-slate-600'}>
                 {players.mastermind.connected ? players.mastermind.name || '未知' : '等待加入'}
               </span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-blue-400">🦸 主人公</span>
+              <span className="text-oblivionis">🦸 主人公</span>
               <span className={players.protagonist.connected ? 'text-slate-300' : 'text-slate-600'}>
                 {players.protagonist.connected ? players.protagonist.name || '未知' : '等待加入'}
               </span>
@@ -546,29 +522,51 @@ export function PhaseControl() {
         )}
       </div>
 
-      {/* 剧作家重开游戏按钮 */}
-      {playerRole === 'mastermind' && (
-        <motion.button
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
+      {/* 底部危险操作区 — 统一灰色 */}
+      <div className="mt-auto pt-3 border-t border-slate-700/50 space-y-2">
+        <button
           onClick={() => {
-            if (confirm('确定要重新开始游戏吗？所有进度将丢失。')) {
-              resetGame();
+            if (confirm('确定要结束当前轮回吗？')) {
+              const { endLoop } = useGameStore.getState();
+              endLoop();
+              if (isConnected) {
+                setTimeout(() => {
+                  const state = useGameStore.getState();
+                  updateGameState({
+                    gameState: state.gameState,
+                    mastermindDeck: state.mastermindDeck,
+                    protagonistDeck: state.protagonistDeck,
+                    currentMastermindCards: state.currentMastermindCards,
+                    currentProtagonistCards: state.currentProtagonistCards,
+                  });
+                }, 50);
+              }
             }
           }}
-          className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-red-900/50 hover:bg-red-800/50 text-red-300 text-sm border border-red-700/50 transition-all"
+          className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-slate-800/50 hover:bg-slate-700/50 text-slate-500 hover:text-slate-300 text-sm transition-all border border-slate-700/50"
         >
-          <RotateCcw size={14} />
-          <span>重新开始游戏</span>
-        </motion.button>
-      )}
+          <RefreshCw size={14} />
+          <span>结束当前轮回</span>
+        </button>
 
-      {/* 阶段说明 */}
-      {nextAction.description && canProceed() && (
-        <div className="text-xs text-slate-400 text-center">
-          {nextAction.description}
-        </div>
-      )}
+        {playerRole === 'mastermind' && (
+          <button
+            onClick={() => {
+              if (confirm('确定要重新开始游戏吗？所有进度将丢失。')) {
+                if (isHotseat) {
+                  useGameStore.getState().resetGame();
+                } else {
+                  resetGame();
+                }
+              }
+            }}
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-slate-800/50 hover:bg-slate-700/50 text-slate-500 hover:text-slate-300 text-sm transition-all border border-slate-700/50"
+          >
+            <RotateCcw size={14} />
+            <span>重新开始游戏</span>
+          </button>
+        )}
+      </div>
     </div>
   );
 }

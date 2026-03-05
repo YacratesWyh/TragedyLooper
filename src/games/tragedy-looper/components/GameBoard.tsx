@@ -84,10 +84,10 @@ export function GameBoard({ onLocationClick, onCharacterClick, isPlacingCard = f
   }, {} as Record<LocationType, typeof displayCharacters>);
 
   return (
-    <div className="w-full h-full p-4 grid grid-cols-[repeat(auto-fit,minmax(min(100%,450px),1fr))] gap-6 mx-auto relative min-w-[400px]">
+    <div className="w-full h-full p-4 grid grid-cols-2 gap-6 mx-auto relative min-w-[400px]">
       {/* 历史回放提示 */}
       {isViewingHistory && historySnapshot && (
-        <div className="absolute top-2 left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-amber-500/90 text-black rounded-full text-sm font-bold shadow-lg">
+        <div className="absolute top-2 left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-doloris/90 text-black rounded-full text-sm font-bold shadow-lg">
           📜 回放：第 {historySnapshot.loop} 轮回 · 第 {historySnapshot.day} 天结束时
         </div>
       )}

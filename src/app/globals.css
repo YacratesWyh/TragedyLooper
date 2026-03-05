@@ -10,6 +10,13 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  /* Ave Mujica palette */
+  --color-doloris: #BB9955;
+  --color-mortis: #779977;
+  --color-timoris: #335566;
+  --color-amoris: #AA4477;
+  --color-oblivionis: #7799CC;
 }
 
 @media (prefers-color-scheme: dark) {

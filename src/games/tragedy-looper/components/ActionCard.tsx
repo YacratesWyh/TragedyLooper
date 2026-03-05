@@ -11,6 +11,8 @@ interface ActionCardProps {
   disabled?: boolean;
   /** 卡牌尺寸 */
   size?: 'normal' | 'small';
+  /** 覆盖背景色（如角色主题色），hex 字符串 */
+  accentColor?: string;
 }
 
 // 尺寸配置
@@ -38,17 +40,17 @@ const SIZE_CONFIG = {
 const getCardTypeConfig = (iconSize: number): Record<string, { label: string; color: string; icon: React.ReactNode }> => ({
   movement: { 
     label: '移动', 
-    color: 'bg-blue-600', 
+    color: 'bg-oblivionis', 
     icon: <Footprints size={iconSize} /> 
   },
   goodwill: { 
     label: '友好', 
-    color: 'bg-pink-600', 
+    color: 'bg-amoris', 
     icon: <Heart size={iconSize} /> 
   },
   anxiety: { 
     label: '不安', 
-    color: 'bg-purple-600', 
+    color: 'bg-amoris', 
     icon: <Zap size={iconSize} /> 
   },
   intrigue: { 
@@ -58,9 +60,9 @@ const getCardTypeConfig = (iconSize: number): Record<string, { label: string; co
   },
 });
 
-export function ActionCard({ card, isSelected, onClick, disabled, size = 'normal' }: ActionCardProps) {
+export function ActionCard({ card, isSelected, onClick, disabled, size = 'normal', accentColor }: ActionCardProps) {
   const sizeConfig = SIZE_CONFIG[size];
-  const typeConfig = getCardTypeConfig(sizeConfig.iconSize)[card.type] || { label: '未知', color: 'bg-gray-600', icon: null };
+  const typeConfig = getCardTypeConfig(sizeConfig.iconSize)[card.type] || { label: '未知', color: 'bg-timoris', icon: null };
   
   return (
     <motion.div
@@ -68,11 +70,12 @@ export function ActionCard({ card, isSelected, onClick, disabled, size = 'normal
       whileHover={!disabled ? { y: size === 'small' ? -5 : -10, scale: 1.05 } : {}}
       whileTap={!disabled ? { scale: 0.95 } : {}}
       onClick={!disabled ? onClick : undefined}
+      style={accentColor ? { backgroundColor: accentColor } : undefined}
       className={cn(
         "relative shadow-lg cursor-pointer border-2 flex flex-col items-center justify-between transition-all duration-200",
         sizeConfig.card,
-        typeConfig.color,
-        isSelected ? "border-yellow-400 ring-2 ring-yellow-400 ring-offset-1 ring-offset-slate-900" : "border-white/10",
+        !accentColor && typeConfig.color,
+        isSelected ? "border-doloris ring-2 ring-doloris ring-offset-1 ring-offset-slate-900" : "border-white/10",
         disabled && "opacity-50 grayscale cursor-not-allowed"
       )}
     >
@@ -82,7 +85,7 @@ export function ActionCard({ card, isSelected, onClick, disabled, size = 'normal
       
       <div className="flex-1 flex items-center justify-center">
         {card.isForbid ? (
-          <span className={cn(sizeConfig.valueText, "font-black text-red-300 drop-shadow-md")}>禁</span>
+          <span className={cn(sizeConfig.valueText, "font-black text-timoris/80 drop-shadow-md")}>禁</span>
         ) : card.value ? (
           <span className={cn(sizeConfig.valueText, "font-black text-white drop-shadow-md")}>
             {card.value > 0 ? `+${card.value}` : card.value}
@@ -102,7 +105,7 @@ export function ActionCard({ card, isSelected, onClick, disabled, size = 'normal
       </div>
 
       {card.oncePerLoop && (
-        <div className={cn("absolute top-0.5 right-0.5 rounded-full bg-yellow-400 shadow-[0_0_6px_rgba(250,204,21,0.8)]", sizeConfig.dotSize)} title="每轮回限用" />
+        <div className={cn("absolute top-0.5 right-0.5 rounded-full bg-doloris shadow-[0_0_6px_color-mix(in_srgb,var(--color-doloris)_80%,transparent)]", sizeConfig.dotSize)} title="每轮回限用" />
       )}
     </motion.div>
   );

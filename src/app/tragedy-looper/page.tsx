@@ -8,14 +8,14 @@ import { LobbyScreen } from '@/games/tragedy-looper/components/LobbyScreen';
 import { GameInfo } from '@/games/tragedy-looper/components/GameInfo';
 import { ActionHand } from '@/games/tragedy-looper/components/ActionHand';
 import { DeckReference } from '@/games/tragedy-looper/components/DeckReference';
-import { RulesReference } from '@/games/tragedy-looper/components/RulesReference';
+import { SupplementaryReference } from '@/games/tragedy-looper/components/RulesReference';
 import { PhaseControl } from '@/games/tragedy-looper/components/PhaseControl';
 import { MultiplayerPanel } from '@/games/tragedy-looper/components/MultiplayerPanel';
 import { ScriptImageViewer } from '@/games/tragedy-looper/components/ScriptImageViewer';
 import { GameIntroPanel } from '@/games/tragedy-looper/components/GameIntroPanel';
 import { TurnHandoffScreen } from '@/games/tragedy-looper/components/TurnHandoffScreen';
 import type { LocationType, CharacterId, PlayerRole, GamePhase } from '@/games/tragedy-looper/types';
-import { RotateCcw, AlertCircle, X } from 'lucide-react';
+import { AlertCircle, X } from 'lucide-react';
 
 function getPhaseOwner(phase: GamePhase): PlayerRole | null {
   switch (phase) {
@@ -42,8 +42,7 @@ export default function Home() {
     currentProtagonistCards,
     playCard,
     isTargetOccupied,
-    resolveDay, 
-    endLoop,
+    resolveDay,
     resolutionMessages,
     clearMessages,
     getSyncPayload
@@ -53,6 +52,7 @@ export default function Home() {
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [showMessages, setShowMessages] = useState(false);
+  const [showCardTutorial, setShowCardTutorial] = useState(false);
 
   // 热座模式：交接屏幕
   const [showHandoff, setShowHandoff] = useState(false);
@@ -67,6 +67,13 @@ export default function Home() {
       setShowMessages(true);
     }
   }, [resolutionMessages]);
+
+  // 游戏就绪后首次显示操作说明（localStorage 持久化，看过一次就不再弹出）
+  useEffect(() => {
+    if (gameState && !localStorage.getItem('tl-card-tutorial-seen')) {
+      setShowCardTutorial(true);
+    }
+  }, [gameState]);
 
   // 热座模式：阶段变化时触发交接屏幕
   useEffect(() => {
@@ -174,15 +181,15 @@ export default function Home() {
     }
   };
 
-  // 入口条件：热座模式用 gameMode + gameState，联机模式用 myRole + gameState
-  const isGameReady = isHotseat ? !!gameState : (!!myRole && !!gameState);
+  // 入口条件：热座模式用 gameMode + gameState，联机模式用 myRole/isSpectator + gameState
+  const isGameReady = isHotseat ? !!gameState : ((!!myRole || isSpectator) && !!gameState);
   if (!isGameReady) {
     return <LobbyScreen onGameStart={() => {}} />;
   }
 
   // 当前角色颜色标识
-  const roleColor = playerRole === 'mastermind' ? 'text-red-400' : 'text-blue-400';
-  const roleBorderColor = playerRole === 'mastermind' ? 'border-red-500/30' : 'border-blue-500/30';
+  const roleColor = playerRole === 'mastermind' ? 'text-timoris' : 'text-oblivionis';
+  const roleBorderColor = playerRole === 'mastermind' ? 'border-timoris/30' : 'border-oblivionis/30';
   const roleLabel = playerRole === 'mastermind' ? '🎭 剧作家' : '🦸 主人公';
 
   return (
@@ -196,11 +203,52 @@ export default function Home() {
         />
       )}
 
+      {/* 卡牌操作说明悬浮卡片（右上角，背景可见） */}
+      {showCardTutorial && (
+        <div className="fixed top-14 right-4 z-[150] w-80 bg-slate-900/95 border border-slate-600 rounded-xl shadow-2xl p-5">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-bold text-white flex items-center gap-2 text-sm">
+              🃏 卡牌操作说明
+            </h3>
+            <button
+              onClick={() => { setShowCardTutorial(false); localStorage.setItem('tl-card-tutorial-seen', '1'); }}
+              className="p-1 hover:bg-slate-700 rounded transition-colors text-slate-400 hover:text-white"
+            >
+              <X size={16} />
+            </button>
+          </div>
+          <ul className="space-y-2.5 mb-4">
+            <li className="flex gap-2.5 text-xs text-slate-300">
+              <span className="text-oblivionis shrink-0 font-bold">①</span>
+              <span>点击底部卡牌选中，再点击 <strong className="text-white">NPC 角色</strong>即打出</span>
+            </li>
+            <li className="flex gap-2.5 text-xs text-slate-300">
+              <span className="text-oblivionis shrink-0 font-bold">②</span>
+              <span>打出后想反悔？<strong className="text-white">点击角色上的牌</strong>即可撤回</span>
+            </li>
+            <li className="flex gap-2.5 text-xs text-slate-300">
+              <span className="text-oblivionis shrink-0 font-bold">③</span>
+              <span>卡牌也可以打到<strong className="text-white">地点</strong>上——与密谋指示物相关</span>
+            </li>
+            <li className="flex gap-2.5 text-xs text-slate-300">
+              <span className="text-oblivionis shrink-0 font-bold">④</span>
+              <span>版图上的<strong className="text-white">指示物按钮</strong>为能力区，在对应阶段可自由调节</span>
+            </li>
+          </ul>
+          <button
+            onClick={() => { setShowCardTutorial(false); localStorage.setItem('tl-card-tutorial-seen', '1'); }}
+            className="w-full py-2 rounded-lg bg-oblivionis hover:bg-oblivionis/80 text-white text-sm font-bold transition-colors"
+          >
+            知道了
+          </button>
+        </div>
+      )}
+
       {/* 重连提示覆盖层 */}
       {isReconnecting && (
         <div className="absolute inset-0 bg-black/40 backdrop-blur-sm z-[100] flex items-center justify-center pointer-events-none">
-          <div className="flex items-center gap-3 px-6 py-3 rounded-full bg-amber-900/80 border border-amber-500 text-amber-200 shadow-2xl">
-            <div className="w-5 h-5 border-2 border-amber-300 border-t-transparent rounded-full animate-spin" />
+          <div className="flex items-center gap-3 px-6 py-3 rounded-full bg-doloris/20 border border-doloris text-doloris shadow-2xl">
+            <div className="w-5 h-5 border-2 border-doloris border-t-transparent rounded-full animate-spin" />
             <span className="font-bold">正在重连...</span>
           </div>
         </div>
@@ -211,39 +259,13 @@ export default function Home() {
         <GameInfo />
         
         {/* Phase Control (下半部分) */}
-        <div className="flex-1 p-3 overflow-y-auto">
+        <div className="flex-1 p-3 overflow-y-auto flex flex-col">
           <PhaseControl />
-          
-          {/* 结算控制 */}
-          <div className="mt-3 pt-3 border-t border-slate-700">
-            <button 
-               onClick={() => { 
-                 setErrorMsg(null); 
-                 endLoop();
-                 if (isConnected) {
-                   setTimeout(() => {
-                     const state = useGameStore.getState();
-                     updateGameState({
-                       gameState: state.gameState,
-                       mastermindDeck: state.mastermindDeck,
-                       protagonistDeck: state.protagonistDeck,
-                       currentMastermindCards: state.currentMastermindCards,
-                       currentProtagonistCards: state.currentProtagonistCards,
-                     });
-                   }, 50);
-                 }
-               }}
-               className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-slate-700/50 hover:bg-slate-600 text-slate-400 hover:text-slate-200 rounded text-sm transition-all border border-slate-600/50 active:scale-95"
-            >
-               <RotateCcw size={14} />
-               结束当前轮回
-            </button>
-          </div>
         </div>
       </div>
 
       {/* Left Side Panels */}
-      <RulesReference />
+      <SupplementaryReference />
       <GameIntroPanel />
 
       {/* Script Image Viewer (right bottom) */}
@@ -263,25 +285,34 @@ export default function Home() {
             <div className="flex items-center gap-4">
                 {/* 当前角色标识（热座模式突出显示） */}
                 {isHotseat && (
-                  <span className={`px-3 py-1 rounded font-bold ${roleColor} ${playerRole === 'mastermind' ? 'bg-red-950 border border-red-700' : 'bg-blue-950 border border-blue-700'}`}>
+                  <span className={`px-3 py-1 rounded font-bold ${roleColor} ${playerRole === 'mastermind' ? 'bg-timoris/15 border border-timoris/50' : 'bg-oblivionis/15 border border-oblivionis/50'}`}>
                     {roleLabel}
                   </span>
                 )}
-                <span className="px-3 py-1 rounded bg-slate-800 border border-slate-700 font-bold text-blue-400">
+                <span className="px-3 py-1 rounded bg-slate-800 border border-slate-700 font-bold text-oblivionis">
                     {selectedCardId ? "🎯 请选择目标" : "行动阶段"}
                 </span>
                 <span className="px-3 py-1 rounded bg-slate-800 border border-slate-700 text-sm">
-                    已放置: <span className="font-bold text-amber-400">{myPlayedCount}</span>/{maxCardsPerDay}
+                    已放置: <span className="font-bold text-doloris">{myPlayedCount}</span>/{maxCardsPerDay}
                 </span>
                 {errorMsg && (
-                  <span className="flex items-center gap-1 px-3 py-1 rounded bg-red-900/50 border border-red-700 text-red-300 text-sm animate-pulse">
+                  <span className="flex items-center gap-1 px-3 py-1 rounded bg-amoris/15 border border-amoris/50 text-amoris text-sm animate-pulse">
                     <AlertCircle size={14} />
                     {errorMsg}
                   </span>
                 )}
             </div>
             
-            {!isHotseat && <MultiplayerPanel />}
+            <div className="flex items-center gap-2">
+              {!isHotseat && <MultiplayerPanel />}
+              <button
+                onClick={() => setShowCardTutorial(v => !v)}
+                className="w-7 h-7 rounded-full bg-slate-700 hover:bg-slate-600 border border-slate-600 text-slate-300 hover:text-white text-xs font-bold transition-colors flex items-center justify-center"
+                title="操作说明"
+              >
+                ?
+              </button>
+            </div>
         </div>
 
         {/* Game Board */}
@@ -295,9 +326,9 @@ export default function Home() {
              {/* 结算消息弹窗 */}
              {showMessages && resolutionMessages.length > 0 && (
                <div className="absolute inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm z-50">
-                 <div className="bg-slate-800 border border-amber-500/50 rounded-lg shadow-2xl p-6 max-w-md mx-4 animate-in fade-in zoom-in duration-200">
+                 <div className="bg-slate-800 border border-doloris/50 rounded-lg shadow-2xl p-6 max-w-md mx-4 animate-in fade-in zoom-in duration-200">
                    <div className="flex items-center justify-between mb-4">
-                     <h3 className="text-lg font-bold text-amber-400 flex items-center gap-2">
+                     <h3 className="text-lg font-bold text-doloris flex items-center gap-2">
                        <AlertCircle size={20} />
                        结算提示
                      </h3>
@@ -315,7 +346,7 @@ export default function Home() {
                    <div className="space-y-2">
                      {resolutionMessages.map((msg, idx) => (
                        <div key={idx} className="flex items-start gap-2 text-slate-200">
-                         <span className="text-amber-400">•</span>
+                         <span className="text-doloris">•</span>
                          <span>{msg}</span>
                        </div>
                      ))}
@@ -325,7 +356,7 @@ export default function Home() {
                        setShowMessages(false);
                        clearMessages();
                      }}
-                     className="mt-4 w-full px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white rounded transition-colors font-medium"
+                     className="mt-4 w-full px-4 py-2 bg-doloris hover:bg-doloris/80 text-white rounded transition-colors font-medium"
                    >
                      确认
                    </button>

@@ -23,9 +23,9 @@ const CARD_ICONS: Record<string, React.ReactNode> = {
 };
 
 const CARD_COLORS: Record<string, string> = {
-  movement: 'bg-blue-600 border-blue-400',
-  goodwill: 'bg-pink-600 border-pink-400',
-  anxiety: 'bg-purple-600 border-purple-400',
+  movement: 'bg-oblivionis border-oblivionis/80',
+  goodwill: 'bg-amoris border-amoris/80',
+  anxiety: 'bg-amoris border-amoris/80',
   intrigue: 'bg-slate-600 border-slate-400',
 };
 
@@ -59,18 +59,18 @@ function FaceUpCard({ playedCard, onRetreat }: { playedCard: PlayedCard; onRetre
       className={cn(
         "relative w-8 h-10 rounded border-2 flex flex-col items-center justify-center text-white text-[10px] font-bold shadow-lg cursor-pointer group",
         CARD_COLORS[card.type],
-        card.isForbid && "border-red-400 ring-1 ring-red-400" // 禁止牌特殊样式
+        card.isForbid && "border-timoris ring-1 ring-timoris"
       )}
       title={`点击撤回 - ${card.isForbid ? '禁止' : ''}${card.type}`}
     >
       {/* 撤回按钮（hover 时显示） */}
       {onRetreat && (
         <div className="absolute inset-0 bg-black/60 rounded opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-          <X size={14} className="text-red-400" />
+          <X size={14} className="text-timoris" />
         </div>
       )}
       {CARD_ICONS[card.type]}
-      <span className={cn(card.isForbid && "text-red-300")}>{getCardLabel()}</span>
+      <span className={cn(card.isForbid && "text-timoris/80")}>{getCardLabel()}</span>
     </motion.div>
   );
 }
@@ -85,8 +85,8 @@ function FaceDownCard({ owner }: { owner: PlayerRole }) {
       className={cn(
         "w-8 h-10 rounded border-2 flex items-center justify-center shadow-lg",
         isMastermind 
-          ? "bg-red-950 border-red-800" 
-          : "bg-blue-950 border-blue-800"
+          ? "bg-timoris/10 border-timoris/25" 
+          : "bg-oblivionis/10 border-oblivionis/25"
       )}
       title={isMastermind ? "剧作家的牌" : "主人公的牌"}
     >

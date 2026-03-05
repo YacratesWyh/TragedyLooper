@@ -30,9 +30,9 @@ const INCIDENT_NAMES: Record<IncidentType, string> = {
 
 /** 难度标签颜色 */
 const DIFFICULTY_COLORS = {
-  beginner: 'bg-green-900/50 text-green-300 border-green-700',
-  intermediate: 'bg-amber-900/50 text-amber-300 border-amber-700',
-  advanced: 'bg-red-900/50 text-red-300 border-red-700',
+  beginner: 'bg-mortis/10 text-mortis border-mortis/30',
+  intermediate: 'bg-doloris/10 text-doloris border-doloris/30',
+  advanced: 'bg-amoris/10 text-amoris border-amoris/30',
 };
 
 const DIFFICULTY_NAMES = {
@@ -46,12 +46,12 @@ const TRAGEDY_SET_STYLES = {
   first_steps: {
     name: 'First Steps',
     shortName: 'FS',
-    className: 'bg-emerald-900/50 text-emerald-300 border-emerald-700',
+    className: 'bg-mortis/10 text-mortis border-mortis/30',
   },
   basic_tragedy: {
     name: 'Basic Tragedy X',
     shortName: 'BTX',
-    className: 'bg-purple-900/50 text-purple-300 border-purple-700',
+    className: 'bg-timoris/10 text-timoris border-timoris/30',
   },
 };
 
@@ -80,7 +80,7 @@ export function ScriptSetup({ onSelect, onCancel }: ScriptSetupProps) {
         className="text-center mb-8"
       >
         <div className="flex items-center justify-center gap-3 mb-2">
-          <BookOpen className="w-8 h-8 text-purple-400" />
+          <BookOpen className="w-8 h-8 text-timoris" />
           <h1 className="text-3xl font-black text-white">选择剧本</h1>
         </div>
         <p className="text-slate-400">作为剧作家，选择要使用的剧本</p>
@@ -104,8 +104,8 @@ export function ScriptSetup({ onSelect, onCancel }: ScriptSetupProps) {
           className={cn(
             "px-4 py-2 rounded-lg text-sm font-bold transition-all",
             filterSet === 'first_steps'
-              ? "bg-emerald-800 text-emerald-200"
-              : "bg-emerald-900/30 text-emerald-400 hover:bg-emerald-800/50"
+              ? "bg-mortis/80 text-white"
+              : "bg-mortis/10 text-mortis hover:bg-mortis/20"
           )}
         >
           First Steps ({SCRIPT_TEMPLATES.filter(s => s.tragedySet === 'first_steps').length})
@@ -115,8 +115,8 @@ export function ScriptSetup({ onSelect, onCancel }: ScriptSetupProps) {
           className={cn(
             "px-4 py-2 rounded-lg text-sm font-bold transition-all",
             filterSet === 'basic_tragedy'
-              ? "bg-purple-800 text-purple-200"
-              : "bg-purple-900/30 text-purple-400 hover:bg-purple-800/50"
+              ? "bg-timoris/80 text-white"
+              : "bg-timoris/10 text-timoris hover:bg-timoris/20"
           )}
         >
           Basic Tragedy X ({SCRIPT_TEMPLATES.filter(s => s.tragedySet === 'basic_tragedy').length})
@@ -138,7 +138,7 @@ export function ScriptSetup({ onSelect, onCancel }: ScriptSetupProps) {
               className={cn(
                 "rounded-xl border-2 transition-all overflow-hidden",
                 isSelected 
-                  ? "border-purple-500 bg-purple-900/20 shadow-lg shadow-purple-500/20"
+                  ? "border-timoris bg-timoris/10 shadow-lg shadow-timoris/20"
                   : "border-slate-700 bg-slate-800/50 hover:border-slate-600"
               )}
             >
@@ -152,7 +152,7 @@ export function ScriptSetup({ onSelect, onCancel }: ScriptSetupProps) {
                   <div className={cn(
                     "w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all",
                     isSelected 
-                      ? "border-purple-500 bg-purple-500" 
+                      ? "border-timoris bg-timoris" 
                       : "border-slate-600"
                   )}>
                     {isSelected && <Check className="w-4 h-4 text-white" />}
@@ -210,11 +210,11 @@ export function ScriptSetup({ onSelect, onCancel }: ScriptSetupProps) {
 
                 {/* 主线/支线 */}
                 <div className="mt-3 flex items-center gap-3 text-sm">
-                  <span className="px-2 py-1 rounded bg-red-900/30 text-red-300 border border-red-800/50">
+                  <span className="px-2 py-1 rounded bg-amoris/10 text-amoris border border-amoris/30">
                     主线：{script.mainPlot}
                   </span>
                   {script.subPlot && (
-                    <span className="px-2 py-1 rounded bg-blue-900/30 text-blue-300 border border-blue-800/50">
+                    <span className="px-2 py-1 rounded bg-oblivionis/10 text-oblivionis border border-oblivionis/30">
                       支线：{script.subPlot}
                     </span>
                   )}
@@ -267,12 +267,12 @@ export function ScriptSetup({ onSelect, onCancel }: ScriptSetupProps) {
                           {script.incidents.map((inc, i) => (
                             <div
                               key={i}
-                              className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-red-900/30 border border-red-800/50"
+                              className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amoris/10 border border-amoris/30"
                             >
-                              <span className="w-6 h-6 rounded-full bg-red-800 text-red-200 text-xs font-bold flex items-center justify-center">
+                              <span className="w-6 h-6 rounded-full bg-amoris/40 text-amoris/80 text-xs font-bold flex items-center justify-center">
                                 {inc.day}
                               </span>
-                              <span className="text-red-200 text-sm">
+                              <span className="text-amoris/80 text-sm">
                                 {INCIDENT_NAMES[inc.type] || inc.type}
                               </span>
                             </div>
@@ -314,7 +314,7 @@ export function ScriptSetup({ onSelect, onCancel }: ScriptSetupProps) {
               </span>
               <button
                 onClick={handleConfirm}
-                className="px-8 py-3 rounded-xl bg-purple-600 text-white font-bold hover:bg-purple-500 transition-colors shadow-lg shadow-purple-500/25"
+                className="px-8 py-3 rounded-xl bg-timoris text-white font-bold hover:bg-timoris/80 transition-colors shadow-lg shadow-timoris/25"
               >
                 确认选择
               </button>

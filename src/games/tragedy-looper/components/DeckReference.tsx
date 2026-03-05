@@ -18,9 +18,9 @@ const CARD_ICONS: Record<string, React.ReactNode> = {
 };
 
 const CARD_COLORS: Record<string, string> = {
-  movement: 'bg-blue-600',
-  goodwill: 'bg-pink-600',
-  anxiety: 'bg-purple-600',
+  movement: 'bg-oblivionis',
+  goodwill: 'bg-amoris',
+  anxiety: 'bg-amoris',
   intrigue: 'bg-slate-600',
 };
 
@@ -57,9 +57,9 @@ const PROTAGONIST_HAND: HandCardInfo[] = [
 ];
 
 const TYPE_COLORS_REF: Record<string, string> = {
-  movement: 'bg-emerald-900/50 border-emerald-700/50 text-emerald-300',
-  goodwill: 'bg-pink-900/50 border-pink-700/50 text-pink-300',
-  anxiety: 'bg-purple-900/50 border-purple-700/50 text-purple-300',
+  movement: 'bg-oblivionis/20 border-oblivionis/30 text-oblivionis/80',
+  goodwill: 'bg-amoris/20 border-amoris/30 text-amoris/80',
+  anxiety: 'bg-amoris/20 border-amoris/30 text-amoris/80',
   intrigue: 'bg-slate-700/50 border-slate-600/50 text-slate-300',
 };
 
@@ -80,7 +80,7 @@ function HandCardsReference() {
         className="w-full p-3 flex items-center justify-between hover:bg-slate-800/50 transition-colors"
       >
         <div className="flex items-center gap-2">
-          <Layers size={16} className="text-green-400" />
+          <Layers size={16} className="text-doloris" />
           <span className="font-bold text-sm text-slate-300">手牌参考</span>
         </div>
         <ChevronDown 
@@ -104,8 +104,8 @@ function HandCardsReference() {
               {/* 剧作家手牌 */}
               <div>
                 <div className="flex items-center gap-2 mb-2">
-                  <Eye size={12} className="text-red-400" />
-                  <span className="text-xs font-bold text-red-300">剧作家</span>
+                  <Eye size={12} className="text-timoris" />
+                  <span className="text-xs font-bold text-timoris/80">剧作家</span>
                 </div>
                 <div className="space-y-0.5">
                   {MASTERMIND_HAND.map((card, idx) => (
@@ -119,7 +119,7 @@ function HandCardsReference() {
                       <span className="text-white">{card.name}</span>
                       <span className="text-slate-500 flex-1 truncate">{card.effect}</span>
                       {card.oncePerLoop && (
-                        <span className="text-[9px] text-amber-400">每轮1次</span>
+                        <span className="text-[9px] text-doloris">每轮1次</span>
                       )}
                     </div>
                   ))}
@@ -129,8 +129,8 @@ function HandCardsReference() {
               {/* 主人公手牌 */}
               <div>
                 <div className="flex items-center gap-2 mb-2">
-                  <Heart size={12} className="text-blue-400" />
-                  <span className="text-xs font-bold text-blue-300">主人公</span>
+                  <Heart size={12} className="text-oblivionis" />
+                  <span className="text-xs font-bold text-oblivionis/80">主人公</span>
                 </div>
                 <div className="space-y-0.5">
                   {PROTAGONIST_HAND.map((card, idx) => (
@@ -144,7 +144,7 @@ function HandCardsReference() {
                       <span className="text-white">{card.name}</span>
                       <span className="text-slate-500 flex-1 truncate">{card.effect}</span>
                       {card.oncePerLoop && (
-                        <span className="text-[9px] text-amber-400">每轮1次</span>
+                        <span className="text-[9px] text-doloris">每轮1次</span>
                       )}
                     </div>
                   ))}
@@ -214,10 +214,10 @@ function CardItem({ card, deck }: { card: ActionCard; deck: PlayerDeck }) {
       </div>
       <span className="flex-1">
         {getTypeName()} {getLabel()}
-        {card.oncePerLoop && <span className="text-amber-400 ml-1">*</span>}
+        {card.oncePerLoop && <span className="text-doloris ml-1">*</span>}
       </span>
       {usedToday && <span className="text-xs text-slate-500">今日已用</span>}
-      {usedThisLoop && !usedToday && <span className="text-xs text-amber-500">本轮已用</span>}
+      {usedThisLoop && !usedToday && <span className="text-xs text-doloris">本轮已用</span>}
     </div>
   );
 }
@@ -251,7 +251,7 @@ export function DeckReference({ deck, playerLabel, side }: DeckReferenceProps) {
         title="查看牌组"
       >
         {side === 'left' ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
-        <div className="text-xs font-bold text-amber-400">{availableCount}</div>
+        <div className="text-xs font-bold text-doloris">{availableCount}</div>
         <div className="text-[10px] text-slate-500">/{deck.allCards.length}</div>
       </button>
 
@@ -319,7 +319,7 @@ export function DeckReference({ deck, playerLabel, side }: DeckReferenceProps) {
 
               {/* Legend */}
               <div className="p-4 border-t border-slate-700 text-xs text-slate-400 space-y-1">
-                <p><span className="text-amber-400">*</span> = 每轮限一次</p>
+                <p><span className="text-doloris">*</span> = 每轮限一次</p>
                 <p>灰色删除线 = 已使用</p>
                 <p className="mt-2 pt-2 border-t border-slate-800 text-slate-500">
                   主人公方有3套牌（1-3人），每人独立管理

@@ -34,10 +34,9 @@ interface ScriptConfig {
 // 根据剧本名称获取对应的资源目录
 function getScriptAssetPath(scriptName: string): string {
   if (scriptName.includes('Basic Tragedy') || scriptName.includes('基本悲剧')) {
-    return 'btx';
+    return 'tl/btx';
   }
-  // 默认使用 First Steps
-  return 'fs';
+  return 'tl/fs';
 }
 
 export function ScriptImageViewer() {
@@ -72,7 +71,7 @@ export function ScriptImageViewer() {
 
   // 加载公共配置
   useEffect(() => {
-    fetch('/assets/common/config.json')
+    fetch('/assets/tl/common/config.json')
       .then(res => res.json())
       .then(data => setCommonConfig(data))
       .catch(err => console.error('Failed to load common config:', err));
@@ -158,7 +157,7 @@ export function ScriptImageViewer() {
       >
         <button
           onClick={() => setIsExpanded(true)}
-          className="group relative w-20 h-28 rounded-lg overflow-hidden border-2 border-amber-500/50 hover:border-amber-400 shadow-xl bg-slate-800 transition-all hover:scale-105"
+          className="group relative w-20 h-28 rounded-lg overflow-hidden border-2 border-doloris/50 hover:border-doloris shadow-xl bg-slate-800 transition-all hover:scale-105"
           title="展开剧本速查"
         >
           <img 
@@ -170,7 +169,7 @@ export function ScriptImageViewer() {
           <div className="absolute bottom-1 left-1 right-1 text-[9px] text-white font-bold text-center truncate">
             {currentImage.title}
           </div>
-          <div className="absolute top-1 right-1 w-5 h-5 rounded-full bg-amber-500/90 flex items-center justify-center">
+          <div className="absolute top-1 right-1 w-5 h-5 rounded-full bg-doloris/90 flex items-center justify-center">
             <ImageIcon size={10} className="text-white" />
           </div>
           {hasMultiple && (
@@ -205,7 +204,7 @@ export function ScriptImageViewer() {
               {/* 顶部标题 */}
               <div className="shrink-0 flex items-center justify-between px-4 py-3 border-b border-slate-700 bg-slate-800/50">
                 <div className="flex items-center gap-2">
-                  <ImageIcon size={18} className="text-amber-400" />
+                  <ImageIcon size={18} className="text-doloris" />
                   <span className="font-bold text-white">剧本图文速查</span>
                 </div>
                 <button
@@ -225,7 +224,7 @@ export function ScriptImageViewer() {
                       className={cn(
                         "relative rounded-lg overflow-hidden border-2 cursor-pointer transition-all group",
                         idx === currentIndex 
-                          ? "border-amber-500 shadow-lg shadow-amber-500/20"
+                          ? "border-doloris shadow-lg shadow-doloris/20"
                           : "border-slate-700 hover:border-slate-500"
                       )}
                       onClick={() => {
@@ -247,8 +246,8 @@ export function ScriptImageViewer() {
                         <div className={cn(
                           "absolute top-2 right-2 px-1.5 py-0.5 rounded text-[10px] font-bold",
                           img.visibleTo === 'mastermind' 
-                            ? "bg-red-900/90 text-red-200" 
-                            : "bg-blue-900/90 text-blue-200"
+                            ? "bg-timoris/50 text-timoris" 
+                            : "bg-oblivionis/50 text-oblivionis"
                         )}>
                           {img.visibleTo === 'mastermind' ? '剧作家' : '主人公'}
                         </div>
@@ -263,8 +262,8 @@ export function ScriptImageViewer() {
 
                 {/* 热座模式：剧作家专属图片需确认解锁 */}
                 {lockedMastermindImages.length > 0 && (
-                  <div className="mt-4 p-3 rounded-lg border-2 border-dashed border-red-700/50 bg-red-950/20 space-y-2">
-                    <div className="flex items-center gap-2 text-sm text-red-400 font-bold">
+                  <div className="mt-4 p-3 rounded-lg border-2 border-dashed border-timoris/30 bg-timoris/10 space-y-2">
+                    <div className="flex items-center gap-2 text-sm text-timoris font-bold">
                       <Lock size={14} />
                       <span>{lockedMastermindImages.length} 张剧作家专属图片已隐藏</span>
                     </div>
@@ -273,7 +272,7 @@ export function ScriptImageViewer() {
                     </p>
                     <button
                       onClick={() => setMastermindUnlocked(true)}
-                      className="w-full px-3 py-2 rounded bg-red-800 hover:bg-red-700 text-red-200 text-sm font-bold transition-colors"
+                      className="w-full px-3 py-2 rounded bg-timoris hover:bg-timoris/80 text-white text-sm font-bold transition-colors"
                     >
                       确认查看剧作家信息
                     </button>

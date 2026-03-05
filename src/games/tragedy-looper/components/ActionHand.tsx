@@ -14,6 +14,10 @@ interface ActionHandProps {
   disabled?: boolean;
 }
 
+// MyGO!!!!!  主人公行配色（行索引 0-2 + 特殊牌）
+const MYGO_ROW_COLORS = ['#77BBDD', '#FF8899', '#77DD77'] as const;
+const MYGO_SPECIAL_COLOR = '#7777AA';
+
 // 渲染单张卡牌
 function CardSlot({ 
   card, 
@@ -23,6 +27,7 @@ function CardSlot({
   isUsedToday,
   isUsedThisLoop,
   size = 'normal',
+  accentColor,
 }: {
   card: ActionCardInterface;
   selectedCardId?: string | null;
@@ -31,6 +36,7 @@ function CardSlot({
   isUsedToday: (id: string) => boolean;
   isUsedThisLoop: (id: string) => boolean;
   size?: 'normal' | 'small';
+  accentColor?: string;
 }) {
   const usedToday = isUsedToday(card.id);
   const usedThisLoop = card.oncePerLoop && isUsedThisLoop(card.id);
@@ -61,6 +67,7 @@ function CardSlot({
         onClick={() => !isDisabled && onCardSelect(card)}
         disabled={isDisabled}
         size={size}
+        accentColor={accentColor}
       />
       {/* 已使用覆盖层 */}
       {isUsed && (
@@ -178,6 +185,7 @@ export function ActionHand({ deck, selectedCardId, onCardSelect, className, disa
                         isUsedToday={isUsedToday}
                         isUsedThisLoop={isUsedThisLoop}
                         size="small"
+                        accentColor={MYGO_ROW_COLORS[rowIndex]}
                       />
                     );
                   })}
@@ -192,10 +200,10 @@ export function ActionHand({ deck, selectedCardId, onCardSelect, className, disa
             
             <div className="flex flex-col items-center justify-between py-1 px-2 bg-slate-800/20 rounded-xl border border-slate-700/30">
               <div className="flex flex-col items-center gap-1.5 mb-2">
-                <ShieldAlert size={14} className="text-amber-500/70" />
+                <ShieldAlert size={14} className="text-doloris/70" />
                 <div className="flex flex-col -gap-1">
-                  <span className="text-[10px] font-black text-amber-500/60 leading-none text-center">特</span>
-                  <span className="text-[10px] font-black text-amber-500/60 leading-none text-center">殊</span>
+                  <span className="text-[10px] font-black text-doloris/60 leading-none text-center">特</span>
+                  <span className="text-[10px] font-black text-doloris/60 leading-none text-center">殊</span>
                 </div>
               </div>
 
@@ -210,6 +218,7 @@ export function ActionHand({ deck, selectedCardId, onCardSelect, className, disa
                     isUsedToday={isUsedToday}
                     isUsedThisLoop={isUsedThisLoop}
                     size="small"
+                    accentColor={MYGO_SPECIAL_COLOR}
                   />
                 ))}
               </div>

@@ -4,7 +4,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Brain, Users, Wifi, WifiOff, Loader2, Check, X, Plus, LogIn, RefreshCw, Lock, Unlock, ArrowLeft, Home, BookOpen, Monitor } from 'lucide-react';
+import { Brain, Users, Eye, Wifi, WifiOff, Loader2, Check, X, Plus, LogIn, RefreshCw, Lock, Unlock, ArrowLeft, Home, BookOpen, Monitor } from 'lucide-react';
 import { useMultiplayer } from '@/shared/useMultiplayer';
 import { useGameStore } from '@/games/tragedy-looper/store';
 import type { GameMode } from '@/games/tragedy-looper/store';
@@ -32,9 +32,11 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
     leaveRoom,
     refreshRooms,
     myRole,
+    isSpectator,
     availableRoles,
     players,
     selectRole,
+    spectate,
     resetGame,
   } = useMultiplayer();
   
@@ -102,25 +104,22 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
     }
   }, [myRole, gameState, currentRoom, showScriptSetup]);
 
-  // 剧作家选择剧本后初始化游戏
+  // 剧本选择后初始化游戏（热座/联机通用）
   const handleScriptSelect = (script: ScriptTemplate) => {
-    console.log('🎭 剧作家选择剧本:', script.name);
+    console.log('🎭 选择剧本:', script.name);
     setShowScriptSetup(false);
     
-    // 使用选定的脚本初始化游戏
-    if (initializeWithScript) {
-      initializeWithScript('mastermind', script);
-    } else {
-      // 回退到旧方法
-      initializeGame('mastermind');
-    }
+    initializeWithScript('mastermind', script);
     
-    setTimeout(() => {
-      const state = useGameStore.getState();
-      if (state.gameState) {
-        updateGameState(state.getSyncPayload());
-      }
-    }, 150);
+    // 联机模式：同步给对方
+    if (mode === 'online') {
+      setTimeout(() => {
+        const state = useGameStore.getState();
+        if (state.gameState) {
+          updateGameState(state.getSyncPayload());
+        }
+      }, 150);
+    }
   };
 
   // 创建房间
@@ -197,12 +196,12 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
             onClick={() => {
               setMode('hotseat');
               setGameMode('hotseat');
-              initializeHotseatGame();
+              setShowScriptSetup(true);
             }}
             className="flex flex-col items-center gap-4 px-12 py-10 rounded-2xl bg-slate-800 border-2 border-slate-700
-              hover:bg-slate-700 hover:border-amber-500/60 transition-all active:scale-95 min-w-[200px] group"
+              hover:bg-slate-700 hover:border-doloris/60 transition-all active:scale-95 min-w-[200px] group"
           >
-            <Monitor size={40} className="text-amber-400 group-hover:scale-110 transition-transform" />
+            <Monitor size={40} className="text-doloris group-hover:scale-110 transition-transform" />
             <span className="text-xl font-bold text-white">热座模式</span>
             <span className="text-sm text-slate-400 text-center">面对面传递设备<br/>剧作家 vs 主人公</span>
           </button>
@@ -210,9 +209,9 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
           <button
             onClick={() => setMode('online')}
             className="flex flex-col items-center gap-4 px-12 py-10 rounded-2xl bg-slate-800 border-2 border-slate-700
-              hover:bg-slate-700 hover:border-blue-500/60 transition-all active:scale-95 min-w-[200px] group"
+              hover:bg-slate-700 hover:border-oblivionis/60 transition-all active:scale-95 min-w-[200px] group"
           >
-            <Wifi size={40} className="text-blue-400 group-hover:scale-110 transition-transform" />
+            <Wifi size={40} className="text-oblivionis group-hover:scale-110 transition-transform" />
             <span className="text-xl font-bold text-white">联机模式</span>
             <span className="text-sm text-slate-400 text-center">通过网络连接<br/>多设备联机</span>
           </button>
@@ -221,7 +220,20 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
     );
   }
 
-  // 热座模式已启动，直接返回（page.tsx 会接管）
+  // 热座模式：剧本选择（不需要用户名）
+  if (mode === 'hotseat' && showScriptSetup) {
+    return (
+      <ScriptSetup
+        onSelect={handleScriptSelect}
+        onCancel={() => {
+          setShowScriptSetup(false);
+          setMode(null);
+        }}
+      />
+    );
+  }
+
+  // 热座模式已启动（剧本已选），直接返回（page.tsx 会接管）
   if (mode === 'hotseat') {
     return null;
   }
@@ -258,7 +270,7 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
               onKeyDown={(e) => e.key === 'Enter' && handleSetUsername()}
               placeholder="输入名字 (2-12字符)..."
               maxLength={12}
-              className="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-600 text-white placeholder-slate-500 focus:border-purple-500 focus:outline-none text-lg"
+              className="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-600 text-white placeholder-slate-500 focus:border-timoris focus:outline-none text-lg"
               autoFocus
             />
             
@@ -268,7 +280,7 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
               className={cn(
                 "w-full mt-4 py-3 rounded-xl font-bold text-lg transition-all",
                 usernameInput.trim().length >= 2
-                  ? "bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white shadow-lg hover:shadow-purple-500/25"
+                  ? "bg-gradient-to-r from-timoris to-oblivionis hover:from-timoris/80 hover:to-oblivionis/80 text-white shadow-lg hover:shadow-timoris/25"
                   : "bg-slate-700 text-slate-500 cursor-not-allowed"
               )}
             >
@@ -289,7 +301,7 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
     );
   }
 
-  // 剧作家选择剧本界面
+  // 剧本选择界面（联机剧作家）
   if (showScriptSetup && myRole === 'mastermind') {
     return (
       <ScriptSetup 
@@ -299,14 +311,15 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
     );
   }
 
-  // 主人公等待剧作家选择剧本
-  if (myRole === 'protagonist' && !gameState && currentRoom) {
+  // 主人公/旁观者等待剧作家选择剧本
+  if ((myRole === 'protagonist' || isSpectator) && !gameState && currentRoom) {
+    const roleLabel = isSpectator ? '旁观者' : '主人公';
+    const roleColor = isSpectator ? 'text-slate-400' : 'text-oblivionis';
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex flex-col items-center justify-center p-8 relative">
-        {/* 重连提示覆盖层 */}
         {isReconnecting && (
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center">
-            <div className="flex items-center gap-3 px-6 py-3 rounded-full bg-amber-900/80 border border-amber-500 text-amber-200 shadow-2xl">
+            <div className="flex items-center gap-3 px-6 py-3 rounded-full bg-doloris/20 border border-doloris text-doloris/80 shadow-2xl">
               <Loader2 className="w-5 h-5 animate-spin" />
               <span className="font-bold">正在重连...</span>
             </div>
@@ -327,13 +340,13 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
           transition={{ delay: 0.2 }}
           className="flex flex-col items-center gap-6"
         >
-          <div className="flex items-center gap-3 px-6 py-3 rounded-full bg-blue-900/30 border border-blue-600/50 text-blue-300">
+          <div className="flex items-center gap-3 px-6 py-3 rounded-full bg-oblivionis/10 border border-oblivionis/40 text-oblivionis">
             <Loader2 className="w-5 h-5 animate-spin" />
             <span className="font-medium">剧作家正在选择剧本...</span>
           </div>
           
           <div className="text-center text-slate-500 text-sm max-w-md">
-            <p>你已选择 <span className="text-blue-400 font-bold">主人公</span> 角色</p>
+            <p>你是 <span className={cn("font-bold", roleColor)}>{roleLabel}</span></p>
             <p className="mt-2">请等待剧作家完成剧本配置后开始游戏</p>
           </div>
           
@@ -362,7 +375,7 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
           <h1 className="text-5xl font-black text-white tracking-tight mb-2">惨剧轮回</h1>
           <p className="text-slate-400 text-lg">Tragedy Looper</p>
         </motion.div>
-        <div className="flex items-center gap-3 px-4 py-2 rounded-full bg-amber-900/30 border border-amber-600/50 text-amber-300">
+        <div className="flex items-center gap-3 px-4 py-2 rounded-full bg-doloris/15 border border-doloris/40 text-doloris">
           <Loader2 className="w-5 h-5 animate-spin" />
           <span className="font-medium">正在连接服务器...</span>
         </div>
@@ -412,12 +425,12 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
           className="mb-8"
         >
           {isReconnecting ? (
-            <div className="flex items-center gap-3 px-4 py-2 rounded-full bg-amber-900/30 border border-amber-600/50 text-amber-300">
+            <div className="flex items-center gap-3 px-4 py-2 rounded-full bg-doloris/15 border border-doloris/40 text-doloris">
               <Loader2 className="w-5 h-5 animate-spin" />
               <span className="font-medium">重连中...</span>
             </div>
           ) : (
-            <div className="flex items-center gap-3 px-4 py-2 rounded-full bg-green-900/30 border border-green-600/50 text-green-300">
+            <div className="flex items-center gap-3 px-4 py-2 rounded-full bg-mortis/15 border border-mortis/40 text-mortis">
               <Wifi className="w-5 h-5" />
               <span className="font-medium">已连接</span>
             </div>
@@ -425,7 +438,7 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
         </motion.div>
 
         {/* 角色选择 */}
-        <div className="flex flex-col md:flex-row gap-8 items-stretch justify-center w-full max-w-4xl">
+        <div className="flex flex-col md:flex-row gap-8 items-stretch justify-center w-full max-w-5xl">
           {/* 剧作家 */}
           <motion.div
             initial={{ opacity: 0, x: -50 }}
@@ -437,36 +450,36 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
             className={cn(
               "group relative w-full md:w-80 h-[400px] overflow-hidden rounded-2xl border-2 shadow-2xl transition-all",
               mastermindStatus === 'available' 
-                ? "cursor-pointer border-purple-500/30 hover:border-purple-500 hover:shadow-purple-500/20 bg-gradient-to-br from-slate-900 to-slate-800"
+                ? "cursor-pointer border-timoris/30 hover:border-timoris hover:shadow-timoris/20 bg-gradient-to-br from-slate-900 to-slate-800"
                 : mastermindStatus === 'self' || mastermindStatus === 'selecting'
-                  ? "border-purple-500 shadow-purple-500/30 bg-gradient-to-br from-purple-900/50 to-slate-900"
+                  ? "border-timoris shadow-timoris/30 bg-gradient-to-br from-timoris/30 to-slate-900"
                   : "cursor-not-allowed border-slate-700 bg-slate-900/50 opacity-60"
             )}
           >
-            <div className="absolute -right-10 -top-10 w-40 h-40 bg-purple-500/20 blur-3xl rounded-full" />
+            <div className="absolute -right-10 -top-10 w-40 h-40 bg-timoris/20 blur-3xl rounded-full" />
             
             {/* 状态标签 */}
             <div className="absolute top-4 right-4 z-10">
               {mastermindStatus === 'selecting' && (
-                <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-900/80 border border-blue-600 text-blue-200 text-sm font-bold">
+                <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-oblivionis/30 border border-oblivionis text-oblivionis/60 text-sm font-bold">
                   <Loader2 className="w-4 h-4 animate-spin" />
                   正在选择...
                 </div>
               )}
               {mastermindStatus === 'taken' && (
-                <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-900/80 border border-red-600 text-red-200 text-sm font-bold">
+                <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-timoris/30 border border-timoris text-timoris/60 text-sm font-bold">
                   <X className="w-4 h-4" />
                   已被占用
                 </div>
               )}
               {mastermindStatus === 'self' && (
-                <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-green-900/80 border border-green-600 text-green-200 text-sm font-bold">
+                <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-mortis/30 border border-mortis text-mortis/60 text-sm font-bold">
                   <Check className="w-4 h-4" />
                   已选择
                 </div>
               )}
               {mastermindStatus === 'available' && (
-                <div className="px-3 py-1 rounded-full bg-purple-600/50 text-purple-200 text-sm font-bold">
+                <div className="px-3 py-1 rounded-full bg-timoris/40 text-timoris/80 text-sm font-bold">
                   空位
                 </div>
               )}
@@ -476,8 +489,8 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
               <div className={cn(
                 "mb-6 p-5 rounded-full transition-all duration-300",
                 mastermindStatus === 'available' 
-                  ? "bg-purple-500/10 text-purple-400 group-hover:text-purple-300 group-hover:scale-110"
-                  : "bg-purple-500/5 text-purple-500/50"
+                  ? "bg-timoris/10 text-timoris group-hover:text-timoris/80 group-hover:scale-110"
+                  : "bg-timoris/10 text-timoris/50"
               )}>
                 <Brain size={72} />
               </div>
@@ -488,7 +501,7 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
               )}>
                 剧作家
               </h2>
-              <p className="text-purple-200/60 text-sm font-medium mb-6">Mastermind</p>
+              <p className="text-timoris/60 text-sm font-medium mb-6">Mastermind</p>
               
               <div className={cn(
                 "text-sm leading-relaxed",
@@ -503,7 +516,7 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
                   animate={{ opacity: 1 }}
                   className="absolute bottom-6 left-6 right-6"
                 >
-                  <div className="py-3 rounded-xl bg-purple-600/80 text-white font-bold text-center group-hover:bg-purple-500 transition-colors">
+                  <div className="py-3 rounded-xl bg-timoris/80 text-white font-bold text-center group-hover:bg-timoris transition-colors">
                     选择剧作家
                   </div>
                 </motion.div>
@@ -522,35 +535,35 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
             className={cn(
               "group relative w-full md:w-80 h-[400px] overflow-hidden rounded-2xl border-2 shadow-2xl transition-all",
               protagonistStatus === 'available' 
-                ? "cursor-pointer border-blue-500/30 hover:border-blue-500 hover:shadow-blue-500/20 bg-gradient-to-br from-slate-900 to-slate-800"
+                ? "cursor-pointer border-oblivionis/30 hover:border-oblivionis hover:shadow-oblivionis/20 bg-gradient-to-br from-slate-900 to-slate-800"
                 : protagonistStatus === 'self' || protagonistStatus === 'selecting'
-                  ? "border-blue-500 shadow-blue-500/30 bg-gradient-to-br from-blue-900/50 to-slate-900"
+                  ? "border-oblivionis shadow-oblivionis/30 bg-gradient-to-br from-oblivionis/30 to-slate-900"
                   : "cursor-not-allowed border-slate-700 bg-slate-900/50 opacity-60"
             )}
           >
-            <div className="absolute -left-10 -bottom-10 w-40 h-40 bg-blue-500/20 blur-3xl rounded-full" />
+            <div className="absolute -left-10 -bottom-10 w-40 h-40 bg-oblivionis/20 blur-3xl rounded-full" />
             
             <div className="absolute top-4 right-4 z-10">
               {protagonistStatus === 'selecting' && (
-                <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-900/80 border border-blue-600 text-blue-200 text-sm font-bold">
+                <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-oblivionis/30 border border-oblivionis text-oblivionis/60 text-sm font-bold">
                   <Loader2 className="w-4 h-4 animate-spin" />
                   正在选择...
                 </div>
               )}
               {protagonistStatus === 'taken' && (
-                <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-900/80 border border-red-600 text-red-200 text-sm font-bold">
+                <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-timoris/30 border border-timoris text-timoris/60 text-sm font-bold">
                   <X className="w-4 h-4" />
                   已被占用
                 </div>
               )}
               {protagonistStatus === 'self' && (
-                <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-green-900/80 border border-green-600 text-green-200 text-sm font-bold">
+                <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-mortis/30 border border-mortis text-mortis/60 text-sm font-bold">
                   <Check className="w-4 h-4" />
                   已选择
                 </div>
               )}
               {protagonistStatus === 'available' && (
-                <div className="px-3 py-1 rounded-full bg-blue-600/50 text-blue-200 text-sm font-bold">
+                <div className="px-3 py-1 rounded-full bg-oblivionis/40 text-oblivionis/80 text-sm font-bold">
                   空位
                 </div>
               )}
@@ -560,8 +573,8 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
               <div className={cn(
                 "mb-6 p-5 rounded-full transition-all duration-300",
                 protagonistStatus === 'available' 
-                  ? "bg-blue-500/10 text-blue-400 group-hover:text-blue-300 group-hover:scale-110"
-                  : "bg-blue-500/5 text-blue-500/50"
+                  ? "bg-oblivionis/10 text-oblivionis group-hover:text-oblivionis/80 group-hover:scale-110"
+                  : "bg-oblivionis/10 text-oblivionis/50"
               )}>
                 <Users size={72} />
               </div>
@@ -572,7 +585,7 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
               )}>
                 主人公
               </h2>
-              <p className="text-blue-200/60 text-sm font-medium mb-6">Protagonist</p>
+              <p className="text-oblivionis/60 text-sm font-medium mb-6">Protagonist</p>
               
               <div className={cn(
                 "text-sm leading-relaxed",
@@ -587,8 +600,65 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
                   animate={{ opacity: 1 }}
                   className="absolute bottom-6 left-6 right-6"
                 >
-                  <div className="py-3 rounded-xl bg-blue-600/80 text-white font-bold text-center group-hover:bg-blue-500 transition-colors">
+                  <div className="py-3 rounded-xl bg-oblivionis/80 text-white font-bold text-center group-hover:bg-oblivionis transition-colors">
                     选择主人公
+                  </div>
+                </motion.div>
+              )}
+            </div>
+          </motion.div>
+
+          {/* 旁观 */}
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
+            whileHover={!isSpectator ? { scale: 1.03, y: -5 } : {}}
+            whileTap={!isSpectator ? { scale: 0.98 } : {}}
+            onClick={() => { if (!isSpectator) spectate(); }}
+            className={cn(
+              "group relative w-full md:w-52 h-[400px] overflow-hidden rounded-2xl border-2 shadow-2xl transition-all",
+              isSpectator
+                ? "border-slate-500 shadow-slate-500/20 bg-gradient-to-br from-slate-800/80 to-slate-900"
+                : "cursor-pointer border-slate-700/50 hover:border-slate-500 hover:shadow-slate-400/10 bg-gradient-to-br from-slate-900 to-slate-800"
+            )}
+          >
+            {isSpectator && (
+              <div className="absolute top-4 right-4 z-10">
+                <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-mortis/30 border border-mortis text-mortis/60 text-sm font-bold">
+                  <Check className="w-4 h-4" />
+                  旁观中
+                </div>
+              </div>
+            )}
+
+            <div className="relative h-full flex flex-col items-center justify-center p-6 text-center">
+              <div className={cn(
+                "mb-6 p-5 rounded-full transition-all duration-300",
+                isSpectator
+                  ? "bg-slate-500/10 text-slate-400"
+                  : "bg-slate-500/10 text-slate-500 group-hover:text-slate-300 group-hover:scale-110"
+              )}>
+                <Eye size={56} />
+              </div>
+
+              <h2 className="text-2xl font-black mb-2 tracking-tight text-white">
+                旁观
+              </h2>
+              <p className="text-slate-400/60 text-sm font-medium mb-6">Spectator</p>
+
+              <div className="text-sm leading-relaxed text-slate-500">
+                不参与行动，<br/>在一旁观看全局。
+              </div>
+
+              {!isSpectator && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="absolute bottom-6 left-6 right-6"
+                >
+                  <div className="py-3 rounded-xl bg-slate-600/80 text-white font-bold text-center group-hover:bg-slate-500 transition-colors">
+                    旁观
                   </div>
                 </motion.div>
               )}
@@ -664,7 +734,7 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
         transition={{ delay: 0.2 }}
         className="mb-6"
       >
-        <div className="flex items-center gap-3 px-4 py-2 rounded-full bg-green-900/30 border border-green-600/50 text-green-300">
+        <div className="flex items-center gap-3 px-4 py-2 rounded-full bg-mortis/15 border border-mortis/40 text-mortis">
           <Wifi className="w-5 h-5" />
           <span className="font-medium">已连接服务器</span>
         </div>
@@ -686,7 +756,7 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setShowCreateForm(true)}
-              className="w-full mb-6 py-4 rounded-xl bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-bold text-lg flex items-center justify-center gap-3 transition-all shadow-lg hover:shadow-purple-500/25"
+              className="w-full mb-6 py-4 rounded-xl bg-gradient-to-r from-timoris to-oblivionis hover:from-timoris/80 hover:to-oblivionis/80 text-white font-bold text-lg flex items-center justify-center gap-3 transition-all shadow-lg hover:shadow-timoris/25"
             >
               <Plus className="w-6 h-6" />
               创建新房间
@@ -709,7 +779,7 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
                     value={newRoomName}
                     onChange={(e) => setNewRoomName(e.target.value)}
                     placeholder="输入房间名称..."
-                    className="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-600 text-white placeholder-slate-500 focus:border-purple-500 focus:outline-none"
+                    className="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-600 text-white placeholder-slate-500 focus:border-timoris focus:outline-none"
                     autoFocus
                   />
                 </div>
@@ -721,7 +791,7 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
                     value={newRoomPassword}
                     onChange={(e) => setNewRoomPassword(e.target.value)}
                     placeholder="留空则不设密码..."
-                    className="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-600 text-white placeholder-slate-500 focus:border-purple-500 focus:outline-none"
+                    className="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-600 text-white placeholder-slate-500 focus:border-timoris focus:outline-none"
                   />
                 </div>
                 
@@ -734,7 +804,7 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
                   </button>
                   <button
                     onClick={handleCreateRoom}
-                    className="flex-1 py-3 rounded-lg bg-purple-600 text-white font-bold hover:bg-purple-500 transition-colors"
+                    className="flex-1 py-3 rounded-lg bg-timoris text-white font-bold hover:bg-timoris/80 transition-colors"
                   >
                     创建
                   </button>
@@ -776,7 +846,7 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
                     <div className="flex items-center gap-2">
                       <h4 className="text-white font-bold">{room.name}</h4>
                       {room.hasPassword && (
-                        <Lock className="w-4 h-4 text-amber-500" />
+                        <Lock className="w-4 h-4 text-doloris" />
                       )}
                     </div>
                     <div className="flex items-center gap-4 mt-1 text-sm text-slate-500">
@@ -788,11 +858,11 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
                       <span className="flex items-center gap-2">
                         <span className={cn(
                           "w-2 h-2 rounded-full",
-                          room.players.mastermind ? "bg-purple-500" : "bg-slate-600"
+                          room.players.mastermind ? "bg-timoris" : "bg-slate-600"
                         )} />
                         <span className={cn(
                           "w-2 h-2 rounded-full",
-                          room.players.protagonist ? "bg-blue-500" : "bg-slate-600"
+                          room.players.protagonist ? "bg-oblivionis" : "bg-slate-600"
                         )} />
                       </span>
                     </div>
@@ -800,16 +870,15 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
                   
                   <button
                     onClick={() => handleJoinRoom(room.id, room.hasPassword)}
-                    disabled={room.playerCount >= 2}
                     className={cn(
                       "px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-all",
                       room.playerCount >= 2
-                        ? "bg-slate-700 text-slate-500 cursor-not-allowed"
-                        : "bg-blue-600 text-white hover:bg-blue-500"
+                        ? "bg-slate-700 text-slate-300 hover:bg-slate-600"
+                        : "bg-oblivionis text-white hover:bg-oblivionis/80"
                     )}
                   >
-                    <LogIn className="w-4 h-4" />
-                    {room.playerCount >= 2 ? '已满' : '加入'}
+                    {room.playerCount >= 2 ? <Eye className="w-4 h-4" /> : <LogIn className="w-4 h-4" />}
+                    {room.playerCount >= 2 ? '旁观' : '加入'}
                   </button>
                 </div>
               </motion.div>
@@ -836,7 +905,7 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex items-center gap-2 mb-4">
-                <Lock className="w-5 h-5 text-amber-500" />
+                <Lock className="w-5 h-5 text-doloris" />
                 <h3 className="text-lg font-bold text-white">输入房间密码</h3>
               </div>
               
@@ -845,7 +914,7 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
                 value={joinPassword}
                 onChange={(e) => setJoinPassword(e.target.value)}
                 placeholder="请输入密码..."
-                className="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-600 text-white placeholder-slate-500 focus:border-amber-500 focus:outline-none mb-4"
+                className="w-full px-4 py-3 rounded-lg bg-slate-900 border border-slate-600 text-white placeholder-slate-500 focus:border-doloris focus:outline-none mb-4"
                 autoFocus
                 onKeyDown={(e) => e.key === 'Enter' && handleConfirmJoin()}
               />
@@ -859,7 +928,7 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
                 </button>
                 <button
                   onClick={handleConfirmJoin}
-                  className="flex-1 py-3 rounded-lg bg-amber-600 text-white font-bold hover:bg-amber-500 transition-colors"
+                  className="flex-1 py-3 rounded-lg bg-doloris text-white font-bold hover:bg-doloris/80 transition-colors"
                 >
                   加入
                 </button>

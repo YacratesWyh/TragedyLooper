@@ -10,6 +10,20 @@ import { getTotalScores, getWinner } from '../engine';
 import { ChevronDown, BookOpen, Users, Wifi, WifiOff, Plus, LogIn, ArrowLeft } from 'lucide-react';
 import { usePoisonMultiplayer } from '../usePoisonMultiplayer';
 
+// ─── Bilibili background ───
+
+const DEFAULT_BVID = 'BV1iq1MBFEtG';
+const BG_BVID_KEY = 'poison-bg-bvid';
+
+function parseBilibiliBvid(input: string): string | null {
+  const m = input.match(/BV[a-zA-Z0-9]+/);
+  return m ? m[0] : null;
+}
+
+function buildBilibiliSrc(bvid: string, muted: boolean) {
+  return `//player.bilibili.com/player.html?isOutside=true&bvid=${bvid}&p=1&autoplay=1&danmaku=0&loop=1&t=0${muted ? '&muted=1' : ''}`;
+}
+
 // ─── Rules Dropdown ───
 
 function RulesDropdown() {
@@ -52,23 +66,23 @@ function RulesDropdown() {
                     <BookOpen size={16} />
                     Poison 规则速览
                   </h3>
-                  <p className="mt-2 text-xs text-slate-400 italic leading-relaxed">你们是一群乖僻的魔女，为了追寻炼金术的终极奥秘，围坐在沸腾的大锅旁竞相投入珍稀药材。只有独饮者才能获得真谛——但也有心存怨恨的家伙准备了毒药……</p>
+                  <p className="mt-2 text-xs text-slate-400 italic leading-relaxed">你们是一群乖僻的魔女，围坐在沸腾的大锅旁竞相投入药水。只有独饮者才能获得真谛——但也有心存怨恨的家伙准备了毒药……</p>
                 </div>
                 <div className="p-4 space-y-3 text-sm text-slate-300 max-h-[60vh] overflow-y-auto leading-relaxed">
                   <RuleSection title="轮到你了！">
-                    从手里<b className="text-white">挑一瓶药水</b>，丢进任意一口大锅。注意：每口锅只容纳一种颜色，<span className="text-emerald-400">毒药</span>可以被偷偷加入任何一口锅（毕竟是下毒！）。
+                    从手里<b className="text-white">挑一瓶药水</b>，丢进任意一口大锅。每口锅只容纳一种颜色——但<span className="text-emerald-400">毒药</span>例外，它可以偷偷混入任何锅。
                   </RuleSection>
                   <RuleSection title="小心炸锅！">
                     锅里的数字加起来<b className="text-red-400">超过 13</b> 就炸了！谁炸的谁<b className="text-white">喝掉锅里全部药水</b>。所以——往哪口锅丢，想清楚。
                   </RuleSection>
+                  <RuleSection title="毒药">
+                    <span className="text-emerald-400">毒药</span>是最危险的牌：可以丢进<b className="text-white">任何一口锅</b>，每瓶扣 <b className="text-amber-300">2 分</b>（普通药水只扣 1 分），而且<b className="text-red-400">不能被免罚</b>。
+                  </RuleSection>
                   <RuleSection title="独饮真谛">
-                    一轮结束，看看谁喝的<span className="text-red-400">红</span>/<span className="text-blue-400">蓝</span>/<span className="text-purple-400">紫</span>药水最多。某种颜色你喝得<b className="text-white">最多而且没人并列</b>？恭喜！这种药水你调和成功了——该色药水<b className="text-amber-300">全部免罚</b>。
+                    一轮结束，看<span className="text-red-400">红</span>/<span className="text-blue-400">蓝</span>/<span className="text-purple-400">紫</span>三种颜色：如果你收的某色<b className="text-white">比所有人都多且没人并列</b>，就算"独饮"成功。该色药水<b className="text-amber-300">全部免罚</b>。
                   </RuleSection>
                   <RuleSection title="怎么算分">
-                    没免罚的药水每瓶扣 <b className="text-amber-300">1 分</b>，<span className="text-emerald-400">毒药</span>每瓶扣 <b className="text-amber-300">2 分</b>，而且毒药<b className="text-red-400">不能被免罚</b>。分越少越好！
-                  </RuleSection>
-                  <RuleSection title="最后">
-                    所有人打光所有牌，<b className="text-amber-300">总罚分最少</b>的魔女赢。少喝毒药，多独饮，就这么简单。
+                    <b className="text-amber-300">罚分越少越好！</b>没免罚的药水每瓶扣 1 分，毒药每瓶扣 2 分。所有人打光手牌算一轮，总罚分最少的魔女赢。
                   </RuleSection>
                 </div>
               </motion.div>
@@ -777,7 +791,15 @@ export default function PoisonGameBoard() {
   const [explosionToast, setExplosionToast] = useState<{ text: string; sub: string; cauldronIndex: number } | null>(null);
   const [bgMuted, setBgMuted] = useState(true);
   const [bgVisible, setBgVisible] = useState(true);
+  const [bgBvid, setBgBvid] = useState(DEFAULT_BVID);
+  const [showBgUrlEdit, setShowBgUrlEdit] = useState(false);
+  const [bgUrlDraft, setBgUrlDraft] = useState('');
   const hasInteractedRef = useRef(false);
+
+  useEffect(() => {
+    const saved = localStorage.getItem(BG_BVID_KEY);
+    if (saved) setBgBvid(saved);
+  }, []);
 
   useEffect(() => {
     if (!gameState || gameState.phase !== 'playing') return;
@@ -876,8 +898,8 @@ export default function PoisonGameBoard() {
       {/* Background video */}
       {bgVisible && (
         <iframe
-          key={bgMuted ? 'muted' : 'unmuted'}
-          src={`//player.bilibili.com/player.html?isOutside=true&aid=115468484612621&bvid=BV1iq1MBFEtG&cid=33564393716&p=1&autoplay=1&danmaku=0&loop=1&t=0${bgMuted ? '&muted=1' : ''}`}
+          key={`${bgBvid}-${bgMuted ? 'm' : 'u'}`}
+          src={buildBilibiliSrc(bgBvid, bgMuted)}
           scrolling="no"
           frameBorder="0"
           allow="autoplay"
@@ -888,23 +910,87 @@ export default function PoisonGameBoard() {
       )}
 
       {/* BGM control */}
-      <div className="fixed bottom-4 right-4 z-50 flex items-center gap-1 bg-slate-900/80 backdrop-blur-sm rounded-full px-2 py-1 border border-slate-700/50">
-        <button
-          type="button"
-          onClick={() => setBgMuted(m => !m)}
-          className="w-7 h-7 flex items-center justify-center rounded-full text-sm hover:bg-slate-700/60 transition-colors"
-          title={bgMuted ? '取消静音' : '静音'}
-        >
-          {bgMuted ? '🔇' : '🔊'}
-        </button>
-        <button
-          type="button"
-          onClick={() => setBgVisible(v => !v)}
-          className="w-7 h-7 flex items-center justify-center rounded-full text-sm hover:bg-slate-700/60 transition-colors"
-          title={bgVisible ? '关闭背景' : '开启背景'}
-        >
-          {bgVisible ? '🎬' : '⬛'}
-        </button>
+      <div className="fixed bottom-4 right-4 z-50 flex flex-col items-end gap-2">
+        {showBgUrlEdit && (
+          <div className="flex items-center gap-2 bg-slate-900/95 backdrop-blur-sm rounded-lg px-3 py-2 border border-slate-700/50 shadow-xl w-80">
+            <input
+              type="text"
+              value={bgUrlDraft}
+              onChange={e => setBgUrlDraft(e.target.value)}
+              placeholder="粘贴 B 站视频链接或 BV 号"
+              className="flex-1 bg-slate-800 border border-slate-600 rounded px-2 py-1 text-sm text-slate-200 placeholder:text-slate-500 outline-none focus:border-blue-500 transition-colors"
+              onKeyDown={e => {
+                if (e.key === 'Enter') {
+                  const bvid = parseBilibiliBvid(bgUrlDraft);
+                  if (bvid) {
+                    setBgBvid(bvid);
+                    localStorage.setItem(BG_BVID_KEY, bvid);
+                    setShowBgUrlEdit(false);
+                    setBgUrlDraft('');
+                  }
+                }
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => {
+                const bvid = parseBilibiliBvid(bgUrlDraft);
+                if (bvid) {
+                  setBgBvid(bvid);
+                  localStorage.setItem(BG_BVID_KEY, bvid);
+                  setShowBgUrlEdit(false);
+                  setBgUrlDraft('');
+                }
+              }}
+              className="px-2 py-1 bg-blue-600 hover:bg-blue-500 text-white text-xs rounded transition-colors font-medium"
+            >
+              确认
+            </button>
+            {bgBvid !== DEFAULT_BVID && (
+              <button
+                type="button"
+                onClick={() => {
+                  setBgBvid(DEFAULT_BVID);
+                  localStorage.removeItem(BG_BVID_KEY);
+                  setShowBgUrlEdit(false);
+                  setBgUrlDraft('');
+                }}
+                className="px-2 py-1 bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs rounded transition-colors"
+              >
+                重置
+              </button>
+            )}
+          </div>
+        )}
+        <div className="flex items-center gap-1 bg-slate-900/80 backdrop-blur-sm rounded-full px-2 py-1 border border-slate-700/50">
+          <button
+            type="button"
+            onClick={() => setBgMuted(m => !m)}
+            className="w-7 h-7 flex items-center justify-center rounded-full text-sm hover:bg-slate-700/60 transition-colors"
+            title={bgMuted ? '取消静音' : '静音'}
+          >
+            {bgMuted ? '🔇' : '🔊'}
+          </button>
+          <button
+            type="button"
+            onClick={() => setBgVisible(v => !v)}
+            className="w-7 h-7 flex items-center justify-center rounded-full text-sm hover:bg-slate-700/60 transition-colors"
+            title={bgVisible ? '关闭背景' : '开启背景'}
+          >
+            {bgVisible ? '🎬' : '⬛'}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setShowBgUrlEdit(v => !v);
+              if (!showBgUrlEdit) setBgUrlDraft('');
+            }}
+            className="w-7 h-7 flex items-center justify-center rounded-full text-sm hover:bg-slate-700/60 transition-colors"
+            title="替换背景视频"
+          >
+            🔗
+          </button>
+        </div>
       </div>
       {/* Scoring overlay */}
       {scoringResult && (

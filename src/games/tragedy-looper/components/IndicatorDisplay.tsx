@@ -92,7 +92,7 @@ export function IndicatorDisplay({
               onClick={(e) => handleAdjust(type, 1, e)}
               className={cn(
                 "w-7 h-7 flex items-center justify-center rounded",
-                "bg-green-600 hover:bg-green-500 text-white transition-colors",
+                "bg-mortis hover:bg-mortis/80 text-white transition-colors",
                 "active:scale-90"
               )}
               title="+1"
@@ -106,7 +106,7 @@ export function IndicatorDisplay({
               onClick={(e) => handleAdjust(type, -1, e)}
               className={cn(
                 "w-7 h-7 flex items-center justify-center rounded",
-                "bg-red-600 hover:bg-red-500 text-white transition-colors",
+                "bg-timoris hover:bg-timoris/80 text-white transition-colors",
                 "active:scale-90",
                 value <= 0 && "opacity-50 cursor-not-allowed"
               )}
@@ -125,20 +125,20 @@ export function IndicatorDisplay({
     <div ref={containerRef} className={cn("flex items-center gap-1 sm:gap-3 flex-wrap", className)}>
       {/* Goodwill - 友好 */}
       {renderIndicator('goodwill', indicators.goodwill, Heart, {
-        bg: 'bg-pink-100/10',
-        text: 'text-pink-400',
-        border: 'border-pink-500/30',
-        hoverBg: 'hover:bg-pink-500/20',
-        hoverBorder: 'hover:border-pink-400',
+        bg: 'bg-amoris/10',
+        text: 'text-amoris',
+        border: 'border-amoris/30',
+        hoverBg: 'hover:bg-amoris/20',
+        hoverBorder: 'hover:border-amoris',
       })}
 
       {/* Anxiety - 不安 */}
       {renderIndicator('anxiety', indicators.anxiety, Zap, {
-        bg: 'bg-purple-100/10',
-        text: 'text-purple-400',
-        border: 'border-purple-500/30',
-        hoverBg: 'hover:bg-purple-500/20',
-        hoverBorder: 'hover:border-purple-400',
+        bg: 'bg-amoris/10',
+        text: 'text-amoris',
+        border: 'border-amoris/30',
+        hoverBg: 'hover:bg-amoris/20',
+        hoverBorder: 'hover:border-amoris',
       })}
 
       {/* Intrigue - 密谋 */}

@@ -115,33 +115,31 @@ export function CharacterCard({
   const getAnxietyStyles = () => {
     if (isDead) {
       return {
-        borderClass: "border-red-900",
+        borderClass: "border-amoris/20",
         bgClass: "bg-slate-900",
         glowClass: "",
       };
     }
     
     if (isAtLimit) {
-      // 已达极限：红色边框 + 红色渐变背景（不闪烁）
       return {
-        borderClass: "border-red-600",
-        bgClass: "bg-gradient-to-br from-red-900/80 via-slate-800 to-slate-800",
-        glowClass: "shadow-[0_0_20px_rgba(220,38,38,0.6)]",
+        borderClass: "border-timoris",
+        bgClass: "bg-gradient-to-br from-timoris/25 via-slate-800 to-slate-800",
+        glowClass: "shadow-[0_0_20px_rgba(51,85,102,0.6)]",
       };
     }
     
     if (isNearLimit) {
-      // 差1点：橙色边框 + 橙色渐变警告
       return {
-        borderClass: "border-orange-500",
-        bgClass: "bg-gradient-to-br from-orange-900/40 via-slate-800 to-slate-800",
-        glowClass: "shadow-[0_0_15px_rgba(249,115,22,0.4)]",
+        borderClass: "border-doloris",
+        bgClass: "bg-gradient-to-br from-doloris/15 via-slate-800 to-slate-800",
+        glowClass: "shadow-[0_0_15px_rgba(187,153,85,0.4)]",
       };
     }
     
     // 正常状态
     return {
-      borderClass: "border-slate-600 hover:border-blue-400",
+      borderClass: "border-slate-600 hover:border-oblivionis",
       bgClass: "bg-slate-800",
       glowClass: "",
     };
@@ -162,7 +160,7 @@ export function CharacterCard({
         anxietyStyles.glowClass,
         isDead ? "cursor-not-allowed" : "cursor-pointer",
         canDrag && "cursor-grab active:cursor-grabbing",
-        hasCards && !isDead && "ring-2 ring-amber-500/50", // 有牌时高亮
+        hasCards && !isDead && "ring-2 ring-doloris/50", // 有牌时高亮
         "flex flex-col gap-2 z-10",
         canDrag && "z-50" // 拖拽时置顶
       )}
@@ -175,7 +173,7 @@ export function CharacterCard({
         onClick={handleToggleLife}
         className={cn(
           "absolute -bottom-2 -left-2 p-1.5 rounded-full shadow-lg z-20 transition-all active:scale-90",
-          isDead ? "bg-green-600 hover:bg-green-500" : "bg-red-600 hover:bg-red-500",
+          isDead ? "bg-mortis hover:bg-mortis/80" : "bg-amoris hover:bg-amoris/80",
           "text-white"
         )}
         title={isDead ? "复活角色" : "宣告死亡"}
@@ -197,7 +195,7 @@ export function CharacterCard({
       {/* Header */}
       <div className="flex justify-between items-center border-b border-slate-700 pb-2">
         <span className="font-bold text-slate-100">{characterDef.name}</span>
-        {isDead && <span className="text-red-500 text-xs font-bold">[死亡]</span>}
+        {isDead && <span className="text-amoris text-xs font-bold">[死亡]</span>}
         <div className="flex gap-1">
           {characterDef.traits.map((trait) => (
             <span key={trait} className="text-[10px] px-1 bg-slate-700 rounded text-slate-300">
@@ -210,7 +208,7 @@ export function CharacterCard({
       {/* Avatar / Abilities Toggle */}
       <div className={cn(
         "relative w-full rounded overflow-hidden aspect-[620/866]",
-        isDead ? "bg-red-950/30" : "bg-slate-700"
+        isDead ? "bg-amoris/10" : "bg-slate-700"
       )}
       >
         {/* 角色立绘 */}
@@ -235,7 +233,7 @@ export function CharacterCard({
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <X 
                 size={80} 
-                className="text-red-600 drop-shadow-[0_0_10px_rgba(220,38,38,0.8)]" 
+                className="text-amoris drop-shadow-[0_0_10px_rgba(170,68,119,0.8)]" 
                 strokeWidth={6}
               />
             </div>
@@ -257,18 +255,18 @@ export function CharacterCard({
           <span className="transition-colors duration-300">
             <span className={cn(
               isAtLimit 
-                ? "text-red-400 font-extrabold animate-pulse" 
+                ? "text-timoris font-extrabold animate-pulse" 
                 : isNearLimit 
-                  ? "text-orange-400 font-bold" 
+                  ? "text-doloris font-bold" 
                   : "text-slate-400"
             )}>
               不安
             </span>
             <span className={cn(
               isAtLimit 
-                ? "text-red-400 font-bold" 
+                ? "text-timoris font-bold" 
                 : isNearLimit 
-                  ? "text-orange-400 font-bold" 
+                  ? "text-doloris font-bold" 
                   : "text-slate-400"
             )}>
               极限: 
@@ -276,15 +274,15 @@ export function CharacterCard({
             <span className={cn(
               "ml-1 font-bold",
               isAtLimit 
-                ? "text-red-300 animate-pulse" 
+                ? "text-timoris/80 animate-pulse" 
                 : isNearLimit 
-                  ? "text-orange-300" 
-                  : "text-purple-400"
+                  ? "text-doloris/80" 
+                  : "text-oblivionis"
             )}>
               {characterState.indicators.anxiety}/{characterDef.anxietyLimit}
             </span>
-            {isAtLimit && <span className="ml-1 text-red-500 animate-pulse">⚠️</span>}
-            {isNearLimit && <span className="ml-1 text-orange-500">⚡</span>}
+            {isAtLimit && <span className="ml-1 text-timoris animate-pulse">⚠️</span>}
+            {isNearLimit && <span className="ml-1 text-doloris">⚡</span>}
           </span>
         </div>
         
@@ -345,7 +343,7 @@ export function CharacterCard({
                 <div className="mt-4 bg-slate-900/95 rounded-lg p-4 space-y-3 border border-slate-700">
                   <div className="flex items-center justify-between">
                     <h3 className="text-2xl font-bold text-white">{characterDef.name}</h3>
-                    <span className="text-purple-400 text-sm font-medium">
+                    <span className="text-oblivionis text-sm font-medium">
                       不安上限: {characterDef.anxietyLimit}
                     </span>
                   </div>
@@ -353,13 +351,13 @@ export function CharacterCard({
                   {/* 能力列表 */}
                   {characterDef.abilities.length > 0 ? (
                     <div className="space-y-2">
-                      <div className="text-sm text-pink-400 font-bold">角色能力</div>
+                      <div className="text-sm text-amoris font-bold">角色能力</div>
                       {characterDef.abilities.map((ability, i) => (
                         <div key={i} className="bg-slate-800/70 rounded-lg p-3 border border-slate-700/50">
-                          <div className="flex items-center gap-2 text-sm text-pink-300 font-medium mb-1">
+                          <div className="flex items-center gap-2 text-sm text-amoris/80 font-medium mb-1">
                             <span>友好 ≥ {ability.goodwillRequired}</span>
                             {ability.maxUsesPerLoop && (
-                              <span className="text-amber-400 text-xs">
+                              <span className="text-doloris text-xs">
                                 (每轮{ability.maxUsesPerLoop}次)
                               </span>
                             )}

@@ -14,7 +14,7 @@
 
 **当前状态**：
 - ⚠️ 需要手动将角色立绘图片保存到此目录
-- 📁 路径：`public/assets/characters-grid.png`
+- 📁 路径：`public/assets/tl/characters-grid.png`
 
 ### 网格布局
 
@@ -27,7 +27,7 @@
 
 ## 使用方式
 
-1. 将角色立绘图片保存为 `public/assets/characters-grid.png`
+1. 将角色立绘图片保存为 `public/assets/tl/characters-grid.png`
 2. 确保尺寸正确：3840 x 2160 像素
 3. 系统会自动通过 CSS background-position 裁剪显示
 
@@ -39,6 +39,6 @@
 ---
 
 **TODO**：
-- [ ] 保存角色立绘图片到 `public/assets/characters-grid.png`
+- [ ] 保存角色立绘图片到 `public/assets/tl/characters-grid.png`
 - [ ] 验证图片尺寸正确
 - [ ] 测试角色卡片显示

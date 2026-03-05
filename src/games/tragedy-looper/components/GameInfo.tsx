@@ -1,28 +1,122 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useGameStore } from '@/games/tragedy-looper/store';
-import { Calendar, RotateCcw, User, Monitor } from 'lucide-react';
+import { Calendar, RotateCcw, ChevronDown, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import type { IncidentType } from '@/games/tragedy-looper/types';
+
+const INCIDENT_NAMES: Record<IncidentType, string> = {
+  murder: '杀放',
+  suicide: '自杀',
+  hospital_incident: '医院事故',
+  faraway_murder: '远距离杀人',
+};
+
+const INCIDENT_EFFECTS: Record<IncidentType, string> = {
+  murder: '与当事人位于同一区域的另外1名角色死亡。',
+  suicide: '当事人死亡。',
+  hospital_incident: '医院有1枚以上【密谋】，位于医院的所有角色死亡。',
+  faraway_murder: '任意1名角色身上有2枚或以上【密谋】的角色死亡。',
+};
+
+function highlightTokens(text: string) {
+  return text.split(/(\【[^】]+\】)/).map((part, i) => {
+    if (part.startsWith('【') && part.endsWith('】')) {
+      const token = part.slice(1, -1);
+      const colorMap: Record<string, string> = {
+        '密谋': 'text-slate-200 bg-slate-600',
+        '不安': 'text-amoris bg-amoris/20',
+        '友好': 'text-amoris bg-amoris/20',
+      };
+      return (
+        <span key={i} className={cn('px-1 rounded text-xs font-bold', colorMap[token] || 'text-doloris')}>
+          {token}
+        </span>
+      );
+    }
+    return part;
+  });
+}
+
+function IncidentRow({
+  day,
+  type,
+  description,
+  isToday,
+  isPast,
+}: {
+  day: number;
+  type: IncidentType;
+  description: string;
+  isToday: boolean;
+  isPast: boolean;
+}) {
+  const [open, setOpen] = useState(isToday);
+  const name = INCIDENT_NAMES[type] ?? type;
+  const effect = INCIDENT_EFFECTS[type];
+
+  return (
+    <div className={cn(
+      'rounded-lg border overflow-hidden transition-colors',
+      isToday  ? 'border-amoris/60 bg-amoris/10'
+               : isPast ? 'border-slate-700/40 bg-slate-800/20 opacity-50'
+               : 'border-slate-700/50 bg-slate-800/30',
+    )}>
+      {/* 日程行（始终可见） */}
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="w-full flex items-center gap-2 px-2.5 py-2 text-left"
+      >
+        <span className={cn(
+          'w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0',
+          isToday ? 'bg-amoris text-white' : 'bg-slate-700 text-slate-400',
+        )}>
+          {day}
+        </span>
+        <span className={cn('font-medium text-sm flex-1', isToday ? 'text-amoris' : 'text-slate-300')}>
+          {name}
+        </span>
+        {isToday && <span className="text-amoris text-xs animate-pulse shrink-0">今日!</span>}
+        {open
+          ? <ChevronDown size={13} className="text-slate-500 shrink-0" />
+          : <ChevronRight size={13} className="text-slate-500 shrink-0" />}
+      </button>
+
+      {/* 折叠内容：效果描述 */}
+      {open && (
+        <div className="px-3 pb-2.5 space-y-1">
+          {effect && (
+            <p className="text-xs text-slate-300 leading-relaxed">
+              {highlightTokens(effect)}
+            </p>
+          )}
+          {description && description !== effect && (
+            <p className="text-xs text-slate-500 italic">{description}</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function GameInfo() {
-  const { gameState, playerRole, gameMode } = useGameStore();
+  const { gameState } = useGameStore();
 
   if (!gameState) return null;
 
   const { currentLoop, currentDay, publicInfo } = gameState;
-  const isHotseat = gameMode === 'hotseat';
 
   return (
     <div className="flex flex-col gap-4 p-4 bg-transparent">
       <div className="space-y-1">
-        <h1 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-purple-600">
+        <h1 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-timoris to-oblivionis">
           惨剧轮回
         </h1>
         <p className="text-xs text-slate-400 font-mono tracking-widest uppercase">Tragedy Looper</p>
       </div>
 
-      <div className="h-px bg-slate-700 w-full my-2" />
+      <div className="h-px bg-slate-700 w-full" />
 
-      {/* Stats */}
+      {/* 轮回 / 天数 */}
       <div className="grid grid-cols-2 gap-3">
         <div className="bg-slate-800 p-3 rounded-lg border border-slate-700 flex flex-col items-center justify-center">
           <div className="flex items-center gap-2 text-slate-400 text-xs mb-1">
@@ -45,54 +139,20 @@ export function GameInfo() {
         </div>
       </div>
 
-      <div className={cn(
-        "mt-4 p-3 rounded-lg border",
-        isHotseat
-          ? playerRole === 'mastermind'
-            ? "bg-red-900/30 border-red-700/50"
-            : "bg-blue-900/30 border-blue-700/50"
-          : "bg-indigo-900/30 border-indigo-500/30"
-      )}>
-        <div className={cn(
-          "flex items-center gap-2 mb-2",
-          isHotseat
-            ? playerRole === 'mastermind' ? "text-red-300" : "text-blue-300"
-            : "text-indigo-300"
-        )}>
-            {isHotseat ? <Monitor size={16} /> : <User size={16} />}
-            <span className="text-sm font-bold">
-              {isHotseat ? '热座模式' : '当前身份'}
-            </span>
-        </div>
-        <div className={cn(
-          "text-xl font-bold",
-          isHotseat
-            ? playerRole === 'mastermind' ? "text-red-400" : "text-blue-400"
-            : "text-white"
-        )}>
-            {playerRole === 'mastermind' ? '🎭 剧作家' : '🦸 主人公'}
-        </div>
-      </div>
-
-      {/* Incident Schedule */}
-      <div className="mt-4 flex-1 overflow-y-auto">
-        <h3 className="text-sm font-bold text-slate-400 mb-3 uppercase tracking-wider">事件表</h3>
-        <div className="space-y-2">
-            {publicInfo.incidentSchedule.map((incident, idx) => (
-                <div 
-                    key={idx} 
-                    className={cn(
-                        "p-2 rounded text-sm border-l-2",
-                        incident.day === currentDay ? "bg-red-500/20 border-red-500 text-red-200" : "bg-slate-800/50 border-slate-600 text-slate-500"
-                    )}
-                >
-                    <div className="flex justify-between">
-                        <span className="font-bold">Day {incident.day}</span>
-                        <span className="text-xs opacity-70">{incident.type}</span>
-                    </div>
-                    <div className="mt-1">{incident.description}</div>
-                </div>
-            ))}
+      {/* 事件表 */}
+      <div className="flex-1 overflow-y-auto min-h-0">
+        <h3 className="text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider">事件日程</h3>
+        <div className="space-y-1.5">
+          {publicInfo.incidentSchedule.map((incident, idx) => (
+            <IncidentRow
+              key={idx}
+              day={incident.day}
+              type={incident.type as IncidentType}
+              description={incident.description}
+              isToday={incident.day === currentDay}
+              isPast={incident.day < currentDay}
+            />
+          ))}
         </div>
       </div>
     </div>

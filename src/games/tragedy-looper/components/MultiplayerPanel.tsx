@@ -117,9 +117,9 @@ export function MultiplayerPanel() {
         className={cn(
           "flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm transition-all",
           isReconnecting
-            ? "bg-amber-900/30 border-amber-600/50 text-amber-300 hover:bg-amber-900/50"
+            ? "bg-doloris/15 border-doloris/40 text-doloris hover:bg-doloris/20"
             : isConnected 
-              ? "bg-green-900/30 border-green-600/50 text-green-300 hover:bg-green-900/50" 
+              ? "bg-mortis/15 border-mortis/40 text-mortis hover:bg-mortis/20" 
               : "bg-slate-800/50 border-slate-600 text-slate-400 hover:bg-slate-700"
         )}
       >
@@ -133,7 +133,7 @@ export function MultiplayerPanel() {
         {myRole && !isSpectator && (
           <span className={cn(
             "px-1.5 py-0.5 rounded text-xs font-bold",
-            myRole === 'mastermind' ? 'bg-red-600/50 text-red-200' : 'bg-blue-600/50 text-blue-200'
+            myRole === 'mastermind' ? 'bg-timoris/40 text-timoris/80' : 'bg-oblivionis/40 text-oblivionis/80'
           )}>
             {myRole === 'mastermind' ? '剧作家' : '主人公'}
           </span>
@@ -179,7 +179,7 @@ export function MultiplayerPanel() {
           {!isConnected && (
             <button
               onClick={handleConnect}
-              className="w-full px-3 py-2 rounded bg-blue-600 hover:bg-blue-500 text-white text-sm font-bold transition-all"
+              className="w-full px-3 py-2 rounded bg-oblivionis hover:bg-oblivionis/80 text-white text-sm font-bold transition-all"
             >
               🔌 连接联机服务器
             </button>
@@ -187,14 +187,14 @@ export function MultiplayerPanel() {
 
           {/* 重连提示 */}
           {isConnected && pendingSession && !currentRoom && (
-            <div className="mb-3 p-3 rounded-lg bg-amber-900/30 border border-amber-600/40 space-y-2">
-              <p className="text-xs text-amber-300">
-                你在房间 <span className="font-bold text-amber-200">{pendingSession.roomName}</span> 有未完成的游戏
+            <div className="mb-3 p-3 rounded-lg bg-doloris/15 border border-doloris/40 space-y-2">
+              <p className="text-xs text-doloris">
+                你在房间 <span className="font-bold text-doloris/80">{pendingSession.roomName}</span> 有未完成的游戏
               </p>
               <div className="flex gap-2">
                 <button
                   onClick={(e) => { e.stopPropagation(); rejoinPending(); }}
-                  className="flex-1 px-3 py-1.5 rounded bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold transition-all"
+                  className="flex-1 px-3 py-1.5 rounded bg-doloris hover:bg-doloris/80 text-white text-xs font-bold transition-all"
                 >
                   重连
                 </button>
@@ -219,12 +219,12 @@ export function MultiplayerPanel() {
                 className={cn(
                   "w-full px-3 py-2 rounded text-sm font-bold transition-all flex items-center justify-between",
                   availableRoles.includes('mastermind')
-                    ? "bg-red-600/80 hover:bg-red-500 text-white"
+                    ? "bg-timoris/80 hover:bg-timoris text-white"
                     : "bg-slate-700 text-slate-500 cursor-not-allowed"
                 )}
               >
                 <span>🎭 剧作家</span>
-                {players.mastermind.connected && <Check className="w-4 h-4 text-green-400" />}
+                {players.mastermind.connected && <Check className="w-4 h-4 text-mortis" />}
               </button>
               
               <button
@@ -233,22 +233,20 @@ export function MultiplayerPanel() {
                 className={cn(
                   "w-full px-3 py-2 rounded text-sm font-bold transition-all flex items-center justify-between",
                   availableRoles.includes('protagonist')
-                    ? "bg-blue-600/80 hover:bg-blue-500 text-white"
+                    ? "bg-oblivionis/80 hover:bg-oblivionis text-white"
                     : "bg-slate-700 text-slate-500 cursor-not-allowed"
                 )}
               >
                 <span>🦸 主人公</span>
-                {players.protagonist.connected && <Check className="w-4 h-4 text-green-400" />}
+                {players.protagonist.connected && <Check className="w-4 h-4 text-mortis" />}
               </button>
 
-              {availableRoles.length === 0 && (
-                <button
-                  onClick={(e) => { e.stopPropagation(); spectate(); }}
-                  className="w-full px-3 py-2 rounded text-sm font-bold transition-all bg-slate-600/80 hover:bg-slate-500 text-slate-200"
-                >
-                  👁 旁观
-                </button>
-              )}
+              <button
+                onClick={(e) => { e.stopPropagation(); spectate(); }}
+                className="w-full px-3 py-2 rounded text-sm font-bold transition-all bg-slate-600/80 hover:bg-slate-500 text-slate-200"
+              >
+                👁 旁观
+              </button>
             </div>
           )}
 
@@ -260,7 +258,7 @@ export function MultiplayerPanel() {
               
               <div className="flex items-center justify-between px-2 py-1.5 rounded bg-slate-800/50 text-sm">
                 <span>🎭 剧作家</span>
-                <span className={players.mastermind.connected ? 'text-green-400' : 'text-slate-500'}>
+                <span className={players.mastermind.connected ? 'text-mortis' : 'text-slate-500'}>
                   {players.mastermind.connected 
                     ? (players.mastermind.name || '未知') + (!isSpectator && myRole === 'mastermind' ? ' (我)' : '')
                     : '—'}
@@ -269,7 +267,7 @@ export function MultiplayerPanel() {
               
               <div className="flex items-center justify-between px-2 py-1.5 rounded bg-slate-800/50 text-sm">
                 <span>🦸 主人公</span>
-                <span className={players.protagonist.connected ? 'text-green-400' : 'text-slate-500'}>
+                <span className={players.protagonist.connected ? 'text-mortis' : 'text-slate-500'}>
                   {players.protagonist.connected 
                     ? (players.protagonist.name || '未知') + (!isSpectator && myRole === 'protagonist' ? ' (我)' : '')
                     : '—'}
@@ -298,7 +296,7 @@ export function MultiplayerPanel() {
                     setShowMenu(false);
                   }
                 }}
-                className="w-full mt-1 px-3 py-1.5 rounded bg-red-900/30 hover:bg-red-900/50 text-red-300 text-[10px] transition-all border border-red-700/30"
+                className="w-full mt-1 px-3 py-1.5 rounded bg-amoris/15 hover:bg-amoris/20 text-amoris text-[10px] transition-all border border-amoris/30"
               >
                 更换名字 (注销)
               </button>

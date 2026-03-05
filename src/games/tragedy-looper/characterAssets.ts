@@ -270,7 +270,7 @@ export function getCharacterSpriteStyle(
   const posYPercent = (row / (rows - 1)) * 100;
 
   return {
-    backgroundImage: 'url(/assets/characters-grid.png)',
+    backgroundImage: 'url(/assets/tl/characters-grid.png)',
     backgroundPosition: `${posXPercent}% ${posYPercent}%`,
     backgroundSize: `${cols * 100}% ${rows * 100}%`,
     backgroundRepeat: 'no-repeat',
