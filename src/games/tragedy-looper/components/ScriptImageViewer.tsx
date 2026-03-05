@@ -50,7 +50,12 @@ export function ScriptImageViewer() {
   const { myRole: multiplayerRole } = useMultiplayer();
   const localRole = useGameStore((s) => s.playerRole);
   const gameState = useGameStore((s) => s.gameState);
-  const currentRole = multiplayerRole || localRole;
+  const gameMode = useGameStore((s) => s.gameMode);
+  const isHotseat = gameMode === 'hotseat';
+  const currentRole = isHotseat ? localRole : (multiplayerRole || localRole);
+  
+  // 热座模式下主人公查看时，隐藏剧作家专属内容
+  const [mastermindUnlocked, setMastermindUnlocked] = useState(false);
   
   // 确定当前剧本的资源路径
   const scriptAssetPath = useMemo(() => {
@@ -59,6 +64,11 @@ export function ScriptImageViewer() {
     }
     return 'fs'; // 默认
   }, [gameState?.publicInfo?.scriptName]);
+
+  // 热座模式：角色切换时重新锁定
+  useEffect(() => {
+    if (isHotseat) setMastermindUnlocked(false);
+  }, [currentRole, isHotseat]);
 
   // 加载公共配置
   useEffect(() => {
@@ -110,8 +120,16 @@ export function ScriptImageViewer() {
   // 根据角色过滤可见图片
   const visibleImages = allImages.filter(img => {
     if (!img.visibleTo) return true;
+    if (isHotseat && img.visibleTo === 'mastermind' && currentRole === 'mastermind' && !mastermindUnlocked) {
+      return false;
+    }
     return img.visibleTo === currentRole;
   });
+  
+  // 热座模式下剧作家专属图片需确认后才显示
+  const lockedMastermindImages = isHotseat && currentRole === 'mastermind' && !mastermindUnlocked
+    ? allImages.filter(img => img.visibleTo === 'mastermind')
+    : [];
 
   if (visibleImages.length === 0) return null;
 
@@ -243,8 +261,27 @@ export function ScriptImageViewer() {
                   ))}
                 </div>
 
+                {/* 热座模式：剧作家专属图片需确认解锁 */}
+                {lockedMastermindImages.length > 0 && (
+                  <div className="mt-4 p-3 rounded-lg border-2 border-dashed border-red-700/50 bg-red-950/20 space-y-2">
+                    <div className="flex items-center gap-2 text-sm text-red-400 font-bold">
+                      <Lock size={14} />
+                      <span>{lockedMastermindImages.length} 张剧作家专属图片已隐藏</span>
+                    </div>
+                    <p className="text-xs text-slate-500">
+                      确认周围没有主人公玩家在看屏幕
+                    </p>
+                    <button
+                      onClick={() => setMastermindUnlocked(true)}
+                      className="w-full px-3 py-2 rounded bg-red-800 hover:bg-red-700 text-red-200 text-sm font-bold transition-colors"
+                    >
+                      确认查看剧作家信息
+                    </button>
+                  </div>
+                )}
+
                 {/* 隐藏数量提示 */}
-                {allImages.length > visibleImages.length && (
+                {allImages.length > visibleImages.length && lockedMastermindImages.length === 0 && (
                   <div className="mt-4 flex items-center gap-2 text-xs text-slate-500 px-2 py-1.5 bg-slate-800/30 rounded-lg border border-slate-700/30">
                     <Lock size={12} />
                     <span>还有 {allImages.length - visibleImages.length} 张对方阵营专属</span>

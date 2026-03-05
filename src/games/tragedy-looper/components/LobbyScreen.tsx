@@ -4,9 +4,10 @@
 
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Brain, Users, Wifi, WifiOff, Loader2, Check, X, Plus, LogIn, RefreshCw, Lock, Unlock, ArrowLeft, Home, BookOpen } from 'lucide-react';
+import { Brain, Users, Wifi, WifiOff, Loader2, Check, X, Plus, LogIn, RefreshCw, Lock, Unlock, ArrowLeft, Home, BookOpen, Monitor } from 'lucide-react';
 import { useMultiplayer } from '@/shared/useMultiplayer';
 import { useGameStore } from '@/games/tragedy-looper/store';
+import type { GameMode } from '@/games/tragedy-looper/store';
 import { cn } from '@/lib/utils';
 import { ScriptSetup } from './ScriptSetup';
 import { SCRIPT_TEMPLATES, generatePublicInfo, type ScriptTemplate } from '@/games/tragedy-looper/scripts/fs-01';
@@ -39,7 +40,12 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
   
   const initializeGame = useGameStore((state) => state.initializeGame);
   const initializeWithScript = useGameStore((state) => state.initializeWithScript);
+  const initializeHotseatGame = useGameStore((state) => state.initializeHotseatGame);
+  const setGameMode = useGameStore((state) => state.setGameMode);
   const { updateGameState } = useMultiplayer();
+  
+  // 模式选择
+  const [mode, setMode] = useState<GameMode>(null);
   
   // 用户名输入
   const [usernameInput, setUsernameInput] = useState('');
@@ -167,6 +173,60 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
   };
 
   // ========== 渲染 ==========
+
+  // 模式选择
+  if (mode === null) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex flex-col items-center justify-center p-8">
+        <motion.div
+          initial={{ opacity: 0, y: -30 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-center mb-12"
+        >
+          <h1 className="text-5xl font-black text-white tracking-tight mb-2">惨剧轮回</h1>
+          <p className="text-slate-400 text-lg">Tragedy Looper</p>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15 }}
+          className="flex flex-col sm:flex-row gap-6"
+        >
+          <button
+            onClick={() => {
+              setMode('hotseat');
+              setGameMode('hotseat');
+              initializeHotseatGame();
+            }}
+            className="flex flex-col items-center gap-4 px-12 py-10 rounded-2xl bg-slate-800 border-2 border-slate-700
+              hover:bg-slate-700 hover:border-amber-500/60 transition-all active:scale-95 min-w-[200px] group"
+          >
+            <Monitor size={40} className="text-amber-400 group-hover:scale-110 transition-transform" />
+            <span className="text-xl font-bold text-white">热座模式</span>
+            <span className="text-sm text-slate-400 text-center">面对面传递设备<br/>剧作家 vs 主人公</span>
+          </button>
+
+          <button
+            onClick={() => setMode('online')}
+            className="flex flex-col items-center gap-4 px-12 py-10 rounded-2xl bg-slate-800 border-2 border-slate-700
+              hover:bg-slate-700 hover:border-blue-500/60 transition-all active:scale-95 min-w-[200px] group"
+          >
+            <Wifi size={40} className="text-blue-400 group-hover:scale-110 transition-transform" />
+            <span className="text-xl font-bold text-white">联机模式</span>
+            <span className="text-sm text-slate-400 text-center">通过网络连接<br/>多设备联机</span>
+          </button>
+        </motion.div>
+      </div>
+    );
+  }
+
+  // 热座模式已启动，直接返回（page.tsx 会接管）
+  if (mode === 'hotseat') {
+    return null;
+  }
+
+  // === 以下为联机模式流程 ===
 
   // 未设置用户名 - 显示用户名输入界面
   if (!username) {

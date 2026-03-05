@@ -36,10 +36,13 @@ interface DaySnapshot {
   boardIntrigue: GameState['boardIntrigue'];
 }
 
+export type GameMode = 'hotseat' | 'online' | null;
+
 interface GameStore {
   // 游戏状态
   gameState: GameState | null;
   playerRole: PlayerRole;
+  gameMode: GameMode;
   currentScript: ScriptTemplate | null;  // 当前使用的脚本
   
   // 天数历史（用于回放）
@@ -66,8 +69,12 @@ interface GameStore {
   // 检查目标是否已有我的牌
   isTargetOccupied: (targetCharacterId?: CharacterId, targetLocation?: LocationType) => boolean;
 
+  // 模式
+  setGameMode: (mode: GameMode) => void;
+
   // 动作
   initializeGame: (role: PlayerRole) => void;
+  initializeHotseatGame: () => void;
   initializeWithScript: (role: PlayerRole, script: ScriptTemplate) => void;
   playCard: (card: PlayedCard) => void;
   retreatCard: (cardId: string) => void;  // 撤回牌
@@ -120,6 +127,7 @@ interface GameStore {
 export const useGameStore = create<GameStore>((set, get) => ({
   gameState: null,
   playerRole: 'protagonist',
+  gameMode: null,
   currentScript: null,
   dayHistory: [],
   currentHistoryIndex: null,
@@ -130,6 +138,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
   currentProtagonistCards: [],
 
   clearMessages: () => set({ resolutionMessages: [] }),
+
+  setGameMode: (mode: GameMode) => set({ gameMode: mode }),
 
   // 获取当前玩家可用的手牌
   getMyAvailableCards: () => {
@@ -188,6 +198,32 @@ export const useGameStore = create<GameStore>((set, get) => ({
       currentMastermindCards: [],
       currentProtagonistCards: [],
       dayHistory: [initialSnapshot],  // 保存初始状态
+      currentHistoryIndex: null,
+    });
+  },
+
+  // 热座模式初始化：始终加载 privateInfo（引擎需要），初始视角为剧作家
+  initializeHotseatGame: () => {
+    const gameState = initializeGameState(FS01_SCRIPT1_PUBLIC, FS01_SCRIPT1_PRIVATE);
+    
+    const initialSnapshot: DaySnapshot = {
+      day: 1,
+      loop: 1,
+      phase: 'dawn',
+      characters: JSON.parse(JSON.stringify(gameState.characters)),
+      boardIntrigue: { ...gameState.boardIntrigue },
+    };
+
+    set({
+      gameState,
+      gameMode: 'hotseat',
+      playerRole: 'mastermind',
+      currentScript: null,
+      mastermindDeck: createMastermindDeck(),
+      protagonistDeck: createProtagonistDeck(),
+      currentMastermindCards: [],
+      currentProtagonistCards: [],
+      dayHistory: [initialSnapshot],
       currentHistoryIndex: null,
     });
   },
@@ -435,6 +471,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   resetGame: () => {
     set({
       gameState: null,
+      gameMode: null,
       mastermindDeck: createMastermindDeck(),
       protagonistDeck: createProtagonistDeck(),
       currentMastermindCards: [],

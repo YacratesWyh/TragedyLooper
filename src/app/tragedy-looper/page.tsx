@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useGameStore } from '@/games/tragedy-looper/store';
 import { useMultiplayer } from '@/shared/useMultiplayer';
 import { GameBoard } from '@/games/tragedy-looper/components/GameBoard';
@@ -13,13 +13,29 @@ import { PhaseControl } from '@/games/tragedy-looper/components/PhaseControl';
 import { MultiplayerPanel } from '@/games/tragedy-looper/components/MultiplayerPanel';
 import { ScriptImageViewer } from '@/games/tragedy-looper/components/ScriptImageViewer';
 import { GameIntroPanel } from '@/games/tragedy-looper/components/GameIntroPanel';
-import type { LocationType, CharacterId } from '@/games/tragedy-looper/types';
+import { TurnHandoffScreen } from '@/games/tragedy-looper/components/TurnHandoffScreen';
+import type { LocationType, CharacterId, PlayerRole, GamePhase } from '@/games/tragedy-looper/types';
 import { RotateCcw, AlertCircle, X } from 'lucide-react';
+
+function getPhaseOwner(phase: GamePhase): PlayerRole | null {
+  switch (phase) {
+    case 'mastermind_action':
+    case 'mastermind_ability':
+    case 'night':
+      return 'mastermind';
+    case 'protagonist_action':
+    case 'protagonist_ability':
+      return 'protagonist';
+    default:
+      return null;
+  }
+}
 
 export default function Home() {
   const { 
     gameState, 
     playerRole, 
+    gameMode,
     mastermindDeck, 
     protagonistDeck,
     currentMastermindCards,
@@ -33,10 +49,17 @@ export default function Home() {
     getSyncPayload
   } = useGameStore();
   
-  const { isConnected, isReconnecting, updateGameState, myRole } = useMultiplayer();
+  const { isConnected, isReconnecting, isSpectator, updateGameState, myRole } = useMultiplayer();
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [showMessages, setShowMessages] = useState(false);
+
+  // 热座模式：交接屏幕
+  const [showHandoff, setShowHandoff] = useState(false);
+  const [handoffRole, setHandoffRole] = useState<PlayerRole>('mastermind');
+  const prevPhaseRef = useRef<GamePhase | null>(null);
+
+  const isHotseat = gameMode === 'hotseat';
 
   // 当有结算消息时自动显示
   useEffect(() => {
@@ -45,6 +68,27 @@ export default function Home() {
     }
   }, [resolutionMessages]);
 
+  // 热座模式：阶段变化时触发交接屏幕
+  useEffect(() => {
+    if (!isHotseat || !gameState) return;
+    const phase = gameState.phase;
+    if (phase === prevPhaseRef.current) return;
+    prevPhaseRef.current = phase;
+
+    const owner = getPhaseOwner(phase);
+    if (owner && owner !== playerRole) {
+      setHandoffRole(owner);
+      setShowHandoff(true);
+      setSelectedCardId(null);
+    }
+  }, [gameState?.phase, isHotseat, playerRole]);
+
+  const handleHandoffConfirm = () => {
+    useGameStore.setState({ playerRole: handoffRole });
+    setShowHandoff(false);
+    setSelectedCardId(null);
+  };
+
   // 获取当前玩家的牌组和已打出数量
   const myDeck = playerRole === 'mastermind' ? mastermindDeck : protagonistDeck;
   const myPlayedCount = playerRole === 'mastermind' 
@@ -52,19 +96,17 @@ export default function Home() {
     : currentProtagonistCards.length;
   const maxCardsPerDay = 3;
 
-  // Handle Card Play
   const handleCardPlay = (targetId?: string, targetType?: 'character' | 'location') => {
+    if (isSpectator) return;
     if (!selectedCardId) return;
     setErrorMsg(null);
 
-    // 检查是否在正确的行动阶段
     const currentPhase = gameState?.phase;
     if (currentPhase !== 'mastermind_action' && currentPhase !== 'protagonist_action') {
       setErrorMsg('当前阶段无法打牌');
       return;
     }
     
-    // 检查是否轮到自己行动
     if (currentPhase === 'mastermind_action' && playerRole !== 'mastermind') {
       setErrorMsg('现在是剧作家行动阶段，请等待');
       return;
@@ -77,19 +119,16 @@ export default function Home() {
     const card = myDeck.allCards.find(c => c.id === selectedCardId);
     if (!card) return;
 
-    // 检查卡牌是否已被使用（兼容 Set 和 Array）
     const isUsedToday = (id: string) => {
       if (myDeck.usedToday instanceof Set) return myDeck.usedToday.has(id);
       return Array.isArray(myDeck.usedToday) && myDeck.usedToday.includes(id);
     };
     
-    // 检查这张牌是否今天已使用
     if (isUsedToday(card.id)) {
       setErrorMsg('这张牌今天已经使用过了');
       return;
     }
 
-    // 检查每轮限一次的牌
     const usedThisLoopArr = Array.isArray(myDeck.usedThisLoop) 
       ? myDeck.usedThisLoop 
       : Array.from(myDeck.usedThisLoop);
@@ -98,7 +137,6 @@ export default function Home() {
       return;
     }
 
-    // 检查是否已打满3张
     if (myPlayedCount >= maxCardsPerDay) {
       setErrorMsg(`每天最多只能打出 ${maxCardsPerDay} 张牌`);
       return;
@@ -107,7 +145,6 @@ export default function Home() {
     const targetCharId = targetType === 'character' ? (targetId as CharacterId) : undefined;
     const targetLoc = targetType === 'location' ? (targetId as LocationType) : undefined;
 
-    // 检查目标角色是否死亡
     if (targetCharId) {
       const targetCharState = gameState?.characters.find(c => c.id === targetCharId);
       if (targetCharState && !targetCharState.alive) {
@@ -116,13 +153,11 @@ export default function Home() {
       }
     }
 
-    // 检查目标是否已被占用
     if (isTargetOccupied(targetCharId, targetLoc)) {
       setErrorMsg('该目标已有你的牌，请先撤回');
       return;
     }
 
-    // 任何牌都可以放地点（欺骗策略），不显示任何提示
     const playedCard = {
       card: card,
       targetCharacterId: targetCharId,
@@ -132,22 +167,35 @@ export default function Home() {
     playCard(playedCard);
     setSelectedCardId(null);
     
-    // 联机模式下同步到服务器
     if (isConnected) {
-      // 延迟一点让本地状态先更新
       setTimeout(() => {
         updateGameState(getSyncPayload());
       }, 50);
     }
   };
 
-  // 未选择角色时显示大厅（即使 gameState 已被其他玩家初始化）
-  if (!myRole || !gameState) {
+  // 入口条件：热座模式用 gameMode + gameState，联机模式用 myRole + gameState
+  const isGameReady = isHotseat ? !!gameState : (!!myRole && !!gameState);
+  if (!isGameReady) {
     return <LobbyScreen onGameStart={() => {}} />;
   }
 
+  // 当前角色颜色标识
+  const roleColor = playerRole === 'mastermind' ? 'text-red-400' : 'text-blue-400';
+  const roleBorderColor = playerRole === 'mastermind' ? 'border-red-500/30' : 'border-blue-500/30';
+  const roleLabel = playerRole === 'mastermind' ? '🎭 剧作家' : '🦸 主人公';
+
   return (
     <main className="flex min-h-screen bg-slate-950 text-slate-200 font-sans relative">
+      {/* 热座模式交接屏幕 */}
+      {showHandoff && gameState && (
+        <TurnHandoffScreen
+          targetRole={handoffRole}
+          phase={gameState.phase}
+          onConfirm={handleHandoffConfirm}
+        />
+      )}
+
       {/* 重连提示覆盖层 */}
       {isReconnecting && (
         <div className="absolute inset-0 bg-black/40 backdrop-blur-sm z-[100] flex items-center justify-center pointer-events-none">
@@ -158,7 +206,7 @@ export default function Home() {
         </div>
       )}
       {/* Left Panel: Info + Phase Control */}
-      <div className="w-72 flex flex-col border-r border-slate-800 bg-slate-900/50">
+      <div className={`w-72 flex flex-col border-r bg-slate-900/50 ${roleBorderColor}`}>
         {/* Game Info (上半部分) */}
         <GameInfo />
         
@@ -172,7 +220,6 @@ export default function Home() {
                onClick={() => { 
                  setErrorMsg(null); 
                  endLoop();
-                 // 联机模式下同步
                  if (isConnected) {
                    setTimeout(() => {
                      const state = useGameStore.getState();
@@ -211,17 +258,21 @@ export default function Home() {
 
       {/* Main Area */}
       <div className="flex-1 flex flex-col relative min-w-0 overflow-hidden">
-        {/* Top Bar - 包含联机面板 */}
-        <div className="h-12 border-b border-slate-800 flex items-center justify-between px-6 bg-slate-900/50 backdrop-blur-sm relative z-50">
+        {/* Top Bar */}
+        <div className={`h-12 border-b flex items-center justify-between px-6 bg-slate-900/50 backdrop-blur-sm relative z-50 ${roleBorderColor}`}>
             <div className="flex items-center gap-4">
+                {/* 当前角色标识（热座模式突出显示） */}
+                {isHotseat && (
+                  <span className={`px-3 py-1 rounded font-bold ${roleColor} ${playerRole === 'mastermind' ? 'bg-red-950 border border-red-700' : 'bg-blue-950 border border-blue-700'}`}>
+                    {roleLabel}
+                  </span>
+                )}
                 <span className="px-3 py-1 rounded bg-slate-800 border border-slate-700 font-bold text-blue-400">
                     {selectedCardId ? "🎯 请选择目标" : "行动阶段"}
                 </span>
-                {/* 已打出牌数 */}
                 <span className="px-3 py-1 rounded bg-slate-800 border border-slate-700 text-sm">
                     已放置: <span className="font-bold text-amber-400">{myPlayedCount}</span>/{maxCardsPerDay}
                 </span>
-                {/* 错误提示 */}
                 {errorMsg && (
                   <span className="flex items-center gap-1 px-3 py-1 rounded bg-red-900/50 border border-red-700 text-red-300 text-sm animate-pulse">
                     <AlertCircle size={14} />
@@ -230,8 +281,7 @@ export default function Home() {
                 )}
             </div>
             
-            {/* 联机面板放到顶栏右侧 */}
-            <MultiplayerPanel />
+            {!isHotseat && <MultiplayerPanel />}
         </div>
 
         {/* Game Board */}
@@ -284,16 +334,16 @@ export default function Home() {
              )}
         </div>
 
-        {/* Hand - 显示完整牌组，标记已使用的牌 */}
+        {/* Hand */}
         {(() => {
-    // 判断当前是否可以打牌
     const currentPhase = gameState?.phase;
-    const isActionPhase = (currentPhase === 'mastermind_action' && playerRole === 'mastermind') ||
-                         (currentPhase === 'protagonist_action' && playerRole === 'protagonist');
+    const isActionPhase = !isSpectator && (
+      (currentPhase === 'mastermind_action' && playerRole === 'mastermind') ||
+      (currentPhase === 'protagonist_action' && playerRole === 'protagonist')
+    );
     const isHandFull = myPlayedCount >= maxCardsPerDay;
     const isMyTurn = isActionPhase && !isHandFull;
     
-    // 获取当前阶段提示文字
     const getPhaseHint = () => {
       if (isMyTurn) return null;
       if (isHandFull && isActionPhase) return '✅ 今日已打满 3 张牌，请等待结算';
@@ -310,7 +360,6 @@ export default function Home() {
 
     return (
       <div className={`relative border-t border-slate-800 bg-slate-900/90 backdrop-blur-md z-20 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] transition-all ${!isMyTurn ? 'opacity-50 grayscale-[0.5]' : ''}`}>
-        {/* 非行动阶段遮罩和提示 */}
         {!isMyTurn && (
           <div className="absolute inset-0 bg-black/10 z-30 pointer-events-none flex items-center justify-center">
             <div className="px-6 py-2 bg-slate-800/90 border border-slate-600 rounded-full text-slate-200 text-sm font-bold shadow-2xl backdrop-blur-md">

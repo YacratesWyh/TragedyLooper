@@ -1,14 +1,15 @@
 import React from 'react';
 import { useGameStore } from '@/games/tragedy-looper/store';
-import { Calendar, RotateCcw, User } from 'lucide-react';
+import { Calendar, RotateCcw, User, Monitor } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export function GameInfo() {
-  const { gameState, playerRole } = useGameStore();
+  const { gameState, playerRole, gameMode } = useGameStore();
 
   if (!gameState) return null;
 
   const { currentLoop, currentDay, publicInfo } = gameState;
+  const isHotseat = gameMode === 'hotseat';
 
   return (
     <div className="flex flex-col gap-4 p-4 bg-transparent">
@@ -44,13 +45,32 @@ export function GameInfo() {
         </div>
       </div>
 
-      <div className="mt-4 p-3 rounded-lg bg-indigo-900/30 border border-indigo-500/30">
-        <div className="flex items-center gap-2 text-indigo-300 mb-2">
-            <User size={16} />
-            <span className="text-sm font-bold">当前身份</span>
+      <div className={cn(
+        "mt-4 p-3 rounded-lg border",
+        isHotseat
+          ? playerRole === 'mastermind'
+            ? "bg-red-900/30 border-red-700/50"
+            : "bg-blue-900/30 border-blue-700/50"
+          : "bg-indigo-900/30 border-indigo-500/30"
+      )}>
+        <div className={cn(
+          "flex items-center gap-2 mb-2",
+          isHotseat
+            ? playerRole === 'mastermind' ? "text-red-300" : "text-blue-300"
+            : "text-indigo-300"
+        )}>
+            {isHotseat ? <Monitor size={16} /> : <User size={16} />}
+            <span className="text-sm font-bold">
+              {isHotseat ? '热座模式' : '当前身份'}
+            </span>
         </div>
-        <div className="text-xl font-bold text-white">
-            {playerRole === 'mastermind' ? '剧作家' : '主人公'}
+        <div className={cn(
+          "text-xl font-bold",
+          isHotseat
+            ? playerRole === 'mastermind' ? "text-red-400" : "text-blue-400"
+            : "text-white"
+        )}>
+            {playerRole === 'mastermind' ? '🎭 剧作家' : '🦸 主人公'}
         </div>
       </div>
 

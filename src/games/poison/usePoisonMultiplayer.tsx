@@ -67,6 +67,12 @@ export interface RoomInfo {
   playerCount: number;
 }
 
+export interface PendingSessionInfo {
+  roomId: string;
+  roomName: string;
+  role: string;
+}
+
 export interface PoisonMultiplayer {
   isConnected: boolean;
   isReconnecting: boolean;
@@ -78,22 +84,23 @@ export interface PoisonMultiplayer {
   roomId: string | null;
   roomName: string | null;
 
-  /** 我在游戏中的玩家下标，由 role 'player_N' 派生 */
   myPlayerIndex: number | null;
-  /** 房主 = player_0 */
   isHost: boolean;
-  /** 房间内已就位（有 role）的人数 */
+  isSpectator: boolean;
   connectedCount: number;
-  /** 房间内各玩家的显示名（index → name） */
   playerNames: string[];
+
+  pendingSession: PendingSessionInfo | null;
+  rejoinPending: () => void;
+  dismissPending: () => void;
 
   connect: () => void;
   disconnect: () => void;
   createRoom: (name: string) => void;
   joinRoom: (roomId: string) => void;
   leaveRoom: () => void;
-  /** 加入房间后调用：抢占下一个空位 */
   claimSlot: () => void;
+  spectate: () => void;
   refreshRooms: () => void;
   syncGameState: (state: PoisonGameState) => void;
 }
@@ -108,6 +115,7 @@ export function usePoisonMultiplayer(): PoisonMultiplayer {
   const [connectedCount, setConnectedCount] = useState(0);
   const [playerNames, setPlayerNames] = useState<string[]>([]);
   const [usernameState, setUsernameState] = useState<string | null>(null);
+  const [pendingSession, setPendingSession] = useState<PendingSessionInfo | null>(null);
 
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -130,6 +138,7 @@ export function usePoisonMultiplayer(): PoisonMultiplayer {
     ? parseInt(myRole.replace('player_', ''), 10)
     : null;
   const isHost = myPlayerIndex === 0;
+  const isSpectator = myRole === 'spectator';
 
   const clearTimers = useCallback(() => {
     if (reconnectTimeoutRef.current) {
@@ -206,6 +215,7 @@ export function usePoisonMultiplayer(): PoisonMultiplayer {
 
           case 'REJOIN_SUCCESS': {
             const rid = data.payload.roomId as string;
+            setPendingSession(null);
             setRoomId(rid);
             setRoomName(data.payload.roomName as string);
             setMyRole(data.payload.role as string);
@@ -219,8 +229,17 @@ export function usePoisonMultiplayer(): PoisonMultiplayer {
             break;
           }
 
+          case 'PENDING_SESSION':
+            setPendingSession({
+              roomId: data.payload.roomId as string,
+              roomName: data.payload.roomName as string,
+              role: data.payload.role as string,
+            });
+            break;
+
           case 'REJOIN_FAILED':
             clearSession();
+            setPendingSession(null);
             break;
 
           case 'ROOM_LEFT':
@@ -231,7 +250,7 @@ export function usePoisonMultiplayer(): PoisonMultiplayer {
             setPlayerNames([]);
             currentRoomIdRef.current = null;
             clearSession();
-            if (data.payload.rooms) setRooms(data.payload.rooms as RoomInfo[]);
+            if (data.payload?.rooms) setRooms(data.payload.rooms as RoomInfo[]);
             break;
 
           case 'ROLE_CONFIRMED': {
@@ -325,6 +344,7 @@ export function usePoisonMultiplayer(): PoisonMultiplayer {
     setIsReconnecting(false);
     setRoomId(null);
     setMyRole(null);
+    setPendingSession(null);
     currentRoomIdRef.current = null;
     reconnectAttemptsRef.current = 0;
   }, [clearTimers]);
@@ -351,10 +371,26 @@ export function usePoisonMultiplayer(): PoisonMultiplayer {
   }, [send]);
 
   const claimSlot = useCallback(() => {
-    // 抢下一个空槽：player_0, player_1, …
     const nextIndex = connectedCount;
     send({ type: 'SELECT_ROLE', role: `player_${nextIndex}` });
   }, [send, connectedCount]);
+
+  const spectate = useCallback(() => {
+    send({ type: 'SELECT_ROLE', role: 'spectator' });
+  }, [send]);
+
+  const rejoinPending = useCallback(() => {
+    if (!pendingSession) return;
+    send({
+      type: 'REJOIN_ROOM',
+      payload: { roomId: pendingSession.roomId, role: pendingSession.role },
+    });
+    setPendingSession(null);
+  }, [send, pendingSession]);
+
+  const dismissPending = useCallback(() => {
+    setPendingSession(null);
+  }, []);
 
   const refreshRooms = useCallback(() => {
     send({ type: 'REFRESH_ROOMS' });
@@ -374,14 +410,19 @@ export function usePoisonMultiplayer(): PoisonMultiplayer {
     roomName,
     myPlayerIndex,
     isHost,
+    isSpectator,
     connectedCount,
     playerNames,
+    pendingSession,
+    rejoinPending,
+    dismissPending,
     connect,
     disconnect,
     createRoom,
     joinRoom,
     leaveRoom,
     claimSlot,
+    spectate,
     refreshRooms,
     syncGameState,
   };

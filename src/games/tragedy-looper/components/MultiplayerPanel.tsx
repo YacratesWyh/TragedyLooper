@@ -30,10 +30,16 @@ export function MultiplayerPanel() {
     isReconnecting,
     connect, 
     disconnect, 
+    currentRoom,
     myRole,
+    isSpectator,
     availableRoles,
     players,
     selectRole,
+    spectate,
+    pendingSession,
+    rejoinPending,
+    dismissPending,
     updateGameState
   } = useMultiplayer();
 
@@ -79,6 +85,7 @@ export function MultiplayerPanel() {
   const getStatusText = () => {
     if (isReconnecting) return '重连中...';
     if (!isConnected) return '离线';
+    if (isSpectator) return '旁观中';
     if (!myRole) return '选择角色';
     const otherRole = myRole === 'mastermind' ? 'protagonist' : 'mastermind';
     if (!players[otherRole].connected) return '等待对方';
@@ -118,7 +125,12 @@ export function MultiplayerPanel() {
       >
         {isReconnecting ? <Wifi className="w-4 h-4 animate-pulse" /> : isConnected ? <Wifi className="w-4 h-4" /> : <WifiOff className="w-4 h-4" />}
         <span className="font-medium">{getStatusText()}</span>
-        {myRole && (
+        {isSpectator && (
+          <span className="px-1.5 py-0.5 rounded text-xs font-bold bg-slate-600/50 text-slate-300">
+            旁观
+          </span>
+        )}
+        {myRole && !isSpectator && (
           <span className={cn(
             "px-1.5 py-0.5 rounded text-xs font-bold",
             myRole === 'mastermind' ? 'bg-red-600/50 text-red-200' : 'bg-blue-600/50 text-blue-200'
@@ -173,8 +185,31 @@ export function MultiplayerPanel() {
             </button>
           )}
 
-          {/* 已连接但未选择角色 */}
-          {isConnected && !myRole && (
+          {/* 重连提示 */}
+          {isConnected && pendingSession && !currentRoom && (
+            <div className="mb-3 p-3 rounded-lg bg-amber-900/30 border border-amber-600/40 space-y-2">
+              <p className="text-xs text-amber-300">
+                你在房间 <span className="font-bold text-amber-200">{pendingSession.roomName}</span> 有未完成的游戏
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={(e) => { e.stopPropagation(); rejoinPending(); }}
+                  className="flex-1 px-3 py-1.5 rounded bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold transition-all"
+                >
+                  重连
+                </button>
+                <button
+                  onClick={(e) => { e.stopPropagation(); dismissPending(); }}
+                  className="flex-1 px-3 py-1.5 rounded bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs transition-all"
+                >
+                  不了
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* 已连接但未选择角色（且非旁观） */}
+          {isConnected && !myRole && !isSpectator && (
             <div className="space-y-2">
               <div className="text-xs text-slate-400 mb-2">选择你的角色：</div>
               
@@ -205,11 +240,20 @@ export function MultiplayerPanel() {
                 <span>🦸 主人公</span>
                 {players.protagonist.connected && <Check className="w-4 h-4 text-green-400" />}
               </button>
+
+              {availableRoles.length === 0 && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); spectate(); }}
+                  className="w-full px-3 py-2 rounded text-sm font-bold transition-all bg-slate-600/80 hover:bg-slate-500 text-slate-200"
+                >
+                  👁 旁观
+                </button>
+              )}
             </div>
           )}
 
-          {/* 已选择角色 */}
-          {isConnected && myRole && (
+          {/* 已选择角色 or 旁观中 */}
+          {isConnected && (myRole || isSpectator) && (
             <div className="space-y-2">
               {/* 房间内玩家 */}
               <div className="text-xs text-slate-400">房间内玩家</div>
@@ -218,7 +262,7 @@ export function MultiplayerPanel() {
                 <span>🎭 剧作家</span>
                 <span className={players.mastermind.connected ? 'text-green-400' : 'text-slate-500'}>
                   {players.mastermind.connected 
-                    ? (players.mastermind.name || '未知') + (myRole === 'mastermind' ? ' (我)' : '')
+                    ? (players.mastermind.name || '未知') + (!isSpectator && myRole === 'mastermind' ? ' (我)' : '')
                     : '—'}
                 </span>
               </div>
@@ -227,10 +271,17 @@ export function MultiplayerPanel() {
                 <span>🦸 主人公</span>
                 <span className={players.protagonist.connected ? 'text-green-400' : 'text-slate-500'}>
                   {players.protagonist.connected 
-                    ? (players.protagonist.name || '未知') + (myRole === 'protagonist' ? ' (我)' : '')
+                    ? (players.protagonist.name || '未知') + (!isSpectator && myRole === 'protagonist' ? ' (我)' : '')
                     : '—'}
                 </span>
               </div>
+
+              {isSpectator && (
+                <div className="flex items-center justify-between px-2 py-1.5 rounded bg-slate-800/50 text-sm">
+                  <span>👁 旁观者</span>
+                  <span className="text-slate-400">{username} (我)</span>
+                </div>
+              )}
 
               <button
                 onClick={handleDisconnect}

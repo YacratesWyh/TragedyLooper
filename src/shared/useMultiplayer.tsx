@@ -98,8 +98,13 @@ interface RoomInfo {
   initialized: boolean;
 }
 
+interface PendingSessionInfo {
+  roomId: string;
+  roomName: string;
+  role: string;
+}
+
 interface MultiplayerContextType {
-  // 用户身份
   username: string | null;
   setUsername: (name: string) => void;
   clearUsername: () => void;
@@ -118,9 +123,15 @@ interface MultiplayerContextType {
   refreshRooms: () => void;
   
   myRole: PlayerRole | null;
+  isSpectator: boolean;
   availableRoles: string[];
   players: PlayersInfo;
   selectRole: (role: PlayerRole) => void;
+  spectate: () => void;
+  
+  pendingSession: PendingSessionInfo | null;
+  rejoinPending: () => void;
+  dismissPending: () => void;
   
   updateGameState: (updates: unknown) => void;
   adjustIndicator: (characterId: CharacterId, type: 'goodwill' | 'anxiety' | 'intrigue', delta: number) => void;
@@ -164,6 +175,8 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
   const [rooms, setRooms] = useState<RoomInfo[]>([]);
   const [currentRoom, setCurrentRoom] = useState<{ id: string; name: string } | null>(null);
   const [myRole, setMyRole] = useState<PlayerRole | null>(null);
+  const [isSpectator, setIsSpectator] = useState(false);
+  const [pendingSession, setPendingSession] = useState<PendingSessionInfo | null>(null);
   const [availableRoles, setAvailableRoles] = useState<string[]>(['mastermind', 'protagonist']);
   const [players, setPlayers] = useState<PlayersInfo>({
     mastermind: { connected: false, name: null },
@@ -242,6 +255,8 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
     setIsReconnecting(false);
     setCurrentRoom(null);
     setMyRole(null);
+    setIsSpectator(false);
+    setPendingSession(null);
     setRooms([]);
     reconnectAttemptsRef.current = 0;
   }, [clearReconnectTimeout]);
@@ -329,33 +344,51 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
             }
             break;
 
-          case 'REJOIN_SUCCESS':
-            // 重连成功，恢复状态
+          case 'REJOIN_SUCCESS': {
+            const rejoinRole = data.payload.role;
+            setPendingSession(null);
             setCurrentRoom({ id: data.payload.roomId, name: data.payload.roomName });
-            setMyRole(data.payload.role);
-            setPlayerRole(data.payload.role);
+            if (rejoinRole === 'spectator') {
+              setMyRole(null);
+              setIsSpectator(true);
+              setPlayerRole('protagonist');
+            } else {
+              setMyRole(rejoinRole);
+              setIsSpectator(false);
+              setPlayerRole(rejoinRole);
+            }
             setPlayers(normalizePlayersInfo(data.payload.players));
-            console.log('🔄 重连成功:', data.payload.roomId, data.payload.role);
-            // 更新会话时间戳
+            console.log('🔄 重连成功:', data.payload.roomId, rejoinRole);
             saveSession({
+              roomId: data.payload.roomId,
+              roomName: data.payload.roomName,
+              role: rejoinRole,
+            });
+            break;
+          }
+
+          case 'PENDING_SESSION':
+            setPendingSession({
               roomId: data.payload.roomId,
               roomName: data.payload.roomName,
               role: data.payload.role,
             });
+            console.log('📌 发现未完成会话:', data.payload.roomName, data.payload.role);
             break;
 
           case 'REJOIN_FAILED':
-            // 重连失败，清除会话
             console.log('❌ 重连失败:', data.payload?.message);
             clearSession();
+            setPendingSession(null);
             break;
 
           case 'ROOM_LEFT':
             setCurrentRoom(null);
             setMyRole(null);
+            setIsSpectator(false);
             setPlayerRole(null);
             clearSession();
-            if (data.payload.rooms) {
+            if (data.payload?.rooms) {
               setRooms(data.payload.rooms);
             }
             console.log('🚶 已离开房间');
@@ -363,10 +396,16 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
 
           case 'ROLE_CONFIRMED': {
             const role = data.payload.role;
-            setMyRole(role);
-            setPlayerRole(role);
+            if (role === 'spectator') {
+              setMyRole(null);
+              setIsSpectator(true);
+              setPlayerRole('protagonist');
+            } else {
+              setMyRole(role);
+              setIsSpectator(false);
+              setPlayerRole(role);
+            }
             console.log('🎭 角色确认:', role);
-            // 保存会话
             if (currentRoom) {
               saveSession({
                 roomId: currentRoom.id,
@@ -414,6 +453,7 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
 
           case 'GAME_RESET':
             setMyRole(null);
+            setIsSpectator(false);
             setPlayerRole(null);
             clearSession();
             useGameStore.getState().resetGame?.();
@@ -505,11 +545,32 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
     }
   }, []);
 
-  // 角色选择
   const selectRole = useCallback((role: PlayerRole) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({ type: 'SELECT_ROLE', role }));
     }
+  }, []);
+
+  const spectate = useCallback(() => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify({ type: 'SELECT_ROLE', role: 'spectator' }));
+    }
+  }, []);
+
+  const rejoinPending = useCallback(() => {
+    if (!pendingSession || wsRef.current?.readyState !== WebSocket.OPEN) return;
+    wsRef.current.send(JSON.stringify({
+      type: 'REJOIN_ROOM',
+      payload: {
+        roomId: pendingSession.roomId,
+        role: pendingSession.role,
+      },
+    }));
+    setPendingSession(null);
+  }, [pendingSession]);
+
+  const dismissPending = useCallback(() => {
+    setPendingSession(null);
   }, []);
 
   // 游戏状态更新
@@ -594,9 +655,14 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
     leaveRoom,
     refreshRooms,
     myRole,
+    isSpectator,
     availableRoles,
     players,
     selectRole,
+    spectate,
+    pendingSession,
+    rejoinPending,
+    dismissPending,
     updateGameState,
     adjustIndicator,
     toggleCharacterLife,

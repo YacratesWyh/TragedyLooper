@@ -452,6 +452,29 @@ function PoisonLobbyScreen({
 
       <h2 className="text-2xl font-bold">选择房间</h2>
 
+      {/* 重连提示 */}
+      {mp.pendingSession && (
+        <div className="w-full max-w-md p-4 rounded-xl bg-amber-900/30 border border-amber-600/40 space-y-3">
+          <p className="text-sm text-amber-300">
+            你在房间 <span className="font-bold text-amber-200">{mp.pendingSession.roomName}</span> 有未完成的游戏
+          </p>
+          <div className="flex gap-3">
+            <button
+              onClick={mp.rejoinPending}
+              className="flex-1 px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-500 text-white font-bold text-sm transition-all"
+            >
+              重连
+            </button>
+            <button
+              onClick={mp.dismissPending}
+              className="flex-1 px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 text-sm transition-all"
+            >
+              不了
+            </button>
+          </div>
+        </div>
+      )}
+
       {view === 'main' && (
         <div className="flex flex-col gap-3 w-full max-w-md">
           <button
@@ -550,12 +573,18 @@ function OnlineWaitScreen({
   mp: ReturnType<typeof usePoisonMultiplayer>;
   onStartGame: (names: string[]) => void;
 }) {
+  const MAX_PLAYERS = 6;
   const canStart = mp.isHost && mp.connectedCount >= 2;
-  const waitingForSlot = mp.myPlayerIndex === null;
+  const waitingForSlot = mp.myPlayerIndex === null && !mp.isSpectator;
 
   useEffect(() => {
-    if (waitingForSlot) mp.claimSlot();
-  }, [waitingForSlot, mp.claimSlot]);
+    if (!waitingForSlot) return;
+    if (mp.connectedCount >= MAX_PLAYERS) {
+      mp.spectate();
+    } else {
+      mp.claimSlot();
+    }
+  }, [waitingForSlot, mp.connectedCount, mp.claimSlot, mp.spectate]);
 
   const handleStart = () => {
     const names = mp.playerNames.length > 0
@@ -567,10 +596,13 @@ function OnlineWaitScreen({
   return (
     <div className="flex flex-col items-center justify-center min-h-screen gap-8 p-8 bg-slate-950">
       <div className="text-center">
-        <h2 className="text-2xl font-bold mb-2">等待玩家加入</h2>
+        <h2 className="text-2xl font-bold mb-2">
+          {mp.isSpectator ? '旁观中' : '等待玩家加入'}
+        </h2>
         <p className="text-slate-400 text-sm">
           房间 · {mp.roomName}
           {mp.isHost && <span className="ml-2 px-2 py-0.5 bg-amber-600/30 text-amber-400 rounded text-xs">房主</span>}
+          {mp.isSpectator && <span className="ml-2 px-2 py-0.5 bg-slate-600/30 text-slate-300 rounded text-xs">旁观</span>}
         </p>
       </div>
 
@@ -601,7 +633,9 @@ function OnlineWaitScreen({
         </div>
       </div>
 
-      {mp.isHost ? (
+      {mp.isSpectator ? (
+        <p className="text-slate-400 text-sm">正在旁观，等待游戏开始...</p>
+      ) : mp.isHost ? (
         <button
           onClick={handleStart}
           disabled={!canStart}
@@ -969,7 +1003,12 @@ export default function PoisonGameBoard() {
       {/* Current player turn indicator + hand */}
       <div className={`relative z-10 border-t border-slate-800 bg-slate-900/80 backdrop-blur-md transition-opacity ${!isMyTurn ? 'opacity-60' : ''}`}>
         <div className="text-center py-2 flex items-center justify-center gap-3">
-          {isOnline && !isMyTurn ? (
+          {isOnline && mp.isSpectator ? (
+            <span className="text-sm text-slate-400">
+              <span className="px-1.5 py-0.5 mr-2 bg-slate-700 rounded text-xs">旁观</span>
+              <span className="text-blue-400 font-bold">{currentPlayer.name}</span> 正在出牌
+            </span>
+          ) : isOnline && !isMyTurn ? (
             <span className="text-sm text-amber-400 font-medium animate-pulse">
               等待 {currentPlayer.name} 出牌...
             </span>

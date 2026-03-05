@@ -78,9 +78,13 @@ export function PhaseControl() {
     exitHistoryView,
     getSyncPayload,
   } = useGameStore();
-  const { isConnected, myRole, players, updateGameState, resetGame } = useMultiplayer();
+  const { isConnected, myRole, isSpectator, players, updateGameState, resetGame } = useMultiplayer();
+  const gameMode = useGameStore((s) => s.gameMode);
+  const storeRole = useGameStore((s) => s.playerRole);
 
   if (!gameState) return null;
+
+  const isHotseat = gameMode === 'hotseat';
 
   // 是否正在回放历史
   const isViewingHistory = currentHistoryIndex !== null;
@@ -90,8 +94,8 @@ export function PhaseControl() {
   const currentPhase = gameState.phase;
   const currentPhaseColor = PHASE_COLORS[currentPhase];
   
-  // 使用 multiplayer 中的角色作为准则
-  const playerRole = myRole;
+  // 热座模式用 store 的角色，联机用 multiplayer 的角色
+  const playerRole = isHotseat ? storeRole : myRole;
 
   // 获取下一个阶段
   const getNextPhase = (): GamePhase => {
@@ -286,8 +290,10 @@ export function PhaseControl() {
 
   const nextAction = getNextAction();
 
-  // 检查当前玩家是否能推进阶段
+  // 热座模式下所有推进按钮可用（同一设备操作）
   const canProceed = () => {
+    if (isSpectator) return false;
+    if (isHotseat) return true;
     if (nextAction.operator === 'any') return true;
     return nextAction.operator === playerRole;
   };
@@ -497,7 +503,14 @@ export function PhaseControl() {
       )}
 
       {/* 当前角色指示 + 房间内玩家 */}
-      <div className="px-3 py-2 rounded bg-slate-800/50 border border-slate-700 space-y-2">
+      <div className={cn(
+        "px-3 py-2 rounded border space-y-2",
+        isHotseat
+          ? playerRole === 'mastermind'
+            ? "bg-red-950/30 border-red-700/50"
+            : "bg-blue-950/30 border-blue-700/50"
+          : "bg-slate-800/50 border-slate-700"
+      )}>
         <div className="flex items-center gap-2">
           <span className="text-xs text-slate-400">当前视角：</span>
           <span className={cn(
@@ -506,13 +519,16 @@ export function PhaseControl() {
           )}>
             {playerRole === 'mastermind' ? '🎭 剧作家' : '🦸 主人公'}
           </span>
-          {isConnected && (
+          {isHotseat && (
+            <span className="text-xs text-amber-400 ml-auto">● 热座</span>
+          )}
+          {isConnected && !isHotseat && (
             <span className="text-xs text-green-400 ml-auto">● 联机中</span>
           )}
         </div>
         
-        {/* 房间内玩家名字 */}
-        {isConnected && (
+        {/* 房间内玩家名字（仅联机模式） */}
+        {isConnected && !isHotseat && (
           <div className="flex flex-col gap-1 text-xs border-t border-slate-700 pt-2">
             <div className="flex items-center justify-between">
               <span className="text-red-400">🎭 剧作家</span>
