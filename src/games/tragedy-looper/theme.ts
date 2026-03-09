@@ -19,7 +19,7 @@ export const TL_THEME = {
 export const TL_PHASE_COLORS: Record<GamePhase, string> = {
   dawn: 'bg-doloris/20 border-doloris/50 text-doloris',
   mastermind_action: 'bg-timoris/20 border-timoris/50 text-timoris',
-  protagonist_action: 'bg-oblivionis/20 border-oblivionis/50 text-oblivionis',
+  protagonist_action: 'bg-[#FF5522]/20 border-[#FF5522]/55 text-[#FF5522]',
   resolution: 'bg-mortis/20 border-mortis/50 text-mortis',
   mastermind_ability: 'bg-timoris/15 border-timoris/40 text-timoris',
   protagonist_ability: 'bg-oblivionis/15 border-oblivionis/40 text-oblivionis',

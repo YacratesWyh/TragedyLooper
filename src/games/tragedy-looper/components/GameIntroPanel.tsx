@@ -20,11 +20,11 @@ export function GameIntroPanel() {
       {/* Toggle Button - Fixed top-right */}
       <button
         onClick={() => setIsOpen(v => !v)}
-        className="fixed top-2 right-14 z-[90] flex items-center gap-1.5 px-2.5 py-1.5 bg-surface-2/90 border border-border-soft rounded-lg hover:bg-surface-3 transition-colors backdrop-blur-sm"
+        className="fixed top-2 right-4 z-[95] h-8 flex items-center gap-1.5 px-2.5 bg-[#7799CC] border border-[#7799CC] rounded-lg hover:bg-[#6f8fc1] transition-colors"
         title="游戏简介"
       >
-        <Sparkles size={14} className="text-timoris" />
-        <span className="text-xs text-slate-400">简介</span>
+        <Sparkles size={14} className="text-white/90" />
+        <span className="text-xs text-white/90">简介</span>
       </button>
 
       {/* Panel */}

@@ -29,17 +29,22 @@ export function GameBoard({ onLocationClick, onCharacterClick, isPlacingCard = f
 
   // 处理角色拖拽落下
   const handleDragEnd = useCallback((charId: string, x: number, y: number) => {
-    // 查找落点在哪个区域
-    const elements = document.elementsFromPoint(x, y);
-    const zoneElement = elements.find(el => el.hasAttribute('data-zone-type'));
-    
-    if (zoneElement) {
-      const newLocation = zoneElement.getAttribute('data-zone-type') as LocationType;
-      if (newLocation) {
-        console.log(`📍 角色 ${charId} 移动到 ${newLocation}`);
-        moveCharacter(charId as CharacterId, newLocation);
-      }
-    }
+    // Framer Motion 的 point 在不同环境可能是页面坐标或视口坐标，
+    // 这里用两套坐标兜底，避免夜晚阶段拖拽“命中不到地点区”。
+    const viewportX = x - window.scrollX;
+    const viewportY = y - window.scrollY;
+
+    const byViewport = document.elementsFromPoint(viewportX, viewportY);
+    const byPage = document.elementsFromPoint(x, y);
+    const allElements = [...byViewport, ...byPage];
+    const zoneElement = allElements.find((el) => el.hasAttribute('data-zone-type'));
+
+    if (!zoneElement) return;
+
+    const newLocation = zoneElement.getAttribute('data-zone-type') as LocationType | null;
+    if (!newLocation) return;
+
+    moveCharacter(charId as CharacterId, newLocation);
   }, [moveCharacter]);
 
   // 撤回牌并同步到服务器

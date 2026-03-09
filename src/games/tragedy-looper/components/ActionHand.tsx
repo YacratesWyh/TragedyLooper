@@ -151,10 +151,13 @@ export function ActionHand({ deck, selectedCardId, onCardSelect, className, disa
     
     return (
       <div className={cn(
-        "flex flex-col gap-2 p-2 transition-all items-start bg-surface-1/70 rounded-xl border border-border-soft shadow-inner",
+        "flex flex-col gap-2 p-2 transition-all items-start bg-surface-1/70 rounded-xl border border-border-soft shadow-inner overflow-x-auto tl-scrollbar-pro",
         disabled && "opacity-80",
         className
       )}>
+        <div className="w-full text-[10px] text-oblivionis/85 font-bold tracking-wide select-none">
+          ↔ 左右滑动手牌区
+        </div>
         <div className="flex gap-4">
           {/* 左侧：3行主牌组 */}
           <div className="flex flex-col gap-2">
@@ -235,10 +238,13 @@ export function ActionHand({ deck, selectedCardId, onCardSelect, className, disa
   // 剧作家牌组：单行显示
   return (
     <div className={cn(
-      "flex gap-2 overflow-x-auto p-3 items-end min-h-[120px] transition-all",
+      "relative flex gap-2 overflow-x-auto px-3 pb-3 pt-5 items-end min-h-[120px] transition-all tl-scrollbar-mm",
       disabled && "pointer-events-none",
       className
     )}>
+      <div className="absolute left-4 top-1 text-[10px] text-timoris/85 font-bold tracking-wide pointer-events-none select-none">
+        ↔ 左右滑动手牌区
+      </div>
       {deck.allCards.map((card) => (
         <CardSlot
           key={card.id}

@@ -29,6 +29,29 @@ const ONCE_PER_LOOP_CARDS = [
   },
 ];
 
+const DECK_COMPOSITION = [
+  {
+    side: '剧作家',
+    color: 'text-timoris',
+    lines: [
+      '移动: 斜向移动* / 横向移动 / 纵向移动',
+      '友好: 禁止友好',
+      '不安: +1×2 / -1 / 禁止不安',
+      '密谋: +1 / +2*',
+      '合计: 10 张',
+    ],
+  },
+  {
+    side: '主人公',
+    color: 'text-oblivionis',
+    lines: [
+      '3 套基础牌: 禁止移动* / 横向 / 纵向 / 友好+1 / 友好+2* / 不安+1 / 不安-1*',
+      '额外: 禁止密谋 ×1',
+      '合计: 22 张（7×3 + 1）',
+    ],
+  },
+] as const;
+
 export function DeckReference() {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -36,11 +59,11 @@ export function DeckReference() {
     <>
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed top-2 right-44 z-[90] flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded-lg hover:bg-slate-700 transition-colors"
-        title="手牌参考"
+        className="fixed top-2 right-36 z-[95] h-8 flex items-center gap-1.5 px-2.5 bg-[#7799CC] border border-[#7799CC] rounded-lg hover:bg-[#6f8fc1] transition-colors"
+        title="牌限"
       >
-        <Layers size={14} className="text-doloris" />
-        <span className="text-xs text-slate-400">手牌参考</span>
+        <Layers size={14} className="text-white/90" />
+        <span className="text-xs text-white/90">牌限</span>
       </button>
 
       <AnimatePresence>
@@ -57,7 +80,7 @@ export function DeckReference() {
               initial={{ opacity: 0, y: -12 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -12 }}
-              className="fixed top-12 right-44 z-[101] w-64 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl overflow-hidden"
+              className="fixed top-12 right-36 z-[101] w-64 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl overflow-hidden"
             >
               <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700">
                 <div className="flex items-center gap-2">
@@ -85,6 +108,26 @@ export function DeckReference() {
                     </div>
                   </div>
                 ))}
+
+                <div className="pt-3 border-t border-slate-700/50">
+                  <p className="text-[10px] text-slate-400 font-bold mb-2">牌库组成</p>
+                  <div className="space-y-2">
+                    {DECK_COMPOSITION.map((group) => (
+                      <div key={group.side}>
+                        <p className={`text-[10px] font-bold ${group.color}`}>
+                          {group.side}
+                        </p>
+                        <div className="mt-0.5 space-y-0.5">
+                          {group.lines.map((line) => (
+                            <p key={line} className="text-[10px] text-slate-500 leading-tight">
+                              {line}
+                            </p>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
 
                 <div className="pt-3 border-t border-slate-700/50 text-[10px] text-slate-500 space-y-0.5">
                   <p>• 其余手牌每天重置，可重复使用</p>

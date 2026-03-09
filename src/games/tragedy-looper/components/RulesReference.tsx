@@ -81,7 +81,7 @@ export function RulesReference() {
 
   return (
     <>
-      <div className="border-t border-border-soft/70">
+      <div data-tutorial-id="rules-reference" className="border-t border-border-soft/70">
         <button
           onClick={() => setExpanded(v => !v)}
           className="w-full flex items-center gap-2 px-3 py-2 hover:bg-surface-2/50 transition-colors"
@@ -238,11 +238,11 @@ export function SupplementaryReference() {
     <>
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed top-2 right-28 z-[90] flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded-lg hover:bg-slate-700 transition-colors"
+        className="fixed top-2 right-20 z-[95] h-8 flex items-center gap-1.5 px-2.5 bg-[#7799CC] border border-[#7799CC] rounded-lg hover:bg-[#6f8fc1] transition-colors"
         title="进阶策略"
       >
-        <Lightbulb size={14} className="text-doloris" />
-        <span className="text-xs text-slate-400">策略</span>
+        <Lightbulb size={14} className="text-white/90" />
+        <span className="text-xs text-white/90">策略</span>
       </button>
 
       <AnimatePresence>

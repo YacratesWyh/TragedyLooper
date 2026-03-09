@@ -599,7 +599,8 @@ export function ScriptSetup({ onSelect, onCancel }: ScriptSetupProps) {
                       )}
                       {script.isTutorial && (
                         <span
-                          className="flex items-center gap-1 px-2 py-0.5 rounded text-xs font-bold border bg-oblivionis/20 text-oblivionis border-oblivionis/40"
+                          className="flex items-center gap-1 px-2 py-0.5 rounded text-xs font-bold border"
+                          style={{ backgroundColor: '#77BBDD20', color: '#77BBDD', borderColor: '#77BBDD66' }}
                         >
                           <span className="text-sm leading-none">🐧</span>
                           教学剧本
@@ -681,11 +682,12 @@ export function ScriptSetup({ onSelect, onCancel }: ScriptSetupProps) {
                       {/* 教学剧本横幅 */}
                       {script.isTutorial && (
                         <div
-                          className="flex items-start gap-3 p-3 rounded-lg border bg-oblivionis/15 border-oblivionis/30"
+                          className="flex items-start gap-3 p-3 rounded-lg border"
+                          style={{ backgroundColor: '#77BBDD15', borderColor: '#77BBDD40' }}
                         >
                           <span className="text-xl shrink-0 mt-0.5">🐧</span>
                           <div className="text-sm">
-                            <p className="font-bold mb-1 text-oblivionis">萌新剧本 · 全程引导教学</p>
+                            <p className="font-bold mb-1" style={{ color: '#77BBDD' }}>萌新剧本 · 全程引导教学</p>
                             <p className="text-slate-300">游戏进行中将在每个阶段弹出针对性提示，带领新手了解每一步该做什么。剧作家和主人公各有独立的引导内容。</p>
                           </div>
                         </div>

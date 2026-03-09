@@ -182,8 +182,16 @@ export function PhaseControl() {
           console.log('📤 发送结算结果同步到服务器');
           updateGameState(getSyncPayload());
         }
-        // 结算完成后自动进入夜晚，剧作家在此阶段统一处理能力/事件效果
-        setTimeout(() => advanceToPhase('night'), 400);
+        // 结算完成后用最新 store 状态推进到夜晚（不能用闭包里的旧 gameState）
+        setTimeout(() => {
+          const freshState = useGameStore.getState().gameState;
+          if (!freshState) return;
+          const nightState = { ...freshState, phase: 'night' as GamePhase };
+          useGameStore.setState({ gameState: nightState });
+          if (isConnected) {
+            updateGameState(getSyncPayload());
+          }
+        }, 400);
       }, 1000);
     }
   };
@@ -442,7 +450,7 @@ export function PhaseControl() {
                 : currentPhase === 'mastermind_action' || currentPhase === 'night'
                   ? "bg-timoris hover:bg-timoris/80 shadow-timoris/20"
                   : currentPhase === 'protagonist_action'
-                    ? "bg-oblivionis hover:bg-oblivionis/80 shadow-oblivionis/20"
+                    ? "bg-[#FF5522] hover:bg-[#ff6a3d] shadow-[#FF5522]/25"
                     : "bg-doloris hover:bg-doloris/80 shadow-doloris/20"
             )}
           >
@@ -527,6 +535,7 @@ export function PhaseControl() {
       {/* 底部危险操作区 — 统一灰色 */}
       <div className="mt-auto pt-3 border-t border-slate-700/50 space-y-2">
         <button
+          data-tutorial-id="end-loop-btn"
           onClick={() => {
             if (confirm('确定要结束当前轮回吗？')) {
               const { endLoop } = useGameStore.getState();

@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { CharacterState, Character, PlayedCard, Indicators, CharacterId, RoleType } from '@/games/tragedy-looper/types';
@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils';
 import { getCharacterSpriteStyle, hasCharacterAsset } from '@/games/tragedy-looper/characterAssets';
 import { useGameStore } from '@/games/tragedy-looper/store';
 import { useMultiplayer } from '@/shared/useMultiplayer';
-import { X, Skull, RefreshCw, MapPin, Ban, HelpCircle } from 'lucide-react';
+import { X, Skull, RefreshCw, MapPin, Ban, HelpCircle, Zap } from 'lucide-react';
 import type { LocationType } from '@/games/tragedy-looper/types';
 import { TRAGEDY_SET_ROLES } from '@/games/tragedy-looper/data/plotRoles';
 
@@ -65,8 +65,8 @@ export function CharacterCard({
   onClick,
   onDragEnd
 }: CharacterCardProps) {
-  const [showZoomedImage, setShowZoomedImage] = useState(false);
   const [showGuessPopup, setShowGuessPopup] = useState(false);
+  const [showEnlarge, setShowEnlarge] = useState(false);
   const hasCards = myPlacedCards.length > 0 || opponentPlacedCards.length > 0;
   
   const { isConnected, updateGameState, toggleCharacterLife } = useMultiplayer();
@@ -76,24 +76,32 @@ export function CharacterCard({
   const setProtagonistGuess = useGameStore((s) => s.setProtagonistGuess);
 
   const phase = gameState?.phase;
+  const canToggleLife = phase !== 'protagonist_action';
 
-  // 判断是否允许拖拽（除打牌阶段外，允许人工修正位置）
-  const canDrag = phase !== 'mastermind_action' && phase !== 'protagonist_action';
+  // 除主人公打牌阶段外，均可拖拽（手动修正位置）
+  const canDrag = phase !== 'protagonist_action';
 
   // 是否允许手动编辑指示物（用于手动处理能力、纠错或剧作家操作）
   const canEditIndicators = true;
 
-  // 切换死亡状态
+  // 死亡按钮 ref：用原生 capture listener 拦截 Framer Motion 的 drag
+  const deathBtnRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    const el = deathBtnRef.current;
+    if (!el) return;
+    const stop = (e: PointerEvent) => e.stopPropagation();
+    el.addEventListener('pointerdown', stop, true);
+    return () => el.removeEventListener('pointerdown', stop, true);
+  }, []);
+
+  const toggleLife = () => {
+    if (!canToggleLife) return;
+    toggleCharacterLife(characterState.id);
+  };
+
   const handleToggleLife = (e: React.MouseEvent) => {
     e.stopPropagation();
-    
-    // 仅在非打牌阶段允许手动切换死亡状态
-    const phase = gameState?.phase;
-    if (phase === 'mastermind_action' || phase === 'protagonist_action') {
-      return;
-    }
-    
-    toggleCharacterLife(characterState.id);
+    toggleLife();
   };
 
   // 调整指示物并同步到服务器
@@ -111,28 +119,15 @@ export function CharacterCard({
   }, [characterState.id, isConnected, updateGameState, canEditIndicators]);
   
   const handleClick = (e: React.MouseEvent) => {
-    // 放牌模式下，传递点击事件给父组件
     if (isPlacingCard) {
       onClick?.(e);
-      return;
-    }
-    
-    // 非放牌模式下，点击放大图片
-    if (hasSpriteAsset) {
-      setShowZoomedImage(true);
     }
   };
   
   // 检查角色是否有立绘资产
   const hasSpriteAsset = hasCharacterAsset(characterState.id);
   
-  // 获取角色立绘样式
   const spriteStyle = hasSpriteAsset 
-    ? getCharacterSpriteStyle(characterState.id)
-    : {};
-  
-  // 放大版本的立绘样式
-  const zoomedSpriteStyle = hasSpriteAsset 
     ? getCharacterSpriteStyle(characterState.id)
     : {};
 
@@ -146,7 +141,7 @@ export function CharacterCard({
     if (isDead) {
       return {
         borderClass: "border-amoris/20",
-        bgClass: "bg-slate-900",
+        overlayClass: "bg-black/60",
         glowClass: "",
       };
     }
@@ -154,7 +149,7 @@ export function CharacterCard({
     if (isAtLimit) {
       return {
         borderClass: "border-timoris",
-        bgClass: "bg-gradient-to-br from-timoris/25 via-slate-800 to-slate-800",
+        overlayClass: "bg-timoris/30",
         glowClass: "shadow-[0_0_20px_rgba(51,85,102,0.6)]",
       };
     }
@@ -162,7 +157,7 @@ export function CharacterCard({
     if (isNearLimit) {
       return {
         borderClass: "border-doloris",
-        bgClass: "bg-gradient-to-br from-doloris/15 via-slate-800 to-slate-800",
+        overlayClass: "bg-doloris/20",
         glowClass: "shadow-[0_0_15px_rgba(187,153,85,0.4)]",
       };
     }
@@ -170,7 +165,7 @@ export function CharacterCard({
     // 正常状态
     return {
       borderClass: "border-slate-600 hover:border-slate-400",
-      bgClass: "bg-slate-800",
+      overlayClass: "",
       glowClass: "",
     };
   };
@@ -184,22 +179,31 @@ export function CharacterCard({
       dragSnapToOrigin
       onDragEnd={(_, info) => onDragEnd?.(characterState.id, info.point.x, info.point.y)}
       className={cn(
-        "relative w-full border-2 rounded-lg p-3 shadow-lg select-none transition-all duration-300",
-        anxietyStyles.bgClass,
+        "relative w-full border-2 rounded-lg p-3 shadow-lg select-none transition-all duration-300 bg-cover bg-center",
         anxietyStyles.borderClass,
         anxietyStyles.glowClass,
-        isDead ? "cursor-not-allowed" : "cursor-pointer",
+        isDead ? "opacity-60" : "cursor-pointer",
         canDrag && "cursor-grab active:cursor-grabbing",
-        hasCards && !isDead && "ring-2 ring-doloris/50", // 有牌时高亮
+        hasCards && !isDead && "ring-2 ring-doloris/50",
         "flex flex-col gap-2 z-10",
-        canDrag && "z-50" // 拖拽时置顶
+        canDrag && "z-50"
       )}
+      style={{
+        backgroundImage: "url('/assets/tl/common/card-back-bg.png')",
+        filter: isDead ? "grayscale(0.8)" : undefined,
+      }}
       onClick={handleClick}
       whileHover={{ scale: 1.02 }}
       whileTap={{ scale: canDrag ? 1 : 0.98 }}
     >
+      {/* 状态色覆盖层 */}
+      {anxietyStyles.overlayClass && (
+        <div className={cn("absolute inset-0 rounded-lg pointer-events-none z-0", anxietyStyles.overlayClass)} />
+      )}
+
       {/* 死亡/复活切换按钮 */}
       <button
+        ref={deathBtnRef}
         onClick={handleToggleLife}
         className={cn(
           "absolute -bottom-2 -left-2 p-1.5 rounded-full shadow-lg z-20 transition-all active:scale-90",
@@ -271,19 +275,18 @@ export function CharacterCard({
       </div>
 
       {/* Avatar / Abilities Toggle */}
-      <div className={cn(
-        "relative w-full rounded overflow-hidden aspect-[620/866]",
-        isDead ? "bg-amoris/10" : "bg-slate-700"
-      )}
+      <div
+        className={cn(
+          "relative w-full rounded overflow-hidden aspect-[620/866] cursor-pointer",
+          isDead ? "bg-amoris/10" : "bg-slate-700"
+        )}
+        onClick={(e) => { e.stopPropagation(); setShowEnlarge(true); }}
       >
         {/* 角色立绘 */}
         <div className="absolute inset-0 flex items-center justify-center">
           {hasSpriteAsset ? (
             <div 
-              className={cn(
-                "w-full h-full bg-center bg-no-repeat transition-all duration-300 cursor-pointer",
-                isDead && "grayscale opacity-40"
-              )}
+              className="w-full h-full bg-center bg-no-repeat"
               style={spriteStyle}
             />
           ) : (
@@ -304,51 +307,32 @@ export function CharacterCard({
             </div>
           )}
           
-          {/* 点击放大提示 */}
-          {hasSpriteAsset && !isDead && !isPlacingCard && (
-            <div className="absolute bottom-1 right-1 text-[9px] text-white/60 bg-black/40 px-1 py-0.5 rounded pointer-events-none">
-              点击放大
-            </div>
-          )}
         </div>
       </div>
 
       {/* Stats */}
       <div className="space-y-2">
         {/* 不安极限显示 - 根据危险程度变色 */}
-        <div className="flex justify-between items-center text-xs">
-          <span className="transition-colors duration-300">
-            <span className={cn(
-              isAtLimit 
-                ? "text-timoris font-extrabold animate-pulse" 
-                : isNearLimit 
-                  ? "text-doloris font-bold" 
-                  : "text-slate-400"
-            )}>
-              不安
-            </span>
-            <span className={cn(
-              isAtLimit 
-                ? "text-timoris font-bold" 
-                : isNearLimit 
-                  ? "text-doloris font-bold" 
-                  : "text-slate-400"
-            )}>
-              极限: 
-            </span>
-            <span className={cn(
-              "ml-1 font-bold",
-              isAtLimit 
-                ? "text-timoris/80 animate-pulse" 
-                : isNearLimit 
-                  ? "text-doloris/80" 
-                  : "text-oblivionis"
-            )}>
-              {characterState.indicators.anxiety}/{characterDef.anxietyLimit}
-            </span>
-            {isAtLimit && <span className="ml-1 text-timoris animate-pulse">⚠️</span>}
-            {isNearLimit && <span className="ml-1 text-doloris">⚡</span>}
+        <div className="flex items-center gap-1 text-xs transition-colors duration-300">
+          <Zap
+            size={11}
+            fill="currentColor"
+            className={cn(
+              isAtLimit ? "text-[#e06666] animate-pulse" : isNearLimit ? "text-doloris" : "text-slate-400"
+            )}
+          />
+          <span className={cn(
+            isAtLimit ? "text-[#e06666] font-bold animate-pulse" : isNearLimit ? "text-doloris font-bold" : "text-slate-400"
+          )}>
+            不安:
           </span>
+          <span className={cn(
+            "font-bold",
+            isAtLimit ? "text-[#e06666] animate-pulse" : isNearLimit ? "text-doloris/80" : "text-oblivionis"
+          )}>
+            {characterState.indicators.anxiety}/{characterDef.anxietyLimit}
+          </span>
+          {isAtLimit && <span className="text-[#e06666] animate-pulse">⚠️</span>}
         </div>
         
         <IndicatorDisplay 
@@ -367,7 +351,7 @@ export function CharacterCard({
           <button
             onClick={(e) => {
               e.stopPropagation();
-              setShowGuessPopup(prev => !prev);
+              setShowGuessPopup((prev: boolean) => !prev);
             }}
             onPointerDown={e => e.stopPropagation()}
             className={cn(
@@ -383,143 +367,6 @@ export function CharacterCard({
       })()}
 
       {/* 放大查看弹窗 - 使用 Portal 渲染到 body */}
-      {typeof window !== 'undefined' && createPortal(
-        <AnimatePresence mode="wait">
-          {showZoomedImage && hasSpriteAsset && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.15, ease: 'easeOut' }}
-              className="fixed inset-0 z-[200] bg-black/90 flex items-center justify-center p-8"
-              onClick={() => {
-                setShowZoomedImage(false);
-              }}
-            >
-              <motion.div
-                initial={{ scale: 0.95, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.95, opacity: 0 }}
-                transition={{ duration: 0.15, ease: 'easeOut' }}
-                className="relative max-w-2xl cursor-pointer"
-              >
-                {/* 关闭按钮 */}
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setShowZoomedImage(false);
-                  }}
-                  className="absolute -top-4 -right-4 p-2 bg-slate-800 hover:bg-slate-700 text-white rounded-full transition-colors shadow-xl z-10"
-                  title="关闭"
-                >
-                  <X size={24} />
-                </button>
-                
-                {/* 放大的立绘 */}
-                <div 
-                  className={cn(
-                    "mx-auto rounded-lg shadow-2xl overflow-hidden bg-slate-800 aspect-[620/866]",
-                    isDead && "grayscale"
-                  )}
-                  style={{ 
-                    ...zoomedSpriteStyle,
-                    width: 'min(90vw, 400px)',
-                  }}
-                />
-                
-                {/* 角色信息 */}
-                <div className="mt-4 bg-slate-900/95 rounded-lg p-4 space-y-3 border border-slate-700">
-                  {/* 名字 + 不安上限 */}
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-2xl font-bold text-white">{characterDef.name}</h3>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-slate-400">不安上限</span>
-                      <span className={cn(
-                        "text-lg font-black",
-                        characterDef.anxietyLimit === 0 ? "text-slate-500"
-                          : characterDef.anxietyLimit >= 4 ? "text-mortis"
-                          : "text-oblivionis"
-                      )}>
-                        {characterDef.anxietyLimit === 99 ? '∞' : characterDef.anxietyLimit}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* 位置信息 */}
-                  <div className="flex flex-wrap gap-2">
-                    {/* 初始位置 */}
-                    <div className="flex items-center gap-1.5">
-                      <MapPin size={13} className="text-slate-400" />
-                      <span className="text-xs text-slate-400">初始</span>
-                      {(() => {
-                        const loc = LOCATION_STYLE[characterDef.initialLocation];
-                        return (
-                          <span className={cn('text-xs px-2 py-0.5 rounded-full border font-medium', loc.bg, loc.color)}>
-                            {loc.label}
-                          </span>
-                        );
-                      })()}
-                    </div>
-
-                    {/* 禁止进入 */}
-                    {toForbidList(characterDef.forbiddenLocation).length > 0 && (
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <Ban size={13} className="text-timoris" />
-                        <span className="text-xs text-slate-400">禁止</span>
-                        {toForbidList(characterDef.forbiddenLocation).map(loc => (
-                          <span key={loc} className="text-xs px-2 py-0.5 rounded-full border bg-timoris/20 border-timoris/50 text-timoris font-medium">
-                            {LOCATION_STYLE[loc].label}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* 能力列表 */}
-                  {characterDef.abilities.length > 0 ? (
-                    <div className="space-y-2">
-                      <div className="text-xs text-slate-400 font-bold uppercase tracking-wider">友好能力</div>
-                      {characterDef.abilities.map((ability, i) => (
-                        <div key={i} className="bg-slate-800/70 rounded-lg p-3 border border-amoris/20 space-y-2">
-                          {/* 发动要求行 */}
-                          <div className="flex items-center gap-2">
-                            {/* 心形图标 */}
-                            <div className="flex items-center gap-0.5">
-                              {Array.from({ length: Math.min(ability.goodwillRequired, 6) }).map((_, j) => (
-                                <span key={j} className="text-amoris text-sm">♥</span>
-                              ))}
-                              {ability.goodwillRequired > 6 && (
-                                <span className="text-amoris text-xs font-bold">×{ability.goodwillRequired}</span>
-                              )}
-                            </div>
-                            <span className="text-xs text-slate-500">友好 ≥ {ability.goodwillRequired}</span>
-                            {/* 1/L 标签 */}
-                            {ability.maxUsesPerLoop !== null && (
-                              <span className="ml-auto text-[10px] font-black text-doloris border border-doloris/60 rounded px-1.5 py-0.5 bg-doloris/10">
-                                {ability.maxUsesPerLoop === 1 ? '1/L' : `${ability.maxUsesPerLoop}/L`}
-                              </span>
-                            )}
-                          </div>
-                          {/* 能力名称 */}
-                          <div className="text-xs font-semibold text-amoris/90 mb-0.5">{ability.description}</div>
-                          {/* 效果文本 */}
-                          <div className="text-sm text-slate-300 leading-relaxed">{ability.effect}</div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2 text-slate-600 text-sm py-1">
-                      <span>此角色无友好能力</span>
-                    </div>
-                  )}
-                </div>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>,
-        document.body
-      )}
-
       {/* 身份猜测弹窗 - Portal 到 body，完全脱离卡片事件 */}
       {typeof window !== 'undefined' && createPortal(
         <AnimatePresence>
@@ -583,6 +430,120 @@ export function CharacterCard({
               </motion.div>
             );
           })()}
+        </AnimatePresence>,
+        document.body
+      )}
+
+      {/* 放大查看弹窗 */}
+      {typeof window !== 'undefined' && createPortal(
+        <AnimatePresence>
+          {showEnlarge && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[300] bg-black/70 flex items-center justify-center"
+              onClick={() => setShowEnlarge(false)}
+            >
+              <motion.div
+                initial={{ scale: 0.88, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.88, opacity: 0 }}
+                transition={{ type: 'spring', stiffness: 320, damping: 26 }}
+                className="relative bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden w-72"
+                onClick={e => e.stopPropagation()}
+              >
+                {/* 立绘区 */}
+                <div className="relative w-full aspect-[3/4] bg-slate-800">
+                  {hasSpriteAsset ? (
+                    <div className="absolute inset-0 bg-center bg-no-repeat" style={spriteStyle} />
+                  ) : (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="text-slate-500 text-2xl font-bold">{characterDef.name}</span>
+                    </div>
+                  )}
+                  {isDead && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                      <X size={96} className="text-amoris drop-shadow-[0_0_16px_rgba(170,68,119,0.9)]" strokeWidth={5} />
+                    </div>
+                  )}
+                  {/* 名字+特征 浮层 */}
+                  <div className="absolute bottom-0 left-0 right-0 px-3 py-2 bg-gradient-to-t from-black/80 to-transparent">
+                    <div className="flex items-end justify-between">
+                      <span className="text-white font-black text-lg leading-none">{characterDef.name}</span>
+                      <div className="flex gap-1">
+                        {characterDef.traits.map(t => (
+                          <span key={t} className="text-[10px] px-1.5 py-0.5 bg-slate-700/80 rounded text-slate-300">
+                            {t === 'boy' ? '男' : t === 'girl' ? '女' : '学生'}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 信息区 */}
+                <div className="px-4 py-3 space-y-3">
+                  {/* 指示物 + 不安极限 */}
+                  <div className="flex items-center justify-between">
+                    <IndicatorDisplay indicators={characterState.indicators} editable={false} />
+                    <div className="flex items-center gap-1 text-xs">
+                      <Zap size={11} fill="currentColor" className={cn(isAtLimit ? 'text-[#e06666]' : isNearLimit ? 'text-doloris' : 'text-slate-400')} />
+                      <span className={cn('font-bold', isAtLimit ? 'text-[#e06666]' : isNearLimit ? 'text-doloris' : 'text-slate-400')}>
+                        {characterState.indicators.anxiety}/{characterDef.anxietyLimit}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* 位置 */}
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {(() => {
+                      const loc = LOCATION_STYLE[characterDef.initialLocation];
+                      return (
+                        <span className={cn('text-[11px] px-1.5 py-0.5 rounded border flex items-center gap-1', loc.bg, loc.color)}>
+                          <MapPin size={9} /> 初始：{loc.short}
+                        </span>
+                      );
+                    })()}
+                    {toForbidList(characterDef.forbiddenLocation).map(loc => (
+                      <span key={loc} className="text-[11px] px-1.5 py-0.5 rounded border bg-timoris/20 border-timoris/40 text-timoris flex items-center gap-1">
+                        <Ban size={8} /> 禁入：{LOCATION_STYLE[loc].short}
+                      </span>
+                    ))}
+                  </div>
+
+                  {/* 能力列表 */}
+                  {characterDef.abilities.length > 0 && (
+                    <div className="space-y-2">
+                      <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wide">友好能力</div>
+                      {characterDef.abilities.map((ability, i) => (
+                        <div key={i} className="bg-slate-800 rounded-lg px-3 py-2 space-y-0.5">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-bold text-slate-200">{ability.description}</span>
+                            <div className="flex items-center gap-1">
+                              <span className="text-amoris text-xs tracking-tighter">
+                                {'♥'.repeat(Math.min(ability.goodwillRequired, 6))}
+                                {ability.goodwillRequired > 6 && `×${ability.goodwillRequired}`}
+                              </span>
+                              {ability.maxUsesPerLoop !== null && (
+                                <span className="text-[9px] text-doloris font-bold border border-doloris/50 rounded px-1">1/L</span>
+                              )}
+                            </div>
+                          </div>
+                          <p className="text-[11px] text-slate-400 leading-relaxed">{ability.effect}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* 关闭提示 */}
+                <div className="px-4 pb-3 text-center">
+                  <span className="text-[11px] text-slate-600">点击空白处关闭</span>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
         </AnimatePresence>,
         document.body
       )}

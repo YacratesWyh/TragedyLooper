@@ -14,10 +14,11 @@ import { MultiplayerPanel } from '@/games/tragedy-looper/components/MultiplayerP
 import { GameIntroPanel } from '@/games/tragedy-looper/components/GameIntroPanel';
 import { TurnHandoffScreen } from '@/games/tragedy-looper/components/TurnHandoffScreen';
 import { TutorialGuide } from '@/games/tragedy-looper/components/TutorialGuide';
-import { DeductionPanel } from '@/games/tragedy-looper/components/DeductionPanel';
 import { TL_THEME } from '@/games/tragedy-looper/theme';
 import type { LocationType, CharacterId, PlayerRole, GamePhase } from '@/games/tragedy-looper/types';
-import { AlertCircle, X, Search } from 'lucide-react';
+import { ROLE_NAMES } from '@/games/tragedy-looper/types';
+import { getPlotsForSet, mergeRequiredRoles, type PlotDef } from '@/games/tragedy-looper/data/plotRoles';
+import { AlertCircle, X } from 'lucide-react';
 
 function getPhaseOwner(phase: GamePhase): PlayerRole | null {
   switch (phase) {
@@ -55,7 +56,9 @@ export default function Home() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [showMessages, setShowMessages] = useState(false);
   const [showCardTutorial, setShowCardTutorial] = useState(false);
-  const [showDeduction, setShowDeduction] = useState(false);
+  const [guessY, setGuessY] = useState('');
+  const [guessX1, setGuessX1] = useState('');
+  const [guessX2, setGuessX2] = useState('');
 
   // 热座模式：交接屏幕
   const [showHandoff, setShowHandoff] = useState(false);
@@ -272,55 +275,109 @@ export default function Home() {
       {/* 手牌参考（顶部按钮） */}
       <DeckReference />
 
-      {/* 剧情猜测面板（主人公专用） */}
-      {showDeduction && playerRole === 'protagonist' && (
-        <DeductionPanel onClose={() => setShowDeduction(false)} />
-      )}
-
       {/* Main Area */}
       <div className="flex-1 flex flex-col relative min-w-0 overflow-hidden">
         {/* Top Bar */}
-        <div className={`h-12 border-b flex items-center justify-between px-6 backdrop-blur-sm relative z-50 ${TL_THEME.panel} ${roleBorderColor}`}>
-            <div className="flex items-center gap-4">
-                {/* 当前角色标识（热座模式突出显示） */}
-                {isHotseat && (
-                  <span className={`px-3 py-1 rounded font-bold ${roleColor} ${playerRole === 'mastermind' ? 'bg-timoris/15 border border-timoris/50' : 'bg-oblivionis/15 border border-oblivionis/50'}`}>
-                    {roleLabel}
-                  </span>
-                )}
-                <span className={`px-3 py-1 rounded font-bold text-oblivionis ${TL_THEME.chip}`}>
-                    {selectedCardId ? "🎯 请选择目标" : "行动阶段"}
-                </span>
-                <span className={`px-3 py-1 rounded text-sm ${TL_THEME.chip}`}>
-                    已放置: <span className="font-bold text-doloris">{myPlayedCount}</span>/{maxCardsPerDay}
-                </span>
-                {errorMsg && (
-                  <span className="flex items-center gap-1 px-3 py-1 rounded bg-amoris/15 border border-amoris/50 text-amoris text-sm animate-pulse">
-                    <AlertCircle size={14} />
-                    {errorMsg}
-                  </span>
-                )}
-            </div>
-            
-            <div className="flex items-center gap-2">
+        <div className={`border-b flex items-center gap-3 px-4 py-1.5 backdrop-blur-sm relative z-50 ${TL_THEME.panel} ${roleBorderColor}`}>
+            {/* 角色标识 + 放置数 */}
+            {isHotseat && (
+              <span className={`px-2 py-0.5 rounded text-xs font-bold shrink-0 ${roleColor} ${playerRole === 'mastermind' ? 'bg-timoris/15 border border-timoris/50' : 'bg-oblivionis/15 border border-oblivionis/50'}`}>
+                {roleLabel}
+              </span>
+            )}
+            <span className={`px-2 py-0.5 rounded text-xs shrink-0 ${TL_THEME.chip}`}>
+              <span className="font-bold text-doloris">{myPlayedCount}</span>/{maxCardsPerDay}
+            </span>
+
+            {errorMsg && (
+              <span className="flex items-center gap-1 px-2 py-0.5 rounded bg-amoris/15 border border-amoris/50 text-amoris text-xs animate-pulse shrink-0">
+                <AlertCircle size={12} />
+                {errorMsg}
+              </span>
+            )}
+
+            {/* 分隔线 */}
+            <div className="w-px h-5 bg-slate-700 shrink-0" />
+
+            {/* 剧情猜测 Y/X 下拉选择器 */}
+            {(() => {
+              const tragedySet = gameState?.publicInfo.tragedySet ?? 'first_steps';
+              const { main: mainPlots, sub: subPlots } = getPlotsForSet(tragedySet);
+              const selectedPlots: PlotDef[] = [];
+              const yPlot = mainPlots.find(p => p.id === guessY);
+              const x1Plot = subPlots.find(p => p.id === guessX1);
+              const x2Plot = subPlots.find(p => p.id === guessX2);
+              if (yPlot) selectedPlots.push(yPlot);
+              if (x1Plot) selectedPlots.push(x1Plot);
+              if (x2Plot) selectedPlots.push(x2Plot);
+              const requiredRoles = mergeRequiredRoles(selectedPlots);
+              const totalRequired = requiredRoles.reduce((s, r) => s + r.count, 0);
+              const charCount = gameState?.publicInfo.characters.length ?? 0;
+              const civilianCount = charCount - totalRequired;
+              const hasSelection = guessY || guessX1;
+
+              return (
+                <>
+                  <select
+                    value={guessY}
+                    onChange={e => setGuessY(e.target.value)}
+                    className="rounded bg-slate-800 border border-slate-600 px-2 py-1 text-xs text-white focus:outline-none focus:border-violet-400 max-w-[120px]"
+                    title="猜测主线 Y"
+                  >
+                    <option value="">Y 主线</option>
+                    {mainPlots.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </select>
+                  <select
+                    value={guessX1}
+                    onChange={e => { setGuessX1(e.target.value); if (e.target.value === guessX2) setGuessX2(''); }}
+                    className="rounded bg-slate-800 border border-slate-600 px-2 py-1 text-xs text-white focus:outline-none focus:border-violet-400 max-w-[120px]"
+                    title="猜测支线 X1"
+                  >
+                    <option value="">X1 支线</option>
+                    {subPlots.map(p => <option key={p.id} value={p.id} disabled={p.id === guessX2}>{p.name}</option>)}
+                  </select>
+                  <select
+                    value={guessX2}
+                    onChange={e => { setGuessX2(e.target.value); if (e.target.value === guessX1) setGuessX1(''); }}
+                    className="rounded bg-slate-800 border border-slate-600 px-2 py-1 text-xs text-white focus:outline-none focus:border-violet-400 max-w-[120px]"
+                    title="猜测支线 X2（可不选）"
+                  >
+                    <option value="">X2（无）</option>
+                    {subPlots.map(p => <option key={p.id} value={p.id} disabled={p.id === guessX1}>{p.name}</option>)}
+                  </select>
+
+                  {/* 推算结果 */}
+                  {hasSelection && (
+                    <>
+                      <div className="w-px h-5 bg-slate-700 shrink-0" />
+                      <div className="flex items-center gap-1.5 text-xs flex-wrap">
+                        {requiredRoles.map(({ roleId, count }) => (
+                          <span key={roleId} className="px-1.5 py-0.5 rounded bg-violet-500/20 border border-violet-400/40 text-violet-200 font-bold">
+                            {ROLE_NAMES[roleId]}×{count}
+                          </span>
+                        ))}
+                        <span className={`px-1.5 py-0.5 rounded font-bold ${
+                          civilianCount < 0
+                            ? 'bg-red-500/20 border border-red-400/50 text-red-300'
+                            : 'bg-slate-700 border border-slate-600 text-slate-300'
+                        }`}>
+                          路人×{civilianCount}
+                        </span>
+                      </div>
+                    </>
+                  )}
+                </>
+              );
+            })()}
+
+            <div className="flex-1" />
+
+            {/* 右侧按钮 */}
+            <div className="flex items-center gap-2 shrink-0">
               {!isHotseat && <MultiplayerPanel />}
-              {playerRole === 'protagonist' && (
-                <button
-                  onClick={() => setShowDeduction(v => !v)}
-                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-bold transition-colors ${
-                    showDeduction
-                      ? 'bg-oblivionis/20 border-oblivionis/60 text-oblivionis'
-                      : 'bg-surface-3 border-border-strong text-text-muted hover:border-oblivionis/40 hover:text-oblivionis'
-                  }`}
-                  title="剧情猜测"
-                >
-                  <Search size={13} />
-                  剧情猜测
-                </button>
-              )}
               <button
                 onClick={() => setShowCardTutorial(v => !v)}
-                className="w-7 h-7 rounded-full bg-surface-3 hover:bg-surface-2 border border-border-strong text-text-muted hover:text-foreground text-xs font-bold transition-colors flex items-center justify-center"
+                className="w-6 h-6 rounded-full bg-slate-700 hover:bg-slate-600 border border-slate-600 text-slate-300 hover:text-white text-xs font-bold transition-colors flex items-center justify-center"
                 title="操作说明"
               >
                 ?
@@ -412,7 +469,7 @@ export default function Home() {
           </div>
         )}
         
-        <div className="p-1">
+        <div className="p-1" data-tutorial-id="action-hand">
           <ActionHand 
             deck={myDeck} 
             selectedCardId={isMyTurn ? selectedCardId : null}
@@ -426,6 +483,7 @@ export default function Home() {
       </div>
       {/* 教学引导（仅 fs-01 教学剧本可见） */}
       <TutorialGuide />
+
     </main>
   );
 }

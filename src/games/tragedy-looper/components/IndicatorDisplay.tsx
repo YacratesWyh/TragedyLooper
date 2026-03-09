@@ -122,7 +122,7 @@ export function IndicatorDisplay({
   };
 
   return (
-    <div ref={containerRef} className={cn("flex items-center gap-2", className)}>
+    <div ref={containerRef} data-tutorial-id="character-indicators" className={cn("flex items-center gap-2", className)}>
       {/* Goodwill - 友好 */}
       {renderIndicator('goodwill', indicators.goodwill, Heart, {
         bg: 'bg-amoris/10',

@@ -132,11 +132,11 @@ export const FS01_PLAYBOOK: TutorialTurn[] = [
     plays: [
       { cardId: 'mm-intrigue-1', targetCharacterId: 'office_worker' },  // 上班族+1密谋
       { cardId: 'mm-anxiety-1a', targetCharacterId: 'boy_student' },    // 男学生+1不安（干扰）
-      { cardId: 'mm-vert', targetCharacterId: 'detective' },            // 刑警: city→hospital（伏笔）
+      { cardId: 'mm-vert', targetCharacterId: 'shrine_maiden' },        // 巫女: shrine→school（逼主人公交出禁移）
     ],
     narration:
       '这一轮启用杀手路线。先给上班族堆密谋，同时用不安干扰主人公判断。\n' +
-      '把刑警移到医院，远离战场——等轮回3再用他。',
+      '再尝试推动巫女移动，逼主人公交出「禁止移动」来防夜晚暴毙。',
   },
   // L2D1 主人公
   {
@@ -217,7 +217,7 @@ export const FS01_PLAYBOOK: TutorialTurn[] = [
     loop: 3, day: 2, role: 'mastermind',
     plays: [
       { cardId: 'mm-vert', targetCharacterId: 'shrine_maiden' },       // 巫女: shrine→school
-      { cardId: 'mm-diag', targetCharacterId: 'girl_student' },        // 女学生: city→hospital? 不对，需要去school
+      { cardId: 'mm-horiz', targetCharacterId: 'girl_student' },       // 女学生: city→school
       { cardId: 'mm-anxiety-1b', targetCharacterId: 'detective' },     // 刑警+1不安（无意义干扰）
     ],
     narration:
