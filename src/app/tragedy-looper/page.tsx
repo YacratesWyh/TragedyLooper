@@ -222,7 +222,7 @@ export default function Home() {
   const roleLabel = playerRole === 'mastermind' ? '🎭 剧作家' : '🦸 主人公';
 
   return (
-    <main className={`flex min-h-screen flex-col lg:flex-row font-sans relative rendered-dark-bg bg-[url('/assets/tl/20220605022917_d75a4.jpg')] bg-cover bg-center bg-fixed ${TL_THEME.page}`}>
+    <main className={`flex min-h-screen flex-col lg:flex-row font-sans relative bg-[url('/assets/tl/20220605022917_d75a4.jpg')] bg-cover bg-center bg-fixed ${TL_THEME.page}`}>
       {/* 热座模式交接屏幕 */}
       {showHandoff && gameState && (
         <TurnHandoffScreen
@@ -465,7 +465,7 @@ export default function Home() {
         </div>
 
         {/* Game Board */}
-        <div className="flex-1 overflow-auto p-2 sm:p-4 relative bg-black/30 backdrop-blur-[1px]">
+        <div className="flex-1 overflow-auto p-2 sm:p-4 relative bg-black/96 backdrop-blur-[1px]">
              <GameBoard 
                 onCharacterClick={(charId) => handleCardPlay(charId, 'character')}
                 onLocationClick={(loc) => handleCardPlay(loc, 'location')}
