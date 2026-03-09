@@ -10,7 +10,7 @@ import { useGameStore } from '@/games/tragedy-looper/store';
 import type { GameMode } from '@/games/tragedy-looper/store';
 import { cn } from '@/lib/utils';
 import { ScriptSetup } from './ScriptSetup';
-import { SCRIPT_TEMPLATES, generatePublicInfo, type ScriptTemplate } from '@/games/tragedy-looper/scripts/fs-01';
+import { SCRIPT_TEMPLATES, generatePublicInfo, type ScriptTemplate } from '@/games/tragedy-looper/scripts/registry';
 
 interface LobbyScreenProps {
   onGameStart: () => void;

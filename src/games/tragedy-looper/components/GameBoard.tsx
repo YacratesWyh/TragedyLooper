@@ -1,7 +1,7 @@
 import React, { useCallback } from 'react';
 import { useGameStore } from '@/games/tragedy-looper/store';
 import { useMultiplayer } from '@/shared/useMultiplayer';
-import { FS01_CHARACTERS } from '@/games/tragedy-looper/scripts/fs-01';
+import { ALL_CHARACTERS } from '@/games/tragedy-looper/scripts/characters';
 import { LocationZone } from './LocationZone';
 import type { LocationType, PlayedCard, CharacterId } from '@/games/tragedy-looper/types';
 
@@ -96,7 +96,7 @@ export function GameBoard({ onLocationClick, onCharacterClick, isPlacingCard = f
       <LocationZone 
         type="hospital" 
         characters={charsByLocation['hospital'] || []}
-        characterDefs={FS01_CHARACTERS}
+        characterDefs={ALL_CHARACTERS}
         intrigueCount={displayBoardIntrigue['hospital']}
         myPlacedCards={myCards}
         opponentPlacedCards={opponentCards}
@@ -111,7 +111,7 @@ export function GameBoard({ onLocationClick, onCharacterClick, isPlacingCard = f
       <LocationZone 
         type="shrine" 
         characters={charsByLocation['shrine'] || []}
-        characterDefs={FS01_CHARACTERS}
+        characterDefs={ALL_CHARACTERS}
         intrigueCount={displayBoardIntrigue['shrine']}
         myPlacedCards={myCards}
         opponentPlacedCards={opponentCards}
@@ -126,7 +126,7 @@ export function GameBoard({ onLocationClick, onCharacterClick, isPlacingCard = f
       <LocationZone 
         type="city" 
         characters={charsByLocation['city'] || []}
-        characterDefs={FS01_CHARACTERS}
+        characterDefs={ALL_CHARACTERS}
         intrigueCount={displayBoardIntrigue['city']}
         myPlacedCards={myCards}
         opponentPlacedCards={opponentCards}
@@ -141,7 +141,7 @@ export function GameBoard({ onLocationClick, onCharacterClick, isPlacingCard = f
       <LocationZone 
         type="school" 
         characters={charsByLocation['school'] || []}
-        characterDefs={FS01_CHARACTERS}
+        characterDefs={ALL_CHARACTERS}
         intrigueCount={displayBoardIntrigue['school']}
         myPlacedCards={myCards}
         opponentPlacedCards={opponentCards}

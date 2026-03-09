@@ -166,7 +166,7 @@ export const CHARACTER_ASSETS: Record<string, CharacterAssetConfig> = {
   },
   illusion: {
     id: 'illusion',
-    name: '幻觉',
+    name: '幻想',
     gridPosition: [3, 2],  // x1860, y1732
   },
   forensic: {
@@ -180,19 +180,31 @@ export const CHARACTER_ASSETS: Record<string, CharacterAssetConfig> = {
     name: '刑侦警察',
     gridPosition: [4, 2],  // x2480, y1732
   },
-  female_doctor: {
-    id: 'female_doctor',
-    name: '女医生',
+  ai: {
+    id: 'ai',
+    name: 'A.I.',
     gridPosition: [5, 2],  // x3100, y1732
   },
+  // 兼容旧ID（曾误标为女医生）
+  female_doctor: {
+    id: 'female_doctor',
+    name: 'A.I.',
+    gridPosition: [5, 2],  // x3100, y1732
+  },
+  teacher: {
+    id: 'teacher',
+    name: '教师',
+    gridPosition: [6, 2],  // x3720, y1732
+  },
+  // 兼容旧ID（曾误标为神秘少年）
   mystery_boy: {
     id: 'mystery_boy',
-    name: '神秘少年',
+    name: '教师',
     gridPosition: [6, 2],  // x3720, y1732
   },
   transfer_student: {
     id: 'transfer_student',
-    name: '转学生',
+    name: '转校生',
     gridPosition: [7, 2],  // x4340, y1732
   },
 
@@ -213,6 +225,12 @@ export const CHARACTER_ASSETS: Record<string, CharacterAssetConfig> = {
     name: '黑猫',
     gridPosition: [1, 3],  // x620, y2598
   },
+  girl: {
+    id: 'girl',
+    name: '小女孩',
+    gridPosition: [2, 3],  // x1240, y2598
+  },
+  // 兼容旧ID
   little_girl: {
     id: 'little_girl',
     name: '小女孩',
@@ -223,21 +241,40 @@ export const CHARACTER_ASSETS: Record<string, CharacterAssetConfig> = {
     name: '教祖',
     gridPosition: [3, 3],  // x1860, y2598
   },
+  copycat: {
+    id: 'copycat',
+    name: '模仿者',
+    gridPosition: [4, 3],  // x2480, y2598
+  },
+  // 兼容旧ID
   copy: {
     id: 'copy',
     name: '模仿者',
     gridPosition: [4, 3],  // x2480, y2598
   },
+  sacred_tree: {
+    id: 'sacred_tree',
+    name: '御神木',
+    gridPosition: [5, 3],  // x3100, y2598
+  },
+  // 兼容旧ID
   goshinboku: {
     id: 'goshinboku',
     name: '御神木',
     gridPosition: [5, 3],  // x3100, y2598
   },
+  little_sister: {
+    id: 'little_sister',
+    name: '妹妹',
+    gridPosition: [6, 3],  // x3720, y2598
+  },
+  // 兼容旧ID
   sister: {
     id: 'sister',
     name: '妹妹',
     gridPosition: [6, 3],  // x3720, y2598
   },
+  // [7, 3] = x4340, y2598 — 图片中存在角色，待确认身份后补充
 
   // === 兼容旧ID ===
   student: {

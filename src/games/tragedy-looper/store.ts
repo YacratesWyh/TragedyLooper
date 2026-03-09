@@ -25,7 +25,9 @@ import {
   canUseAbility,
   useCharacterAbility,
 } from '@/games/tragedy-looper/engine';
-import { FS01_SCRIPT1_PUBLIC, FS01_SCRIPT1_PRIVATE, FS01_CHARACTERS, generatePublicInfo, type ScriptTemplate } from '@/games/tragedy-looper/scripts/fs-01';
+import { FS01_SCRIPT1_PUBLIC, FS01_SCRIPT1_PRIVATE } from '@/games/tragedy-looper/scripts/fs-01';
+import { generatePublicInfo, type ScriptTemplate } from '@/games/tragedy-looper/scripts/registry';
+import { ALL_CHARACTERS } from '@/games/tragedy-looper/scripts/characters';
 
 // 天数历史快照
 interface DaySnapshot {
@@ -52,6 +54,10 @@ interface GameStore {
   // 结算消息（禁行区域等提示）
   resolutionMessages: string[];
   clearMessages: () => void;
+
+  // 首次游戏简介引导（重新开始游戏时重置）
+  introGuideDismissed: boolean;
+  dismissIntroGuide: () => void;
   
   // 牌组状态（每个玩家有自己的牌组）
   mastermindDeck: PlayerDeck;
@@ -178,7 +184,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   initializeGame: (role: PlayerRole) => {
     const privateInfo = role === 'mastermind' ? FS01_SCRIPT1_PRIVATE : null;
-    const gameState = initializeGameState(FS01_SCRIPT1_PUBLIC, privateInfo);
+    const gameState = initializeGameState(FS01_SCRIPT1_PUBLIC, privateInfo, ALL_CHARACTERS);
     
     // 初始状态快照
     const initialSnapshot: DaySnapshot = {
@@ -204,7 +210,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   // 热座模式初始化：始终加载 privateInfo（引擎需要），初始视角为剧作家
   initializeHotseatGame: () => {
-    const gameState = initializeGameState(FS01_SCRIPT1_PUBLIC, FS01_SCRIPT1_PRIVATE);
+    const gameState = initializeGameState(FS01_SCRIPT1_PUBLIC, FS01_SCRIPT1_PRIVATE, ALL_CHARACTERS);
     
     const initialSnapshot: DaySnapshot = {
       day: 1,
@@ -249,7 +255,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       })),
     } : null;
     
-    const gameState = initializeGameState(publicInfo, privateInfo);
+    const gameState = initializeGameState(publicInfo, privateInfo, ALL_CHARACTERS);
     
     // 初始状态快照
     const initialSnapshot: DaySnapshot = {
@@ -346,7 +352,8 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const result = processResolution(
       gameState,
       currentMastermindCards,
-      currentProtagonistCards
+      currentProtagonistCards,
+      ALL_CHARACTERS
     );
 
     let updatedState = result.state;
@@ -450,7 +457,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const { gameState, mastermindDeck, protagonistDeck } = get();
     if (!gameState) return;
 
-    let updatedState = resetLoop(gameState);
+    let updatedState = resetLoop(gameState, ALL_CHARACTERS);
     
     // 检查剧作家是否因轮数耗尽而获胜
     const gameOverCheck = isGameOver(updatedState);

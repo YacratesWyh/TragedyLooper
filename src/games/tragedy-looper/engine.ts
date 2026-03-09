@@ -12,11 +12,13 @@ import type {
   ActionCardType,
   Character,
 } from '@/games/tragedy-looper/types';
-import { FS01_CHARACTERS } from './scripts/fs-01';
 
 /** 初始化角色状态 */
-export function initializeCharacterState(characterId: CharacterId): CharacterState {
-  const character = FS01_CHARACTERS[characterId];
+export function initializeCharacterState(
+  characterId: CharacterId,
+  characterDefs: Record<CharacterId, Character>
+): CharacterState {
+  const character = characterDefs[characterId];
   return {
     id: characterId,
     location: character.initialLocation,
@@ -33,9 +35,10 @@ export function initializeCharacterState(characterId: CharacterId): CharacterSta
 /** 初始化游戏状态 */
 export function initializeGameState(
   publicInfo: PublicInfo,
-  privateInfo: PrivateInfo | null
+  privateInfo: PrivateInfo | null,
+  characterDefs: Record<CharacterId, Character>
 ): GameState {
-  const characterStates = publicInfo.characters.map(initializeCharacterState);
+  const characterStates = publicInfo.characters.map(id => initializeCharacterState(id, characterDefs));
 
   return {
     currentLoop: 1,
@@ -57,7 +60,8 @@ export function initializeGameState(
 /** 检查事件是否可以触发 */
 export function canIncidentTrigger(
   incident: Incident,
-  state: GameState
+  state: GameState,
+  characterDefs: Record<CharacterId, Character>
 ): boolean {
   // I. 今天有事件
   if (incident.day !== state.currentDay) {
@@ -71,7 +75,7 @@ export function canIncidentTrigger(
   }
 
   // III. 当事人的不安 >= 不安限度
-  const character = FS01_CHARACTERS[incident.actorId];
+  const character = characterDefs[incident.actorId];
   if (actor.indicators.anxiety < character.anxietyLimit) {
     return false;
   }
@@ -80,13 +84,16 @@ export function canIncidentTrigger(
 }
 
 /** 检查是否有事件触发 */
-export function checkIncidents(state: GameState): Incident | null {
+export function checkIncidents(
+  state: GameState,
+  characterDefs: Record<CharacterId, Character>
+): Incident | null {
   if (!state.privateInfo) {
     return null;
   }
 
   for (const incident of state.privateInfo.incidents) {
-    if (canIncidentTrigger(incident, state)) {
+    if (canIncidentTrigger(incident, state, characterDefs)) {
       return incident;
     }
   }
@@ -227,8 +234,11 @@ export function applyIndicatorChange(
 }
 
 /** 处理事件触发 */
-export function handleIncident(state: GameState): GameState {
-  const incident = checkIncidents(state);
+export function handleIncident(
+  state: GameState,
+  characterDefs: Record<CharacterId, Character>
+): GameState {
+  const incident = checkIncidents(state, characterDefs);
   if (!incident) {
     return state;
   }
@@ -286,19 +296,24 @@ export function checkKeyPersonDeath(state: GameState): boolean {
 }
 
 /** 检查是否满足谋杀计划失败条件 */
-export function checkMurderPlanFailure(state: GameState): boolean {
+export function checkMurderPlanFailure(
+  state: GameState,
+  characterDefs: Record<CharacterId, Character>
+): boolean {
   if (!state.privateInfo || state.privateInfo.ruleY !== 'murder_plan') {
     return false;
   }
 
-  // 检查是否有谋杀事件触发
-  const murderIncident = checkIncidents(state);
+  const murderIncident = checkIncidents(state, characterDefs);
   return murderIncident !== null && murderIncident.type === 'murder';
 }
 
 /** 重置轮回 */
-export function resetLoop(state: GameState): GameState {
-  const resetCharacters = state.publicInfo.characters.map(initializeCharacterState);
+export function resetLoop(
+  state: GameState,
+  characterDefs: Record<CharacterId, Character>
+): GameState {
+  const resetCharacters = state.publicInfo.characters.map(id => initializeCharacterState(id, characterDefs));
 
   return {
     ...state,
@@ -340,7 +355,8 @@ export interface ResolutionResult {
 export function processResolution(
   state: GameState,
   mastermindCards: PlayedCard[],
-  protagonistCards: PlayedCard[]
+  protagonistCards: PlayedCard[],
+  characterDefs: Record<CharacterId, Character>
 ): ResolutionResult {
   let updatedState = { ...state };
   const allCards = [...mastermindCards, ...protagonistCards];
@@ -378,35 +394,51 @@ export function processResolution(
     movementsByCharacter.get(charId)!.push(pc);
   });
   
+  const directionText: Record<'horizontal' | 'vertical' | 'diagonal', string> = {
+    horizontal: '左右',
+    vertical: '上下',
+    diagonal: '斜向',
+  };
+
   movementsByCharacter.forEach((cards, charId) => {
-    const isForbidden = allCards.some(other => 
+    const isForbidden = allCards.some(other =>
       other.card.type === 'movement' &&
       other.card.movementType === 'forbid' &&
       other.targetCharacterId === charId
     );
-    
-    if (isForbidden) return;
-    
+
+    const character = characterDefs[charId];
+    const name = character?.name ?? '角色';
+
+    if (isForbidden) {
+      messages.push(`因为主人公的能力，${name} 不能移动！`);
+      return;
+    }
+
     const directions = cards.map(pc => pc.card.movementType as 'horizontal' | 'vertical' | 'diagonal');
     const finalDirection = combineMovements(directions);
     if (!finalDirection) return;
 
-    const character = FS01_CHARACTERS[charId];
     const charState = updatedState.characters.find(c => c.id === charId);
-    if (charState) {
-      const result = applyMovement(
-        charId,
-        charState.location,
-        finalDirection,
-        character.forbiddenLocation,
-        character.name
-      );
-      updatedState.characters = updatedState.characters.map(c =>
-        c.id === charId ? { ...c, location: result.newLocation } : c
-      );
-      if (result.blocked && result.blockReason) {
-        messages.push(result.blockReason);
-      }
+    if (!charState) return;
+
+    const result = applyMovement(
+      charId,
+      charState.location,
+      finalDirection,
+      character?.forbiddenLocation ?? null,
+      character?.name
+    );
+    updatedState.characters = updatedState.characters.map(c =>
+      c.id === charId ? { ...c, location: result.newLocation } : c
+    );
+    if (result.blocked && result.blockReason) {
+      messages.push(result.blockReason);
+    } else {
+      const byProtagonist = cards.some(pc => pc.card.owner === 'protagonist');
+      const who = byProtagonist ? '主人公的邀请' : '剧作家的教唆';
+      const dir = directionText[finalDirection];
+      messages.push(`受到${who}，${name} ${dir}移动了！`);
     }
   });
 

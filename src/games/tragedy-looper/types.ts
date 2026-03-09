@@ -137,30 +137,49 @@ export const CHARACTER_GRID_INDEX: Record<CharacterId, number> = {
 };
 
 /** 身份类型 */
-export type RoleType = 
-  | 'killer' 
-  | 'serial_killer' 
-  | 'brain' 
-  | 'conspiracy_theorist' 
-  | 'cultist'
-  | 'friend'
-  | 'key_person'
-  | 'civilian';
+export type RoleType =
+  | 'civilian'              // 路人
+  | 'key_person'            // 关键人物
+  | 'killer'                // 杀手
+  | 'brain'                 // 幕后黑手
+  | 'serial_killer'         // 连环杀手
+  | 'conspiracy_theorist'   // 误导者
+  | 'cultist'               // 邪教徒
+  | 'friend'                // 挚友
+  | 'lover'                 // 恋人
+  | 'loved_one'             // 病娇恋人
+  | 'factor_role'           // 因子
+  | 'time_traveler'         // 时间旅行者
+  | 'witch';                // 女巫
 
 /** 身份名称映射 */
 export const ROLE_NAMES: Record<RoleType, string> = {
-  killer: '杀手',
-  serial_killer: '杀人狂',
-  brain: '主谋',
-  conspiracy_theorist: '传谣人',
-  cultist: '邪教徒',
-  friend: '亲友',
+  civilian: '路人',
   key_person: '关键人物',
-  civilian: '平民',
+  killer: '杀手',
+  brain: '幕后黑手',
+  serial_killer: '连环杀手',
+  conspiracy_theorist: '误导者',
+  cultist: '邪教徒',
+  friend: '挚友',
+  lover: '恋人',
+  loved_one: '病娇恋人',
+  factor_role: '因子',
+  time_traveler: '时间旅行者',
+  witch: '女巫',
 };
 
 /** 事件类型 */
-export type IncidentType = 'murder' | 'hospital_incident' | 'suicide' | 'faraway_murder';
+export type IncidentType =
+  | 'murder'             // 谋杀案
+  | 'suicide'            // 自杀
+  | 'hospital_incident'  // 医院的事件
+  | 'faraway_murder'     // 远距离杀人
+  | 'anxiety_spread'     // 不安扩散
+  | 'foul_play'          // 邪气污染
+  | 'missing_person'     // 行踪不明
+  | 'butterfly_effect'   // 蝴蝶效应
+  | 'gossip';            // 流传
 
 /** 游戏阶段 */
 export type GamePhase = 

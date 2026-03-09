@@ -1,14 +1,19 @@
 import React, { useState } from 'react';
 import { useGameStore } from '@/games/tragedy-looper/store';
-import { Calendar, RotateCcw, ChevronDown, ChevronRight } from 'lucide-react';
+import { Calendar, RotateCcw, ChevronDown, ChevronRight, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { IncidentType } from '@/games/tragedy-looper/types';
 
 const INCIDENT_NAMES: Record<IncidentType, string> = {
-  murder: '杀放',
+  murder: '谋杀案',
   suicide: '自杀',
-  hospital_incident: '医院事故',
+  hospital_incident: '医院的事件',
   faraway_murder: '远距离杀人',
+  anxiety_spread: '不安扩散',
+  foul_play: '邪气污染',
+  missing_person: '行踪不明',
+  butterfly_effect: '蝴蝶效应',
+  gossip: '流传',
 };
 
 const INCIDENT_EFFECTS: Record<IncidentType, string> = {
@@ -16,6 +21,11 @@ const INCIDENT_EFFECTS: Record<IncidentType, string> = {
   suicide: '当事人死亡。',
   hospital_incident: '医院有1枚以上【密谋】，位于医院的所有角色死亡。',
   faraway_murder: '任意1名角色身上有2枚或以上【密谋】的角色死亡。',
+  anxiety_spread: '与当事人位于同一区域的所有角色各+1【不安】。',
+  foul_play: '当事人所在区域+2【密谋】。',
+  missing_person: '当事人从版图上移除（视为死亡，但不触发死亡关联效果）。',
+  butterfly_effect: '与当事人位于同一区域的1名角色+1【友好】或+1【密谋】（剧作家选择）。',
+  gossip: '当事人所在区域的所有角色各+1【不安】。',
 };
 
 function highlightTokens(text: string) {
@@ -138,6 +148,27 @@ export function GameInfo() {
           </div>
         </div>
       </div>
+
+      {/* 附加规则（过滤掉主线/支线前缀，只显示额外规则） */}
+      {(() => {
+        const extraRules = publicInfo.specialRules.filter(
+          r => !r.startsWith('主线：') && !r.startsWith('支线：')
+        );
+        if (extraRules.length === 0) return null;
+        return (
+          <div className="space-y-1.5">
+            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+              <Info size={12} />
+              附加规则
+            </h3>
+            {extraRules.map((rule, i) => (
+              <div key={i} className="px-3 py-2 rounded-lg bg-doloris/10 border border-doloris/30 text-sm text-doloris font-medium">
+                {rule}
+              </div>
+            ))}
+          </div>
+        );
+      })()}
 
       {/* 事件表 */}
       <div className="flex-1 overflow-y-auto min-h-0">

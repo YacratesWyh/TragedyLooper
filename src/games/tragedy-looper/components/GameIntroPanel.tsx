@@ -62,12 +62,19 @@ export function GameIntroPanel() {
 
               {/* Scrollable Content */}
               <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                {/* 剧情背景 */}
-                <div className="bg-gradient-to-br from-slate-800/80 to-slate-900/80 rounded-lg p-4 border border-slate-600/50">
+                {/* 剧情背景（含隐性设定的剧本化叙述） */}
+                <div className="bg-gradient-to-br from-slate-800/80 to-slate-900/80 rounded-lg p-4 border border-slate-600/50 space-y-5">
                   <p className="text-slate-300 leading-relaxed italic text-sm">
                     「这是一个被诅咒的小镇。每当惨剧发生，时间就会倒流，一切重来……
                     但记忆不会消失。主人公们必须在有限的轮回中找出真相，
                     阻止悲剧的发生——否则，他们将永远困在这个轮回之中。」
+                  </p>
+
+                  <p className="text-slate-400 leading-relaxed text-sm border-t border-slate-600/50 pt-4">
+                    在这个世界里，<strong className="text-slate-300">主人公</strong>与<strong className="text-slate-300">剧作家</strong>都不会现身于版图之上；
+                    舞台上行走的，唯有被命运摆布的<strong className="text-slate-300">NPC 角色</strong>。
+                    当剧作家布下的<strong className="text-timoris">阴谋</strong>达成条件，或是<strong className="text-mortis">关键人物或主人公不幸死亡</strong>，
+                    <strong className="text-doloris">轮回</strong>便会再次启动——时间倒流，一切重来，唯有记忆留存。
                   </p>
                 </div>
 
@@ -79,7 +86,7 @@ export function GameIntroPanel() {
                   </div>
                   <div className="flex items-center gap-2 text-sm">
                     <span className="text-slate-400">🗺️</span>
-                    <span>版图为 <strong className="text-white">2×2 的 4 个地点</strong>，角色分布在各地点中，移动牌按横/纵方向移动到相邻地点</span>
+                    <span>版图为 <strong className="text-white">2×2 的 4 个地点</strong>，NPC角色分布在各地点中，双方可以使用移动牌按横/纵方向代领npc移动到指示地点</span>
                   </div>
                 </div>
 

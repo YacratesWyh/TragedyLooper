@@ -8,7 +8,22 @@ import { cn } from '@/lib/utils';
 import { getCharacterSpriteStyle, hasCharacterAsset } from '@/games/tragedy-looper/characterAssets';
 import { useGameStore } from '@/games/tragedy-looper/store';
 import { useMultiplayer } from '@/shared/useMultiplayer';
-import { X, Skull, RefreshCw } from 'lucide-react';
+import { X, Skull, RefreshCw, MapPin, Ban } from 'lucide-react';
+import type { LocationType } from '@/games/tragedy-looper/types';
+
+/** 位置显示配置 */
+const LOCATION_STYLE: Record<LocationType, { label: string; short: string; color: string; bg: string }> = {
+  hospital: { label: '医院', short: '医', color: 'text-blue-300',   bg: 'bg-blue-900/50 border-blue-700/50' },
+  shrine:   { label: '神社', short: '社', color: 'text-purple-300', bg: 'bg-purple-900/50 border-purple-700/50' },
+  city:     { label: '都市', short: '市', color: 'text-slate-300',  bg: 'bg-slate-700/60 border-slate-600/50' },
+  school:   { label: '学校', short: '校', color: 'text-green-300',  bg: 'bg-green-900/50 border-green-700/50' },
+};
+
+/** 将 forbiddenLocation 统一为数组 */
+function toForbidList(loc: LocationType | LocationType[] | null): LocationType[] {
+  if (!loc) return [];
+  return Array.isArray(loc) ? loc : [loc];
+}
 
 interface CharacterCardProps {
   characterState: CharacterState;
@@ -193,8 +208,8 @@ export function CharacterCard({
       )}
 
       {/* Header */}
-      <div className="flex justify-between items-center border-b border-slate-700 pb-2">
-        <span className="font-bold text-slate-100">{characterDef.name}</span>
+      <div className="flex justify-between items-center border-b border-slate-700 pb-1.5">
+        <span className="font-bold text-slate-100 text-sm">{characterDef.name}</span>
         {isDead && <span className="text-amoris text-xs font-bold">[死亡]</span>}
         <div className="flex gap-1">
           {characterDef.traits.map((trait) => (
@@ -203,6 +218,41 @@ export function CharacterCard({
             </span>
           ))}
         </div>
+      </div>
+
+      {/* 位置信息行：初始位置 + 禁止位置 X + 能力发动♥ */}
+      <div className="flex items-center gap-1 flex-wrap">
+        {/* 初始位置 */}
+        {(() => {
+          const loc = LOCATION_STYLE[characterDef.initialLocation];
+          return (
+            <span className={cn('text-[10px] px-1 py-0.5 rounded border flex items-center gap-0.5', loc.bg, loc.color)}>
+              <MapPin size={8} />
+              {loc.short}
+            </span>
+          );
+        })()}
+
+        {/* 禁止进入位置（右上角 X） */}
+        {toForbidList(characterDef.forbiddenLocation).map(loc => (
+          <span key={loc} className="text-[10px] px-1 py-0.5 rounded border bg-timoris/20 border-timoris/40 text-timoris flex items-center gap-0.5">
+            <Ban size={7} />
+            {LOCATION_STYLE[loc].short}
+          </span>
+        ))}
+
+        {/* 能力发动要求（♥ + 1/L） */}
+        {characterDef.abilities.map((ability, i) => (
+          <span key={i} className="ml-auto flex items-center gap-0.5">
+            <span className="text-amoris text-[10px] tracking-tighter">
+              {'♥'.repeat(Math.min(ability.goodwillRequired, 6))}
+              {ability.goodwillRequired > 6 && `×${ability.goodwillRequired}`}
+            </span>
+            {ability.maxUsesPerLoop !== null && (
+              <span className="text-[9px] text-doloris font-bold border border-doloris/50 rounded px-0.5">1/L</span>
+            )}
+          </span>
+        ))}
       </div>
 
       {/* Avatar / Abilities Toggle */}
@@ -341,33 +391,88 @@ export function CharacterCard({
                 
                 {/* 角色信息 */}
                 <div className="mt-4 bg-slate-900/95 rounded-lg p-4 space-y-3 border border-slate-700">
+                  {/* 名字 + 不安上限 */}
                   <div className="flex items-center justify-between">
                     <h3 className="text-2xl font-bold text-white">{characterDef.name}</h3>
-                    <span className="text-oblivionis text-sm font-medium">
-                      不安上限: {characterDef.anxietyLimit}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-slate-400">不安上限</span>
+                      <span className={cn(
+                        "text-lg font-black",
+                        characterDef.anxietyLimit === 0 ? "text-slate-500"
+                          : characterDef.anxietyLimit >= 4 ? "text-mortis"
+                          : "text-oblivionis"
+                      )}>
+                        {characterDef.anxietyLimit === 99 ? '∞' : characterDef.anxietyLimit}
+                      </span>
+                    </div>
                   </div>
-                  
+
+                  {/* 位置信息 */}
+                  <div className="flex flex-wrap gap-2">
+                    {/* 初始位置 */}
+                    <div className="flex items-center gap-1.5">
+                      <MapPin size={13} className="text-slate-400" />
+                      <span className="text-xs text-slate-400">初始</span>
+                      {(() => {
+                        const loc = LOCATION_STYLE[characterDef.initialLocation];
+                        return (
+                          <span className={cn('text-xs px-2 py-0.5 rounded-full border font-medium', loc.bg, loc.color)}>
+                            {loc.label}
+                          </span>
+                        );
+                      })()}
+                    </div>
+
+                    {/* 禁止进入 */}
+                    {toForbidList(characterDef.forbiddenLocation).length > 0 && (
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <Ban size={13} className="text-timoris" />
+                        <span className="text-xs text-slate-400">禁止</span>
+                        {toForbidList(characterDef.forbiddenLocation).map(loc => (
+                          <span key={loc} className="text-xs px-2 py-0.5 rounded-full border bg-timoris/20 border-timoris/50 text-timoris font-medium">
+                            {LOCATION_STYLE[loc].label}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
                   {/* 能力列表 */}
                   {characterDef.abilities.length > 0 ? (
                     <div className="space-y-2">
-                      <div className="text-sm text-amoris font-bold">角色能力</div>
+                      <div className="text-xs text-slate-400 font-bold uppercase tracking-wider">友好能力</div>
                       {characterDef.abilities.map((ability, i) => (
-                        <div key={i} className="bg-slate-800/70 rounded-lg p-3 border border-slate-700/50">
-                          <div className="flex items-center gap-2 text-sm text-amoris/80 font-medium mb-1">
-                            <span>友好 ≥ {ability.goodwillRequired}</span>
-                            {ability.maxUsesPerLoop && (
-                              <span className="text-doloris text-xs">
-                                (每轮{ability.maxUsesPerLoop}次)
+                        <div key={i} className="bg-slate-800/70 rounded-lg p-3 border border-amoris/20 space-y-2">
+                          {/* 发动要求行 */}
+                          <div className="flex items-center gap-2">
+                            {/* 心形图标 */}
+                            <div className="flex items-center gap-0.5">
+                              {Array.from({ length: Math.min(ability.goodwillRequired, 6) }).map((_, j) => (
+                                <span key={j} className="text-amoris text-sm">♥</span>
+                              ))}
+                              {ability.goodwillRequired > 6 && (
+                                <span className="text-amoris text-xs font-bold">×{ability.goodwillRequired}</span>
+                              )}
+                            </div>
+                            <span className="text-xs text-slate-500">友好 ≥ {ability.goodwillRequired}</span>
+                            {/* 1/L 标签 */}
+                            {ability.maxUsesPerLoop !== null && (
+                              <span className="ml-auto text-[10px] font-black text-doloris border border-doloris/60 rounded px-1.5 py-0.5 bg-doloris/10">
+                                {ability.maxUsesPerLoop === 1 ? '1/L' : `${ability.maxUsesPerLoop}/L`}
                               </span>
                             )}
                           </div>
+                          {/* 能力名称 */}
+                          <div className="text-xs font-semibold text-amoris/90 mb-0.5">{ability.description}</div>
+                          {/* 效果文本 */}
                           <div className="text-sm text-slate-300 leading-relaxed">{ability.effect}</div>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <div className="text-slate-500 text-sm">此角色无特殊能力</div>
+                    <div className="flex items-center gap-2 text-slate-600 text-sm py-1">
+                      <span>此角色无友好能力</span>
+                    </div>
                   )}
                 </div>
               </motion.div>

@@ -12,7 +12,8 @@ import {
   Check, X, Eye, Skull, Star
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { SCRIPT_TEMPLATES, ALL_CHARACTERS, type ScriptTemplate } from '@/games/tragedy-looper/scripts/fs-01';
+import { SCRIPT_TEMPLATES, type ScriptTemplate } from '@/games/tragedy-looper/scripts/registry';
+import { ALL_CHARACTERS } from '@/games/tragedy-looper/scripts/characters';
 import { CHARACTER_NAMES, type CharacterId, type IncidentType } from '@/games/tragedy-looper/types';
 
 interface ScriptSetupProps {
@@ -23,9 +24,14 @@ interface ScriptSetupProps {
 /** 事件类型显示名称 */
 const INCIDENT_NAMES: Record<IncidentType, string> = {
   murder: '谋杀案',
-  hospital_incident: '医院的事件',
   suicide: '自杀',
+  hospital_incident: '医院的事件',
   faraway_murder: '远距离杀人',
+  anxiety_spread: '不安扩散',
+  foul_play: '邪气污染',
+  missing_person: '行踪不明',
+  butterfly_effect: '蝴蝶效应',
+  gossip: '流传',
 };
 
 /** 难度标签颜色 */
@@ -209,7 +215,7 @@ export function ScriptSetup({ onSelect, onCancel }: ScriptSetupProps) {
                 </div>
 
                 {/* 主线/支线 */}
-                <div className="mt-3 flex items-center gap-3 text-sm">
+                <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
                   <span className="px-2 py-1 rounded bg-amoris/10 text-amoris border border-amoris/30">
                     主线：{script.mainPlot}
                   </span>
@@ -218,6 +224,11 @@ export function ScriptSetup({ onSelect, onCancel }: ScriptSetupProps) {
                       支线：{script.subPlot}
                     </span>
                   )}
+                  {script.specialRules?.map((rule, i) => (
+                    <span key={i} className="px-2 py-1 rounded bg-doloris/10 text-doloris border border-doloris/30 font-bold">
+                      {rule}
+                    </span>
+                  ))}
                 </div>
               </div>
 
