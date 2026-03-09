@@ -374,7 +374,7 @@ export function PhaseControl() {
           </div>
         )}
         {currentPhase === 'mastermind_action' && (
-          <div className="mt-2 text-sm opacity-90">
+          <div className="mt-2 text-sm text-amoris opacity-90">
             🎭 剧作家打出行动牌（最多3张，暗置）
           </div>
         )}
@@ -447,8 +447,10 @@ export function PhaseControl() {
               "text-white font-black text-base tracking-wide shadow-xl transition-all",
               isTutorial
                 ? "bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-slate-900 ring-2 ring-amber-300/60"
-                : currentPhase === 'mastermind_action' || currentPhase === 'night'
-                  ? "bg-timoris hover:bg-timoris/80 shadow-timoris/20"
+                : currentPhase === 'mastermind_action'
+                  ? "bg-amoris hover:bg-amoris/80 shadow-amoris/20"
+                  : currentPhase === 'night'
+                    ? "bg-timoris hover:bg-timoris/80 shadow-timoris/20"
                   : currentPhase === 'protagonist_action'
                     ? "bg-[#FF5522] hover:bg-[#ff6a3d] shadow-[#FF5522]/25"
                     : "bg-doloris hover:bg-doloris/80 shadow-doloris/20"

@@ -72,14 +72,14 @@ export function CharacterCard({
   const [showEnlarge, setShowEnlarge] = useState(false);
   const hasCards = myPlacedCards.length > 0 || opponentPlacedCards.length > 0;
   
-  const { isConnected, updateGameState, toggleCharacterLife } = useMultiplayer();
+  const { isConnected, updateGameState } = useMultiplayer();
   const gameState = useGameStore((s) => s.gameState);
   const playerRole = useGameStore((s) => s.playerRole);
   const protagonistGuesses = useGameStore((s) => s.protagonistGuesses);
   const setProtagonistGuess = useGameStore((s) => s.setProtagonistGuess);
 
   const phase = gameState?.phase;
-  const canToggleLife = phase !== 'protagonist_action';
+  const canToggleLife = true;
 
   // 仅在启用移动模式且不在主人公打牌阶段时，允许拖拽（避免移动与点按冲突）
   const canDrag = canDragCharacter && phase !== 'protagonist_action';
@@ -99,12 +99,22 @@ export function CharacterCard({
 
   const toggleLife = () => {
     if (!canToggleLife) return;
-    toggleCharacterLife(characterState.id);
+    const store = useGameStore.getState();
+    store.toggleCharacterLife(characterState.id);
+    if (isConnected) {
+      setTimeout(() => {
+        updateGameState(useGameStore.getState().getSyncPayload());
+      }, 50);
+    }
   };
 
   const handleToggleLife = (e: React.MouseEvent) => {
     e.stopPropagation();
     toggleLife();
+  };
+  
+  const handleDeathPointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
   };
 
   // 调整指示物并同步到服务器
@@ -207,6 +217,7 @@ export function CharacterCard({
       {/* 死亡/复活切换按钮 */}
       <button
         ref={deathBtnRef}
+        onPointerDown={handleDeathPointerDown}
         onClick={handleToggleLife}
         className={cn(
           "absolute -bottom-2 -left-2 p-1.5 rounded-full shadow-lg z-20 transition-all active:scale-90",
@@ -461,28 +472,13 @@ export function CharacterCard({
                   {hasSpriteAsset ? (
                     <div className="absolute inset-0 bg-center bg-no-repeat" style={spriteStyle} />
                   ) : (
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <span className="text-slate-500 text-2xl font-bold">{characterDef.name}</span>
-                    </div>
+                    <div className="absolute inset-0 bg-slate-700" />
                   )}
                   {isDead && (
                     <div className="absolute inset-0 flex items-center justify-center bg-black/40">
                       <X size={96} className="text-amoris drop-shadow-[0_0_16px_rgba(170,68,119,0.9)]" strokeWidth={5} />
                     </div>
                   )}
-                  {/* 名字+特征 浮层 */}
-                  <div className="absolute bottom-0 left-0 right-0 px-3 py-2 bg-gradient-to-t from-black/80 to-transparent">
-                    <div className="flex items-end justify-between">
-                      <span className="text-white font-black text-lg leading-none">{characterDef.name}</span>
-                      <div className="flex gap-1">
-                        {characterDef.traits.map(t => (
-                          <span key={t} className="text-[10px] px-1.5 py-0.5 bg-slate-700/80 rounded text-slate-300">
-                            {t === 'boy' ? '男' : t === 'girl' ? '女' : '学生'}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
                 </div>
 
                 {/* 信息区 */}

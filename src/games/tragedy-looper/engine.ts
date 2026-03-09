@@ -446,9 +446,30 @@ export function processResolution(
   const indicatorCards = allCards.filter(pc => 
     pc.card.type === 'goodwill' || pc.card.type === 'anxiety' || pc.card.type === 'intrigue'
   );
+  const indicatorTypeText: Record<'goodwill' | 'anxiety' | 'intrigue', string> = {
+    goodwill: '友好',
+    anxiety: '不安',
+    intrigue: '阴谋',
+  };
+  const locationNames: Record<LocationType, string> = {
+    hospital: '医院',
+    shrine: '神社',
+    city: '都市',
+    school: '学校',
+  };
   
   indicatorCards.forEach(pc => {
-    if (pc.card.isForbid) return;
+    const ownerText = pc.card.owner === 'mastermind' ? '剧作家' : '主人公';
+    const type = pc.card.type as 'goodwill' | 'anxiety' | 'intrigue';
+    const typeText = indicatorTypeText[type];
+    const targetName = pc.targetCharacterId
+      ? (characterDefs[pc.targetCharacterId]?.name ?? '目标角色')
+      : (pc.targetLocation ? `${locationNames[pc.targetLocation]}地点` : '未知目标');
+
+    if (pc.card.isForbid) {
+      messages.push(`${ownerText}在${targetName}放置了「禁止${typeText}」，用于抵消对方同类效果。`);
+      return;
+    }
     
     const isForbidden = hasForbidCard(
       pc.targetCharacterId,
@@ -457,9 +478,14 @@ export function processResolution(
       pc.card.owner
     );
     
-    if (isForbidden) return;
+    if (isForbidden) {
+      messages.push(`${ownerText}对${targetName}的${typeText}效果被对方「禁止${typeText}」抵消。`);
+      return;
+    }
 
     if (pc.targetCharacterId && pc.card.value) {
+      const targetChar = updatedState.characters.find(c => c.id === pc.targetCharacterId);
+      const before = targetChar ? targetChar.indicators[type] : null;
       updatedState.characters = updatedState.characters.map(c => {
         if (c.id === pc.targetCharacterId) {
           const indicators = applyIndicatorChange(
@@ -471,16 +497,32 @@ export function processResolution(
         }
         return c;
       });
+      const afterChar = updatedState.characters.find(c => c.id === pc.targetCharacterId);
+      const after = afterChar ? afterChar.indicators[type] : null;
+      const valueText = pc.card.value > 0 ? `+${pc.card.value}` : `${pc.card.value}`;
+      if (before !== null && after !== null) {
+        messages.push(`${ownerText}使${targetName}${typeText}${valueText}（${before} -> ${after}）。`);
+      } else {
+        messages.push(`${ownerText}使${targetName}${typeText}${valueText}。`);
+      }
     }
     
     if (pc.targetLocation && !pc.targetCharacterId && pc.card.type === 'intrigue' && pc.card.value) {
       const loc = pc.targetLocation;
+      const before = updatedState.boardIntrigue[loc] || 0;
       updatedState.boardIntrigue = {
         ...updatedState.boardIntrigue,
         [loc]: (updatedState.boardIntrigue[loc] || 0) + pc.card.value,
       };
+      const after = updatedState.boardIntrigue[loc] || 0;
+      const valueText = pc.card.value > 0 ? `+${pc.card.value}` : `${pc.card.value}`;
+      messages.push(`${ownerText}使${locationNames[loc]}的地点阴谋${valueText}（${before} -> ${after}）。`);
     }
   });
+
+  if (messages.length === 0) {
+    messages.push('本次结算没有产生可见变化。');
+  }
 
   return { state: updatedState, messages };
 }

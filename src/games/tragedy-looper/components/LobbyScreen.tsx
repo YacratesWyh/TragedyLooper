@@ -82,6 +82,14 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
       setUsername(trimmed);
     }
   };
+  
+  const handleBackToModeSelect = () => {
+    setMode(null);
+    setGameMode(null);
+    setShowCreateForm(false);
+    setJoiningRoomId(null);
+    setJoinPassword('');
+  };
 
   const gameState = useGameStore((state) => state.gameState);
 
@@ -177,11 +185,12 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
   // 模式选择
   if (mode === null) {
     return (
-      <div className="min-h-screen rendered-dark-bg flex flex-col items-center justify-center p-4 sm:p-8">
+      <div className="min-h-screen relative flex flex-col items-center justify-center p-4 sm:p-8 bg-[url('/assets/tl/20220605022917_d75a4.jpg')] bg-cover bg-center bg-fixed">
+        <div className="absolute inset-0 bg-shell-bg/55 pointer-events-none" />
         <motion.div
           initial={{ opacity: 0, y: -30 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-center mb-12"
+          className="relative z-10 text-center mb-12"
         >
           <h1 className="text-5xl font-black text-white tracking-tight mb-2">惨剧轮回</h1>
           <p className="text-slate-400 text-lg">Tragedy Looper</p>
@@ -191,7 +200,7 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15 }}
-          className="flex w-full max-w-2xl flex-col sm:flex-row gap-4 sm:gap-6"
+          className="relative z-10 grid w-full max-w-2xl grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6"
         >
           <button
             onClick={() => {
@@ -199,8 +208,8 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
               setGameMode('hotseat');
               setShowScriptSetup(true);
             }}
-            className="flex w-full sm:w-auto flex-col items-center gap-3 sm:gap-4 px-6 sm:px-12 py-7 sm:py-10 rounded-2xl bg-slate-800 border-2 border-slate-700
-              hover:bg-slate-700 hover:border-doloris/60 transition-all active:scale-95 sm:min-w-[200px] group"
+            className="flex w-full flex-col items-center gap-3 sm:gap-4 px-6 sm:px-12 py-7 sm:py-10 rounded-2xl bg-slate-800 border-2 border-slate-700
+              hover:bg-slate-700 hover:border-doloris/60 transition-all active:scale-95 group"
           >
             <div className="flex h-14 w-14 items-center justify-center rounded-xl border border-doloris/40 bg-doloris/10">
               <Monitor size={34} className="block text-doloris group-hover:scale-110 transition-transform" />
@@ -210,9 +219,12 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
           </button>
 
           <button
-            onClick={() => setMode('online')}
-            className="flex w-full sm:w-auto flex-col items-center gap-3 sm:gap-4 px-6 sm:px-12 py-7 sm:py-10 rounded-2xl bg-slate-800 border-2 border-slate-700
-              hover:bg-slate-700 hover:border-oblivionis/60 transition-all active:scale-95 sm:min-w-[200px] group"
+            onClick={() => {
+              setMode('online');
+              setGameMode('online');
+            }}
+            className="flex w-full flex-col items-center gap-3 sm:gap-4 px-6 sm:px-12 py-7 sm:py-10 rounded-2xl bg-slate-800 border-2 border-slate-700
+              hover:bg-slate-700 hover:border-oblivionis/60 transition-all active:scale-95 group"
           >
             <div className="flex h-14 w-14 items-center justify-center rounded-xl border border-oblivionis/40 bg-oblivionis/10">
               <Wifi size={34} className="block text-oblivionis group-hover:scale-110 transition-transform" />
@@ -248,7 +260,14 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
   // 未设置用户名 - 显示用户名输入界面
   if (!username) {
     return (
-      <div className="min-h-screen rendered-dark-bg flex flex-col items-center justify-center p-4 sm:p-8">
+      <div className="min-h-screen rendered-dark-bg relative flex flex-col items-center justify-center p-4 sm:p-8">
+        <button
+          onClick={handleBackToModeSelect}
+          className="absolute top-4 left-4 flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-900/80 border border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white transition-all"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          返回上一步
+        </button>
         <motion.div
           initial={{ opacity: 0, y: -30 }}
           animate={{ opacity: 1, y: 0 }}
@@ -370,7 +389,14 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
   // 如果已经尝试过初始连接，则进入大厅，连接状态由右上角图标显示
   if (!isConnected && !isReconnecting && !hasAttemptedInitialConnect) {
     return (
-      <div className="min-h-screen rendered-dark-bg flex flex-col items-center justify-center p-4 sm:p-8">
+      <div className="min-h-screen rendered-dark-bg relative flex flex-col items-center justify-center p-4 sm:p-8">
+        <button
+          onClick={handleBackToModeSelect}
+          className="absolute top-4 left-4 flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-900/80 border border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white transition-all"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          返回上一步
+        </button>
         <motion.div
           initial={{ opacity: 0, y: -30 }}
           animate={{ opacity: 1, y: 0 }}
@@ -699,7 +725,14 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
 
   // 房间列表
   return (
-    <div className="min-h-screen rendered-dark-bg flex flex-col items-center justify-center p-4 sm:p-8">
+    <div className="min-h-screen rendered-dark-bg relative flex flex-col items-center justify-center p-4 sm:p-8">
+      <button
+        onClick={handleBackToModeSelect}
+        className="absolute top-4 left-4 flex items-center gap-2 px-3 py-2 rounded-lg bg-slate-900/80 border border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-white transition-all"
+      >
+        <ArrowLeft className="w-4 h-4" />
+        返回上一步
+      </button>
       {/* 标题 */}
       <motion.div
         initial={{ opacity: 0, y: -30 }}
