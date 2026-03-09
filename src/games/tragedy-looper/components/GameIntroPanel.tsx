@@ -12,7 +12,11 @@ import { useGameStore } from '@/games/tragedy-looper/store';
 import { useMultiplayer } from '@/shared/useMultiplayer';
 import type { PlayerRole } from '@/games/tragedy-looper/types';
 
-export function GameIntroPanel() {
+interface GameIntroPanelProps {
+  inTopbar?: boolean;
+}
+
+export function GameIntroPanel({ inTopbar = false }: GameIntroPanelProps) {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
@@ -20,7 +24,11 @@ export function GameIntroPanel() {
       {/* Toggle Button - Fixed top-right */}
       <button
         onClick={() => setIsOpen(v => !v)}
-        className="fixed top-2 right-4 z-[95] h-8 flex items-center gap-1.5 px-2.5 bg-[#7799CC] border border-[#7799CC] rounded-lg hover:bg-[#6f8fc1] transition-colors"
+        className={
+          inTopbar
+            ? "h-7 px-2.5 rounded-md border border-[#7799CC] bg-[#7799CC] hover:bg-[#6f8fc1] transition-colors flex items-center gap-1.5 text-xs font-bold"
+            : "fixed top-2 right-4 z-[95] h-8 flex items-center gap-1.5 px-2.5 bg-[#7799CC] border border-[#7799CC] rounded-lg hover:bg-[#6f8fc1] transition-colors"
+        }
         title="游戏简介"
       >
         <Sparkles size={14} className="text-white/90" />
@@ -37,7 +45,7 @@ export function GameIntroPanel() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsOpen(false)}
-              className="fixed inset-0 bg-black/60 z-[110]"
+              className="fixed inset-0 bg-black/60 z-[170]"
             />
             
             {/* Panel Content */}
@@ -45,7 +53,7 @@ export function GameIntroPanel() {
               initial={{ x: 400, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
               exit={{ x: 400, opacity: 0 }}
-              className="fixed top-0 right-0 h-full w-96 bg-surface-1/95 border-l border-border-soft z-[120] shadow-2xl overflow-hidden flex flex-col backdrop-blur-md"
+              className="fixed top-0 right-0 h-full w-96 bg-surface-1/95 border-l border-border-soft z-[180] shadow-2xl overflow-hidden flex flex-col backdrop-blur-md"
             >
               {/* Header */}
               <div className="bg-gradient-to-r from-timoris/15 to-surface-1 border-b border-border-soft p-4 flex justify-between items-center shrink-0">
@@ -58,6 +66,8 @@ export function GameIntroPanel() {
                 </div>
                 <button
                   onClick={() => setIsOpen(false)}
+                  title="关闭游戏简介"
+                  aria-label="关闭游戏简介"
                   className="p-2 hover:bg-surface-3 rounded-lg transition-colors"
                 >
                   <X size={20} />
@@ -443,6 +453,8 @@ function ReferenceGallery() {
             <button
               className="absolute top-4 right-4 p-2 bg-slate-800/80 hover:bg-slate-700 text-white rounded-full transition-colors"
               onClick={() => setZoomedImage(null)}
+              title="关闭参考图片"
+              aria-label="关闭参考图片"
             >
               <X size={24} />
             </button>

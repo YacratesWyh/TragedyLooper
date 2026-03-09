@@ -152,7 +152,8 @@ body[data-tutorial-highlight="character-indicators"] [data-tutorial-id="characte
 }
 
 body[data-tutorial-highlight="rules-reference"] [data-tutorial-id="rules-reference"] {
-  animation: tutorial-outline-pulse 1.4s ease-in-out infinite;
+  outline: 2px solid rgba(251, 191, 36, 0.95);
+  outline-offset: 3px;
   border-radius: 0.5rem;
 }
 

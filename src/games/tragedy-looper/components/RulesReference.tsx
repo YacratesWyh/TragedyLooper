@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import {
@@ -10,6 +11,7 @@ import {
 import { useGameStore } from '@/games/tragedy-looper/store';
 import { useMultiplayer } from '@/shared/useMultiplayer';
 import type { PlayerRole } from '@/games/tragedy-looper/types';
+import { SCRIPT_TEMPLATES } from '@/games/tragedy-looper/scripts/registry';
 
 // ===== 速查图片配置 =====
 
@@ -25,6 +27,63 @@ interface ScriptConfig {
   images: QuickRefImage[];
 }
 
+function isReferenceRoleCard(imageId: string): boolean {
+  return imageId === 'mastermind-reference'
+    || imageId === 'protagonist-reference'
+    || imageId === 'scripter-card'
+    || imageId === 'protagonist-card';
+}
+
+function isSpriteSheetRoleCard(imageId: string): boolean {
+  return imageId === 'mastermind-reference'
+    || imageId === 'protagonist-reference'
+    || imageId === 'scripter-card'
+    || imageId === 'protagonist-card';
+}
+
+function getRoleCardSpritePath(imageId: string): string | null {
+  if (imageId === 'mastermind-reference' || imageId === 'scripter-card') {
+    return '/assets/tl/common/scripter.jpg';
+  }
+  if (imageId === 'protagonist-reference' || imageId === 'protagonist-card') {
+    return '/assets/tl/common/protagonist.jpg';
+  }
+  return null;
+}
+
+function getDefaultScriptTileStyle(scriptId: string | undefined): React.CSSProperties | undefined {
+  if (!scriptId) return undefined;
+  let slot: number | null = null;
+  const fs = scriptId.match(/^fs-(\d{2})$/);
+  const bt = scriptId.match(/^bt-(\d{2})$/);
+  if (fs) {
+    const n = Number(fs[1]);
+    if (n >= 1 && n <= 2) slot = n;
+  } else if (bt) {
+    const n = Number(bt[1]);
+    if (n >= 3 && n <= 10) slot = n;
+  } else {
+    const defaults = SCRIPT_TEMPLATES.filter((s) => !s.isCustom).slice(0, 10);
+    const idx = defaults.findIndex((s) => s.id === scriptId);
+    if (idx >= 0) slot = idx + 1;
+  }
+  if (!slot) return undefined;
+  const index = slot - 1;
+  const cols = 5;
+  const rows = 2;
+  const col = index % cols;
+  const row = Math.floor(index / cols);
+  // 精确按 5x2 网格左上对齐切片：
+  // 第 1 张就是左上角（0%,0%），第 5 张是右上角（100%,0%），第 6 张是左下角（0%,100%）。
+  const x = cols > 1 ? (col / (cols - 1)) * 100 : 0;
+  const y = rows > 1 ? (row / (rows - 1)) * 100 : 0;
+  return {
+    backgroundSize: `${cols * 100}% ${rows * 100}%`,
+    backgroundPosition: `${x}% ${y}%`,
+    backgroundRepeat: 'no-repeat',
+  };
+}
+
 function getScriptAssetPath(tragedySet: string | undefined): string {
   return tragedySet === 'basic_tragedy' ? 'tl/btx' : 'tl/fs';
 }
@@ -38,6 +97,7 @@ export function RulesReference() {
   const [mastermindUnlocked, setMastermindUnlocked] = useState(false);
 
   const gameState = useGameStore((s) => s.gameState);
+  const currentScript = useGameStore((s) => s.currentScript);
   const localRole = useGameStore((s) => s.playerRole);
   const gameMode = useGameStore((s) => s.gameMode);
   const { myRole: multiplayerRole } = useMultiplayer();
@@ -77,6 +137,10 @@ export function RulesReference() {
   const getImagePath = (img: QuickRefImage) =>
     img.path.startsWith('/') ? img.path : `/assets/${scriptAssetPath}/${img.path}`;
 
+  const roleCardTileStyle = useMemo(() => {
+    return getDefaultScriptTileStyle(currentScript?.id);
+  }, [currentScript?.id]);
+
   if (quickRefImages.length === 0) return null;
 
   return (
@@ -104,37 +168,53 @@ export function RulesReference() {
             >
               <div className="px-3 pb-3">
                 <div className="grid grid-cols-2 gap-2">
-                {visibleImages.map((img) => (
-                  <div
-                    key={img.id}
-                    className="group relative rounded-md overflow-hidden border border-border-soft hover:border-doloris/40 cursor-pointer transition-all"
-                    onClick={() => setZoomedImage(getImagePath(img))}
-                  >
-                    <div className="bg-surface-2 aspect-[4/3]">
+                  {visibleImages.map((img) => (
+                    <div
+                      key={img.id}
+                      className="group relative rounded-md overflow-hidden border border-border-soft hover:border-doloris/40 cursor-pointer transition-all"
+                      onClick={() => setZoomedImage(getImagePath(img))}
+                    >
+                      <div className={cn(
+                        "bg-surface-2",
+                        // 5x2 母图切单卡，使用 3:5 近似实体卡比例，避免瘦长拉伸。
+                        isSpriteSheetRoleCard(img.id) ? "aspect-[3/5]" : "aspect-[4/3]"
+                      )}>
                       <img
                         src={getImagePath(img)}
                         alt={img.title}
-                        className="w-full h-full object-cover"
+                        className={cn(
+                          "w-full h-full",
+                          isSpriteSheetRoleCard(img.id) && roleCardTileStyle ? "hidden" : "object-contain"
+                        )}
                       />
-                    </div>
-                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
-                      <Maximize2 size={16} className="text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-lg" />
-                    </div>
-                    {img.visibleTo && (
-                      <div className={cn(
-                        "absolute top-1 right-1 px-1.5 py-0.5 rounded text-[9px] font-bold",
-                        img.visibleTo === 'mastermind'
-                          ? "bg-timoris/60 text-timoris"
-                          : "bg-oblivionis/60 text-oblivionis"
-                      )}>
-                        {img.visibleTo === 'mastermind' ? '剧作家' : '主人公'}
+                      {isSpriteSheetRoleCard(img.id) && roleCardTileStyle && (
+                          <div
+                            className="absolute inset-0"
+                          style={{
+                            ...roleCardTileStyle,
+                            backgroundImage: `url("${getRoleCardSpritePath(img.id) ?? getImagePath(img)}")`,
+                          }}
+                          />
+                        )}
                       </div>
-                    )}
-                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent px-2 py-1">
-                      <p className="text-[9px] text-white font-bold leading-tight">{img.title}</p>
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                        <Maximize2 size={16} className="text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-lg" />
+                      </div>
+                      {img.visibleTo && (
+                        <div className={cn(
+                          "absolute top-1 right-1 px-1.5 py-0.5 rounded text-[9px] font-bold",
+                          img.visibleTo === 'mastermind'
+                            ? "bg-timoris/60 text-timoris"
+                            : "bg-oblivionis/60 text-oblivionis"
+                        )}>
+                          {img.visibleTo === 'mastermind' ? '剧作家' : '主人公'}
+                        </div>
+                      )}
+                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent px-2 py-1">
+                        <p className="text-[9px] text-white font-bold leading-tight">{img.title}</p>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
                 </div>
 
                 {/* 热座模式：剧作家专属内容需确认解锁 */}
@@ -158,35 +238,65 @@ export function RulesReference() {
         </AnimatePresence>
       </div>
 
-      {/* 放大查看（全屏覆盖） */}
-      <AnimatePresence>
-        {zoomedImage && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[200] bg-black/92 backdrop-blur-sm flex items-center justify-center p-4"
-            onClick={() => setZoomedImage(null)}
-          >
-            <button
-              className="absolute top-4 right-4 p-2 bg-surface-2/85 hover:bg-surface-3 text-white rounded-full transition-colors"
+      {/* 放大查看（全屏覆盖，Portal 到 body，避免被侧栏 transform 裁切） */}
+      {typeof window !== 'undefined' && createPortal(
+        <AnimatePresence>
+          {zoomedImage && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[220] bg-black/92 backdrop-blur-sm flex items-center justify-center p-4"
               onClick={() => setZoomedImage(null)}
             >
-              <X size={24} />
-            </button>
-            <motion.img
-              key={zoomedImage}
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              src={zoomedImage}
-              alt="速查大图"
-              className="max-w-full max-h-full object-contain shadow-2xl rounded-lg"
-              onClick={(e) => e.stopPropagation()}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
+              <button
+                className="absolute top-4 right-4 p-2 bg-surface-2/85 hover:bg-surface-3 text-white rounded-full transition-colors"
+                onClick={() => setZoomedImage(null)}
+                title="关闭大图"
+                aria-label="关闭大图"
+              >
+                <X size={24} />
+              </button>
+              {(() => {
+                const zoomedMeta = visibleImages.find(img => getImagePath(img) === zoomedImage);
+                if (zoomedMeta && isSpriteSheetRoleCard(zoomedMeta.id) && roleCardTileStyle) {
+                  return (
+                    <motion.div
+                      key={zoomedImage}
+                      initial={{ scale: 0.9, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      exit={{ scale: 0.9, opacity: 0 }}
+                      className="h-[min(86vh,42rem)] max-w-[92vw] aspect-[3/5] shadow-2xl rounded-lg overflow-hidden"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div
+                        className="w-full h-full"
+                        style={{
+                          ...roleCardTileStyle,
+                          backgroundImage: `url("${getRoleCardSpritePath(zoomedMeta.id) ?? zoomedImage}")`,
+                        }}
+                      />
+                    </motion.div>
+                  );
+                }
+                return (
+                  <motion.img
+                    key={zoomedImage}
+                    initial={{ scale: 0.9, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0.9, opacity: 0 }}
+                    src={zoomedImage}
+                    alt="速查大图"
+                    className="max-w-full max-h-full object-contain shadow-2xl rounded-lg"
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                );
+              })()}
+            </motion.div>
+          )}
+        </AnimatePresence>,
+        document.body
+      )}
     </>
   );
 }
@@ -231,14 +341,22 @@ function CollapsibleSection({ title, icon, children, defaultOpen = false }: Coll
   );
 }
 
-export function SupplementaryReference() {
+interface SupplementaryReferenceProps {
+  inTopbar?: boolean;
+}
+
+export function SupplementaryReference({ inTopbar = false }: SupplementaryReferenceProps) {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
     <>
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed top-2 right-20 z-[95] h-8 flex items-center gap-1.5 px-2.5 bg-[#7799CC] border border-[#7799CC] rounded-lg hover:bg-[#6f8fc1] transition-colors"
+        className={
+          inTopbar
+            ? "h-7 px-2.5 rounded-md border border-[#7799CC] bg-[#7799CC] hover:bg-[#6f8fc1] transition-colors flex items-center gap-1.5 text-xs font-bold"
+            : "fixed top-2 right-20 z-[95] h-8 flex items-center gap-1.5 px-2.5 bg-[#7799CC] border border-[#7799CC] rounded-lg hover:bg-[#6f8fc1] transition-colors"
+        }
         title="进阶策略"
       >
         <Lightbulb size={14} className="text-white/90" />
@@ -272,6 +390,8 @@ export function SupplementaryReference() {
                 </div>
                 <button
                   onClick={() => setIsOpen(false)}
+                  title="关闭进阶策略"
+                  aria-label="关闭进阶策略"
                   className="p-2 hover:bg-slate-800 rounded-lg transition-colors"
                 >
                   <X size={20} />

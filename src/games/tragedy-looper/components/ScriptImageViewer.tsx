@@ -13,6 +13,7 @@ import { X, ChevronLeft, ChevronRight, Lock, Image as ImageIcon } from 'lucide-r
 import { useGameStore } from '@/games/tragedy-looper/store';
 import { useMultiplayer } from '@/shared/useMultiplayer';
 import type { PlayerRole } from '@/games/tragedy-looper/types';
+import { SCRIPT_TEMPLATES } from '@/games/tragedy-looper/scripts/registry';
 
 interface ScriptImage {
   id: string;
@@ -29,6 +30,44 @@ interface ScriptConfig {
     path: string;
     visibleTo?: PlayerRole;
   }>;
+}
+
+function isReferenceRoleCard(imageId: string): boolean {
+  return imageId === 'mastermind-reference'
+    || imageId === 'protagonist-reference'
+    || imageId === 'scripter-card'
+    || imageId === 'protagonist-card';
+}
+
+function getDefaultScriptTileStyle(scriptId: string | undefined): React.CSSProperties | undefined {
+  if (!scriptId) return undefined;
+  let slot: number | null = null;
+  const fs = scriptId.match(/^fs-(\d{2})$/);
+  const bt = scriptId.match(/^bt-(\d{2})$/);
+  if (fs) {
+    const n = Number(fs[1]);
+    if (n >= 1 && n <= 2) slot = n;
+  } else if (bt) {
+    const n = Number(bt[1]);
+    if (n >= 3 && n <= 10) slot = n;
+  } else {
+    const defaults = SCRIPT_TEMPLATES.filter((s) => !s.isCustom).slice(0, 10);
+    const idx = defaults.findIndex((s) => s.id === scriptId);
+    if (idx >= 0) slot = idx + 1;
+  }
+  if (!slot) return undefined;
+  const index = slot - 1;
+  const cols = 5;
+  const rows = 2;
+  const col = index % cols;
+  const row = Math.floor(index / cols);
+  const x = (col / (cols - 1)) * 100;
+  const y = (row / (rows - 1)) * 100;
+  return {
+    backgroundSize: `${cols * 100}% ${rows * 100}%`,
+    backgroundPosition: `${x}% ${y}%`,
+    backgroundRepeat: 'no-repeat',
+  };
 }
 
 // 根据剧本名称获取对应的资源目录
@@ -49,6 +88,7 @@ export function ScriptImageViewer() {
   const { myRole: multiplayerRole } = useMultiplayer();
   const localRole = useGameStore((s) => s.playerRole);
   const gameState = useGameStore((s) => s.gameState);
+  const currentScript = useGameStore((s) => s.currentScript);
   const gameMode = useGameStore((s) => s.gameMode);
   const isHotseat = gameMode === 'hotseat';
   const currentRole = isHotseat ? localRole : (multiplayerRole || localRole);
@@ -141,6 +181,10 @@ export function ScriptImageViewer() {
   // 获取图片完整路径
   const getImagePath = (img: ScriptImage) => `${img.basePath}/${img.path}`;
 
+  const roleCardTileStyle = useMemo(() => {
+    return getDefaultScriptTileStyle(currentScript?.id);
+  }, [currentScript?.id]);
+
   const nextImage = () => {
     setCurrentIndex((i) => (i + 1) % visibleImages.length);
   };
@@ -166,8 +210,17 @@ export function ScriptImageViewer() {
           <img 
             src={getImagePath(currentImage)}
             alt={currentImage.title}
-            className="w-full h-full object-cover"
+            className={cn(
+              "w-full h-full",
+              isReferenceRoleCard(currentImage.id) && roleCardTileStyle ? "hidden" : "object-cover"
+            )}
           />
+          {isReferenceRoleCard(currentImage.id) && roleCardTileStyle && (
+            <div
+              className="absolute inset-0"
+              style={{ ...roleCardTileStyle, backgroundImage: `url("${getImagePath(currentImage)}")` }}
+            />
+          )}
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
           <div className="absolute bottom-1 left-1 right-1 text-[9px] text-white font-bold text-center truncate">
             {currentImage.title}
@@ -212,6 +265,8 @@ export function ScriptImageViewer() {
                 </div>
                 <button
                   onClick={() => setIsExpanded(false)}
+                  title="关闭图文速查面板"
+                  aria-label="关闭图文速查面板"
                   className="p-1.5 hover:bg-slate-700 rounded-lg transition-colors"
                 >
                   <X size={18} className="text-slate-400" />
@@ -239,8 +294,17 @@ export function ScriptImageViewer() {
                         <img 
                           src={getImagePath(img)}
                           alt={img.title}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          className={cn(
+                            "w-full h-full group-hover:scale-105 transition-transform duration-300",
+                            isReferenceRoleCard(img.id) && roleCardTileStyle ? "hidden" : "object-cover"
+                          )}
                         />
+                        {isReferenceRoleCard(img.id) && roleCardTileStyle && (
+                          <div
+                            className="absolute inset-0 group-hover:scale-105 transition-transform duration-300"
+                            style={{ ...roleCardTileStyle, backgroundImage: `url("${getImagePath(img)}")` }}
+                          />
+                        )}
                       </div>
                       <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors" />
                       
@@ -313,6 +377,8 @@ export function ScriptImageViewer() {
             <button
               className="absolute top-4 right-4 p-2 bg-slate-800/80 hover:bg-slate-700 text-white rounded-full transition-colors"
               onClick={() => setZoomedImage(null)}
+              title="关闭大图"
+              aria-label="关闭大图"
             >
               <X size={24} />
             </button>
@@ -327,6 +393,8 @@ export function ScriptImageViewer() {
                     prevImage(); 
                     setZoomedImage(getImagePath(visibleImages[prevIdx])); 
                   }}
+                  title="上一张"
+                  aria-label="上一张"
                   className="absolute left-4 top-1/2 -translate-y-1/2 p-3 bg-slate-800/80 hover:bg-slate-700 text-white rounded-full transition-colors"
                 >
                   <ChevronLeft size={24} />
@@ -338,6 +406,8 @@ export function ScriptImageViewer() {
                     nextImage(); 
                     setZoomedImage(getImagePath(visibleImages[nextIdx])); 
                   }}
+                  title="下一张"
+                  aria-label="下一张"
                   className="absolute right-4 top-1/2 -translate-y-1/2 p-3 bg-slate-800/80 hover:bg-slate-700 text-white rounded-full transition-colors"
                 >
                   <ChevronRight size={24} />
@@ -345,16 +415,32 @@ export function ScriptImageViewer() {
               </>
             )}
 
-            <motion.img
-              key={zoomedImage}
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              src={zoomedImage}
-              alt="Zoomed reference"
-              className="max-w-full max-h-full object-contain shadow-2xl rounded-lg"
-              onClick={(e) => e.stopPropagation()}
-            />
+            {isReferenceRoleCard(visibleImages[currentIndex]?.id || '') && roleCardTileStyle ? (
+              <motion.div
+                key={zoomedImage}
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                className="w-full max-w-5xl aspect-[4/3] shadow-2xl rounded-lg overflow-hidden"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div
+                  className="w-full h-full"
+                  style={{ ...roleCardTileStyle, backgroundImage: `url("${zoomedImage}")` }}
+                />
+              </motion.div>
+            ) : (
+              <motion.img
+                key={zoomedImage}
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                src={zoomedImage}
+                alt="Zoomed reference"
+                className="max-w-full max-h-full object-contain shadow-2xl rounded-lg"
+                onClick={(e) => e.stopPropagation()}
+              />
+            )}
             
             {/* 图片标题 */}
             <div className="absolute bottom-6 left-1/2 -translate-x-1/2 px-4 py-2 bg-slate-900/90 rounded-full text-white font-medium">

@@ -10,9 +10,16 @@ interface GameBoardProps {
   onCharacterClick?: (charId: string) => void;
   /** 是否正在放牌（有选中的牌） */
   isPlacingCard?: boolean;
+  /** 是否启用角色拖拽移动 */
+  canDragCharacter?: boolean;
 }
 
-export function GameBoard({ onLocationClick, onCharacterClick, isPlacingCard = false }: GameBoardProps) {
+export function GameBoard({
+  onLocationClick,
+  onCharacterClick,
+  isPlacingCard = false,
+  canDragCharacter = false
+}: GameBoardProps) {
   const gameState = useGameStore((state) => state.gameState);
   const playerRole = useGameStore((state) => state.playerRole);
   const mastermindCards = useGameStore((state) => state.currentMastermindCards);
@@ -89,7 +96,7 @@ export function GameBoard({ onLocationClick, onCharacterClick, isPlacingCard = f
   }, {} as Record<LocationType, typeof displayCharacters>);
 
   return (
-    <div className="w-full h-full p-4 grid grid-cols-2 gap-6 mx-auto relative min-w-[400px]">
+    <div className="w-full p-2 sm:p-4 grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-6 mx-auto relative">
       {/* 历史回放提示 */}
       {isViewingHistory && historySnapshot && (
         <div className="absolute top-2 left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-doloris/90 text-black rounded-full text-sm font-bold shadow-lg">
@@ -110,6 +117,7 @@ export function GameBoard({ onLocationClick, onCharacterClick, isPlacingCard = f
         onCharacterClick={isViewingHistory ? undefined : onCharacterClick}
         isPlacingCard={isViewingHistory ? false : isPlacingCard}
         onCharacterDragEnd={isViewingHistory ? undefined : handleDragEnd}
+        canDragCharacter={isViewingHistory ? false : canDragCharacter}
       />
 
       {/* Top Right: Shrine */}
@@ -125,6 +133,7 @@ export function GameBoard({ onLocationClick, onCharacterClick, isPlacingCard = f
         onCharacterClick={isViewingHistory ? undefined : onCharacterClick}
         isPlacingCard={isViewingHistory ? false : isPlacingCard}
         onCharacterDragEnd={isViewingHistory ? undefined : handleDragEnd}
+        canDragCharacter={isViewingHistory ? false : canDragCharacter}
       />
 
       {/* Bottom Left: City */}
@@ -140,6 +149,7 @@ export function GameBoard({ onLocationClick, onCharacterClick, isPlacingCard = f
         onCharacterClick={isViewingHistory ? undefined : onCharacterClick}
         isPlacingCard={isViewingHistory ? false : isPlacingCard}
         onCharacterDragEnd={isViewingHistory ? undefined : handleDragEnd}
+        canDragCharacter={isViewingHistory ? false : canDragCharacter}
       />
 
       {/* Bottom Right: School */}
@@ -155,6 +165,7 @@ export function GameBoard({ onLocationClick, onCharacterClick, isPlacingCard = f
         onCharacterClick={isViewingHistory ? undefined : onCharacterClick}
         isPlacingCard={isViewingHistory ? false : isPlacingCard}
         onCharacterDragEnd={isViewingHistory ? undefined : handleDragEnd}
+        canDragCharacter={isViewingHistory ? false : canDragCharacter}
       />
     </div>
   );

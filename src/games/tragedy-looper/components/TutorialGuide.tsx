@@ -188,7 +188,7 @@ const STEPS: TutorialStep[] = [
     content:
       '技能在结算阶段按顺序触发，分为两类：\n\n' +
       '🌑 剧作家技能（第⑤步）\n' +
-      '剧作家根据角色身份发动，但会暴露信息！\n' +
+      '剧作家根据角色身份发动（这些技能剧情/身份速查里都有！），会暴露信息！\n' +
       '• 「无视友好」身份：剧作家可以选择不发动\n' +
       '• 「绝对无视友好」身份：无论如何，技能永远不会发动\n\n' +
       '☀️ 主人公技能（第⑥步）\n' +
@@ -207,16 +207,38 @@ const STEPS: TutorialStep[] = [
     day: 1,
     loop: 1,
     priority: -1,
-    position: 'center',
+    position: 'top-left',
+    highlight: 'rules-reference',
     title: '⚠️ 请将设备交给剧作家',
     content:
-      '基础规则介绍完毕。\n\n' +
-      '接下来的内容包含剧本机密——角色的真实身份和剧作家的战略。\n' +
-      '请主人公回避，将设备交给剧作家单独阅读。\n\n' +
-      '剧作家阅读完毕后，会有提示将设备交还给主人公。',
+      '接下来进入剧作家专属阶段。\n\n' +
+      '主人公请回避屏幕，将设备交给剧作家。\n' +
+      '剧作家独自阅读完毕后，再交还设备继续游戏。',
+    tip: '剧作家拿到设备后，先做一件事：打开左侧专属「速查」面板。',
   },
 
   // ─── 剧作家引导 ──────────────────────────────────────────────────────────
+  {
+    id: 'mm-role-intro',
+    role: 'mastermind',
+    phases: ['dawn', 'mastermind_action'],
+    day: 1,
+    loop: 1,
+    priority: -0.5,
+    position: 'center',
+    title: '你是这场惨剧的编剧',
+    content:
+      '在这局游戏中，你是唯一知道全部真相的人——\n' +
+      '每个角色的身份、事件的犯人、一切幕后布局，都在你手中。\n\n' +
+      '你的目标：在每一次轮回中制造惨剧，耗尽主人公的所有机会。\n\n' +
+      '同时，你也是这场游戏的主持人。你必须遵守规则：\n' +
+      '• 如实宣告——所有结果必须据实公布，绝不撒谎\n' +
+      '• 按步宣告——在正确的阶段宣告正确的效果，不跳步不提前\n' +
+      '• 只说结果——只说「发生了什么」和「在第几步」，绝不解释原因\n\n' +
+      '主人公的唯一情报来源，就是你每一步的宣告。\n' +
+      '你透露的真实信息越少，他们就越迷茫——这本身就是你最大的武器。',
+    tip: '接下来先打开左侧「速查」面板，了解你手中的底牌。',
+  },
   {
     id: 'mm-welcome',
     role: 'mastermind',
@@ -224,18 +246,17 @@ const STEPS: TutorialStep[] = [
     day: 1,
     loop: 1,
     priority: 0,
-    position: 'top-right',
-    title: '剧作家，欢迎回到你的舞台',
+    position: 'top-left',
+    highlight: 'rules-reference',
+    title: '剧作家步骤 1：打开速查',
     content:
-      '这个世界是你亲手搭建的戏台。\n' +
-      '那些在版图上行走的角色，以为自己活在真实的命运里——\n' +
-      '而你知道，这不过是第一幕。\n\n' +
-      '你是这场悲剧永恒的编织者。\n' +
-      '主人公每一次轮回，每一次垂死挣扎，\n' +
-      '都只是在延长你独自欣赏的表演。\n\n' +
-      '引导惨剧走向终焉。\n' +
-      '让轮回永不停止。',
-    tip: '📖 点击屏幕左侧「速查」按钮可随时查看剧情规则和身份能力表。',
+      '点击左侧「📖 速查」，展开「剧情·身份速查」区域。\n\n' +
+      '热座模式下，剧作家专属图片默认隐藏——\n' +
+      '点击底部「确认查看」解锁全部内容。\n\n' +
+      '这里有你需要的一切：\n' +
+      '角色的真实身份、每个身份的能力说明、事件的犯人列表。\n' +
+      '图片可以点击放大查看细节。',
+    tip: '速查面板在整局游戏中随时可以重新打开，不用急着一次记住。',
   },
   {
     id: 'mm-welcome-identities',
@@ -244,16 +265,18 @@ const STEPS: TutorialStep[] = [
     day: 1,
     loop: 1,
     priority: 1,
-    position: 'center',
-    title: '🔒 你的秘密——请勿让主人公看见',
+    position: 'top-left',
+    highlight: 'rules-reference',
+    title: '剧作家步骤 2：确认身份与路线',
     content:
-      '本局各角色真实身份如下：\n\n' +
-      '• 女学生 ＝ 关键人物（死亡即轮回）\n' +
-      '• 巫女 ＝ 杀人狂（夜晚若与人独处，对方立死）\n' +
-      '• 上班族 ＝ 杀手（同区关键人物密谋≥2时可杀）\n' +
-      '• 刑警 ＝ 传谣人（第⑤步可给同区角色+1不安）\n' +
-      '• 医生 ＝ 主犯　　男学生 ＝ 平民',
-    tip: '三条胜路：\n① Night1 巫女杀女学生\n② Day2 男学生谋杀案\n③ Day3 刑警传谣→女学生自杀\n\n你也可以在左侧剧作家专属区查看当前剧本。\n确认已记住后，将设备交给主人公。',
+      '在速查面板中重点确认三件事：\n\n' +
+      '① 身份分配——每个 NPC 的真实身份是什么？\n' +
+      '哪些身份有剧作家主动能力？（第⑤步需要你宣告结果）\n\n' +
+      '② 关键人物——谁是关键人物？\n' +
+      '关键人物死亡会立即终结轮回，她既是你的武器也是软肋。\n\n' +
+      '③ 事件日程——Day2、Day3 各有什么事件？当事人是谁？\n' +
+      '事件触发条件：当事人存活 + 不安达到上限。',
+    tip: '你有多条致胜路线，不必孤注一掷。下一步会告诉你第一天的具体操作。',
   },
   {
     id: 'mm-action-day1',
@@ -305,16 +328,22 @@ const STEPS: TutorialStep[] = [
     loop: 1,
     priority: -1,
     position: 'top-right',
-    title: '夜晚阶段：双方可见',
+    title: '翻牌结算完毕——进入宣告阶段',
     content:
-      '从现在开始，进入夜晚结算的各子阶段，双方都可以看见操作过程：\n\n' +
+      '所有行动牌已翻开并结算完毕。\n' +
+      '角色的移动和指示物变化已反映在版图上——请双方确认当前位置。\n\n' +
+      '接下来依次进入四个宣告子阶段（双方可见）：\n\n' +
       '⑤ 剧作家能力\n' +
+      '剧作家检查角色的身份能力是否可以发动，宣告结果。\n' +
+      '⚠️「无事发生」≠ 没有能力。可能是条件不满足，也可能是剧作家主动选择不发动。\n\n' +
       '⑥ 主人公能力\n' +
+      '主人公可声明发动好感达标的 NPC 友好能力。\n' +
+      '⚠️「无事发生」无法区分是「能力条件不满足」还是「NPC 身份无视友好」——两者外观完全相同，不能据此推理。\n\n' +
       '⑦ 事件检查\n' +
-      '⑧ 夜晚\n\n' +
-      '各阶段由剧作家主持宣告，游戏系统自动推进。\n' +
-      '如遇到结算 bug，可向开发者反馈，同时通过手动点击角色卡片上的指示物按钮来修正数值。',
-    tip: '双方现在都可以查看版图，讨论各角色的当前状态。',
+      '检查当天是否有预定事件。今天 Day1 没有事件（事件从 Day2 开始）。\n\n' +
+      '⑧ 夜晚\n' +
+      '检查夜间身份能力（杀人狂、杀手等）。',
+    tip: '主人公请观察版图：谁被移动了？谁的不安增加了？每一步的「无事发生」和「有事发生」都是推理线索。',
   },
   {
     id: 'mm-ability-day1',
@@ -324,13 +353,22 @@ const STEPS: TutorialStep[] = [
     loop: 1,
     priority: 0,
     position: 'top-right',
-    title: '⑤ 剧作家能力：无事发生',
+    title: '⑤ 剧作家能力',
     content:
-      '此阶段检查场上角色的剧作家身份能力。\n\n' +
-      '传谣人（刑警）能力：可对同区域角色+1不安。\n' +
-      '今天刑警未与目标同区域，暂不发动。\n\n' +
-      '宣告「无事发生」，点击按钮推进到下一阶段。',
-    tip: '宣告只说结果，不说原因。"无事发生"本身也是一种信息——主人公会记录的。',
+      '🔒 默读（不要念出来）：\n' +
+      '检查所有角色的剧作家身份能力是否可以发动。\n\n' +
+      '本局你有一个可主动发动的能力：\n' +
+      '• 刑警（传谣人）：可对同区域的一名角色+1不安\n' +
+      '• 条件：刑警必须与目标在同一区域\n' +
+      '• 今天刑警（都市）与目标不在同一区域 → 条件不满足，无法发动\n\n' +
+      '⚠️ 教学要点：\n' +
+      '即使今天条件不满足，后续轮回中你可能会主动选择不发动——\n' +
+      '另外，「无视友好」身份允许你在关键时刻，不发动主人公的友好能力。\n' +
+      '主人公无法区分「没有能力」「条件不满足」和「选择不发动」。\n\n' +
+      '🔊 向主人公宣告：\n' +
+      '「第⑤步：无事发生。」\n\n' +
+      '然后点击按钮推进到下一阶段。',
+    tip: '主人公听到「无事发生」后会记录下来——在后续轮回中，如果你发动了能力，他们会与今天对比来推理。',
   },
   {
     id: 'pro-ability-girl-student',
@@ -353,6 +391,27 @@ const STEPS: TutorialStep[] = [
       '「无视友好」：剧作家可以选择不发动自身能力（主人公技能不受影响）。',
   },
   {
+    id: 'both-incident-day1',
+    role: 'both',
+    phases: ['incident'],
+    day: 1,
+    loop: 1,
+    priority: 0,
+    position: 'top-right',
+    title: '⑦ 事件检查：今天无事件',
+    content:
+      '今天是 Day1，没有预定事件。\n\n' +
+      '本局的事件日程（公开信息）：\n' +
+      '• Day2 —— 谋杀案\n' +
+      '• Day3 —— 自杀\n\n' +
+      '事件触发需要同时满足三个条件：\n' +
+      '① 当天有预定事件\n' +
+      '② 当事人（犯人）仍然存活\n' +
+      '③ 当事人的不安达到上限\n\n' +
+      '三个条件缺一不可。主人公只要破坏其中任意一个，就能阻止事件。',
+    tip: '事件日程和类型是公开的，但「当事人是谁」只有剧作家知道。找出当事人是主人公的核心任务之一。',
+  },
+  {
     id: 'mm-night-day1',
     role: 'mastermind',
     phases: ['night'],
@@ -362,16 +421,19 @@ const STEPS: TutorialStep[] = [
     position: 'top-right',
     title: '⑧ 夜晚：检查杀人狂',
     content:
-      '夜晚阶段由你执行夜间身份能力。\n\n' +
-      '巫女（杀人狂）强制能力：\n若有角色与她独处同一区域，那名角色立即死亡。\n\n' +
-      '检查巫女与女学生是否独处同一区域：\n' +
-      '• 若是 → 继续下一步宣告死亡\n' +
-      '• 若否 → 宣告「无事发生」，继续Day2布局',
+      '🔒 默读（不要念出来）：\n' +
+      '翻牌结算后，你的纵向移动让巫女从神社移到了学校，\n' +
+      '横向移动让男学生从学校移到了都市。\n' +
+      '现在确认版图：巫女和女学生是否在学校独处？\n\n' +
+      '巫女的真实身份是「杀人狂」——强制能力：\n' +
+      '若有其他角色与她独处同一区域，那名角色立即死亡。\n\n' +
+      '• 独处 → 触发，进入下一步宣告\n' +
+      '• 未独处 → 不触发',
     tip:
-      '⚠️ 公开规则：只说结果，不说身份！\n' +
-      '✅「第⑧步·夜晚：女学生死亡」\n' +
-      '❌「巫女的杀人狂能力杀了女学生」\n' +
-      '原因、身份名、能力名一概不提。',
+      '🔊 宣告格式：\n' +
+      '✅「第⑧步·夜晚：女学生死亡。」\n' +
+      '✅「第⑧步·夜晚：无事发生。」\n' +
+      '❌ 不要说出巫女、杀人狂、独处等任何原因，但是本剧本中，夜晚阶段产生角色死亡的可能只有杀人狂一种。',
   },
   {
     id: 'mm-night-kill-day1',
@@ -381,16 +443,16 @@ const STEPS: TutorialStep[] = [
     loop: 1,
     priority: 1,
     position: 'center',
-    title: '⑧ 夜晚：宣布女学生死亡',
+    title: '⑧ 夜晚：女学生死亡',
     content:
-      '巫女与女学生独处同区域——杀人狂能力强制触发！\n\n' +
-      '操作步骤：\n' +
-      '① 宣告：「第⑧步·夜晚：女学生死亡」\n' +
-      '② 点击女学生角色卡片左下角的「☠ 死亡」按钮\n' +
-      '③ 关键人物死亡，当前轮回立刻结束',
-    tip:
-      '⚠️ 只说「女学生在夜晚死亡了」，不要说「因为巫女是杀人狂」。\n' +
-      '主人公会自己推理死因——这正是游戏的核心乐趣。',
+      '巫女与女学生在学校独处——杀人狂能力强制触发。\n\n' +
+      '🔊 向主人公宣告：\n' +
+      '「第⑧步·夜晚：女学生被发现死亡。」\n\n' +
+      '主人公可能追问原因，你只需回答：\n' +
+      '「这发生在第⑧步·夜晚阶段。」——其余让他们自己推理。\n\n' +
+      '操作：点击女学生卡片左下角的「☠ 死亡」按钮。\n' +
+      '女学生是关键人物——关键人物死亡，当前轮回立即结束。',
+    tip: '提醒主人公回想：今天谁被移动了？谁和女学生在同一区域？这就是推理的起点。',
   },
   {
     id: 'both-loop-end-day1',
@@ -417,9 +479,19 @@ const STEPS: TutorialStep[] = [
     phases: ['night'],
     priority: 2,
     position: 'top-right',
-    title: '夜晚结算',
+    title: '⑧ 夜晚结算',
     content:
-      '依次检查：\n① 杀人狂（巫女，强制）：若有角色与她同在一区域→那名角色死亡，无条件触发\n② 杀手（上班族，任意）：若同区域有关键人物且该人物身上密谋≥2→可选择杀死那名关键人物\n只需口头宣告结果：“xxx被发现死亡了！”，不需要说明触发原因（保持神秘感）。',
+      '🔒 默读 · 按顺序检查两个夜间能力：\n\n' +
+      '① 杀人狂（巫女）—— 强制触发\n' +
+      '条件：有其他角色与巫女独处同一区域\n' +
+      '效果：该角色立即死亡，无法阻止\n\n' +
+      '② 杀手（上班族）—— 可选触发\n' +
+      '条件：同区域有关键人物，且该人物身上密谋≥2\n' +
+      '效果：你可以选择杀死那名关键人物\n\n' +
+      '🔊 向主人公宣告：\n' +
+      '• 有人死亡 →「第⑧步·夜晚：[角色名]死亡。」\n' +
+      '• 无人死亡 →「第⑧步·夜晚：无事发生。」',
+    tip: '绝不解释死因。「为什么死了？」是主人公需要推理的核心问题。',
   },
   {
     id: 'mm-loop2',
@@ -497,7 +569,7 @@ const STEPS: TutorialStep[] = [
     title: '📋 分析公开信息——你的第一个推理',
     content:
       '事件表告诉了你很多：\n' +
-      '• 第2天「谋杀案」→ 由某角色（杀手）杀死另一人\n' +
+      '• 第2天「谋杀案」→ 由某犯人杀死另一人（注意事件的犯人和身份的杀手/杀人狂不同！）\n' +
       '• 第3天「自杀」→ 当事人自己死亡\n\n' +
       '失败条件中涉及死亡的只有「关键人物死亡」，\n' +
       '因此剧作家的主线规则（Rule Y）大概率是\n' +
@@ -765,22 +837,23 @@ export function TutorialGuide() {
     setExecutedTurns(new Set());
   }, [gameState?.currentLoop === 1 && gameState?.currentDay === 1]);
 
-  if (!gameState) return null;
-
-  const scriptName = gameState.publicInfo.scriptName;
+  const scriptName = gameState?.publicInfo.scriptName ?? '';
   const scriptId = currentScript?.id;
-  if (!isTutorialScript(scriptName, scriptId)) return null;
-  if (hidden) return null;
+  const isTutorial = isTutorialScript(scriptName, scriptId);
 
-  const { phase, currentDay, currentLoop } = gameState;
+  const phase = gameState?.phase ?? 'dawn';
+  const currentDay = gameState?.currentDay ?? 1;
+  const currentLoop = gameState?.currentLoop ?? 1;
 
   const dismissedSet = new Set(dismissedIds);
 
   // 当前可展示的步骤：匹配 + 未消除 + 按优先级排序
-  const candidates = STEPS
-    .filter(s => !dismissedSet.has(s.id))
-    .filter(s => matchesStep(s, phase, currentDay, currentLoop, playerRole))
-    .sort((a, b) => a.priority - b.priority);
+  const candidates = (!gameState || !isTutorial || hidden)
+    ? []
+    : STEPS
+      .filter(s => !dismissedSet.has(s.id))
+      .filter(s => matchesStep(s, phase, currentDay, currentLoop, playerRole))
+      .sort((a, b) => a.priority - b.priority);
 
   const current = candidates[0] ?? null;
 
@@ -801,14 +874,15 @@ export function TutorialGuide() {
   const totalCount = roleSteps.length;
 
   useEffect(() => {
-    const target = current?.highlight ?? null;
+    // 教学配牌执行后会进入“等待推进到下一阶段”状态，此时关闭高亮闪烁，避免左栏视觉抖动感。
+    const target = shouldDockLeft ? null : (current?.highlight ?? null);
     if (target) {
       document.body.dataset.tutorialHighlight = target;
     } else {
       delete document.body.dataset.tutorialHighlight;
     }
     return () => { delete document.body.dataset.tutorialHighlight; };
-  }, [current?.highlight]);
+  }, [current?.highlight, shouldDockLeft]);
 
   const handleDismiss = () => {
     if (current) {
@@ -847,12 +921,40 @@ export function TutorialGuide() {
       ? { top: '20%', left: 'calc(50vw - 160px)', touchAction: 'none' }
       : { touchAction: 'none' };
 
+  const tutorialNeedsSidebarByContent = !!current && (
+    current.title.includes('速查')
+    || current.title.includes('身份')
+    || current.title.includes('技能')
+    || current.title.includes('循环')
+    || current.content.includes('速查')
+    || current.content.includes('身份')
+    || current.content.includes('技能')
+    || current.content.includes('循环')
+  );
+
+  const shouldOpenSidebarForTutorial =
+    shouldDockLeft
+    || stepPosition === 'top-left'
+    || current?.highlight === 'rules-reference'
+    || tutorialNeedsSidebarByContent;
+
+  useEffect(() => {
+    if (shouldOpenSidebarForTutorial) {
+      document.body.dataset.tutorialSidebar = 'open';
+    } else {
+      delete document.body.dataset.tutorialSidebar;
+    }
+    return () => { delete document.body.dataset.tutorialSidebar; };
+  }, [shouldOpenSidebarForTutorial]);
+
+  if (!gameState || !isTutorial || hidden) return null;
+
   return (
     <motion.div
       drag
       dragMomentum={false}
       dragElastic={0}
-      className={`fixed z-[80] w-80 pointer-events-none cursor-grab active:cursor-grabbing transition-all duration-300 ${positionClass}`}
+      className={`fixed z-[130] w-80 pointer-events-none cursor-grab active:cursor-grabbing transition-all duration-300 ${positionClass}`}
       style={positionStyle}
     >
       <AnimatePresence mode="wait">
@@ -1009,7 +1111,7 @@ export function TutorialGuide() {
                 onClick={() => setCollapsed(false)}
               >
                 <GraduationCap size={12} className="text-amber-900" />
-                <span className="text-[11px] text-amber-900 font-semibold">
+                <span className="text-[11px] text-amber-900 font-semibold truncate max-w-[220px] whitespace-nowrap">
                   {current.title}
                 </span>
               </div>

@@ -18,7 +18,7 @@ import { TL_THEME } from '@/games/tragedy-looper/theme';
 import type { LocationType, CharacterId, PlayerRole, GamePhase } from '@/games/tragedy-looper/types';
 import { ROLE_NAMES } from '@/games/tragedy-looper/types';
 import { getPlotsForSet, mergeRequiredRoles, type PlotDef } from '@/games/tragedy-looper/data/plotRoles';
-import { AlertCircle, X } from 'lucide-react';
+import { AlertCircle, Move, PanelLeft, X } from 'lucide-react';
 
 function getPhaseOwner(phase: GamePhase): PlayerRole | null {
   switch (phase) {
@@ -56,6 +56,11 @@ export default function Home() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [showMessages, setShowMessages] = useState(false);
   const [showCardTutorial, setShowCardTutorial] = useState(false);
+  const [canDragCharacter, setCanDragCharacter] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
+    if (typeof window === 'undefined') return true;
+    return window.matchMedia('(min-width: 1024px)').matches;
+  });
   const [guessY, setGuessY] = useState('');
   const [guessX1, setGuessX1] = useState('');
   const [guessX2, setGuessX2] = useState('');
@@ -73,6 +78,24 @@ export default function Home() {
       setShowMessages(true);
     }
   }, [resolutionMessages]);
+
+  useEffect(() => {
+    const body = document.body;
+    const syncSidebarFromTutorial = () => {
+      if (body.dataset.tutorialSidebar === 'open') {
+        setIsSidebarOpen(true);
+      }
+    };
+
+    syncSidebarFromTutorial();
+    const observer = new MutationObserver(syncSidebarFromTutorial);
+    observer.observe(body, {
+      attributes: true,
+      attributeFilter: ['data-tutorial-sidebar'],
+    });
+
+    return () => observer.disconnect();
+  }, []);
 
   // 游戏就绪后首次显示操作说明（localStorage 持久化，看过一次就不再弹出）
   useEffect(() => {
@@ -199,7 +222,7 @@ export default function Home() {
   const roleLabel = playerRole === 'mastermind' ? '🎭 剧作家' : '🦸 主人公';
 
   return (
-    <main className={`flex min-h-screen font-sans relative rendered-dark-bg ${TL_THEME.page}`}>
+    <main className={`flex min-h-screen flex-col lg:flex-row font-sans relative rendered-dark-bg bg-[url('/assets/tl/20220605022917_d75a4.jpg')] bg-cover bg-center bg-fixed ${TL_THEME.page}`}>
       {/* 热座模式交接屏幕 */}
       {showHandoff && gameState && (
         <TurnHandoffScreen
@@ -209,44 +232,47 @@ export default function Home() {
         />
       )}
 
-      {/* 卡牌操作说明悬浮卡片（右上角，背景可见） */}
+      {/* 卡牌操作说明弹层（固定居中，避免遮挡移动端展开按钮） */}
       {showCardTutorial && (
-        <div className={`fixed top-14 right-4 z-[150] w-80 rounded-xl shadow-2xl p-5 ${TL_THEME.overlayCard}`}>
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-bold text-white flex items-center gap-2 text-sm">
-              🃏 卡牌操作说明
-            </h3>
+        <div className="fixed inset-0 z-[150] flex items-center justify-center bg-black/45 backdrop-blur-sm px-4">
+          <div className={`w-full max-w-80 rounded-xl shadow-2xl p-4 sm:p-5 ${TL_THEME.overlayCard}`}>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-bold text-white flex items-center gap-2 text-sm">
+                🃏 卡牌操作说明
+              </h3>
+              <button
+                onClick={() => { setShowCardTutorial(false); localStorage.setItem('tl-card-tutorial-seen', '1'); }}
+                aria-label="关闭卡牌操作说明"
+                className="p-1 hover:bg-surface-3 rounded transition-colors text-text-muted hover:text-foreground"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <ul className="space-y-2.5 mb-4">
+              <li className="flex gap-2.5 text-xs text-text-muted">
+                <span className="text-oblivionis shrink-0 font-bold">①</span>
+                <span>点击底部卡牌选中，再点击 <strong className="text-white">NPC 角色</strong>即打出</span>
+              </li>
+              <li className="flex gap-2.5 text-xs text-text-muted">
+                <span className="text-oblivionis shrink-0 font-bold">②</span>
+                <span>打出后想反悔？<strong className="text-white">点击角色上的牌</strong>即可撤回</span>
+              </li>
+              <li className="flex gap-2.5 text-xs text-text-muted">
+                <span className="text-oblivionis shrink-0 font-bold">③</span>
+                <span>卡牌也可以打到<strong className="text-white">地点</strong>上——与密谋指示物相关</span>
+              </li>
+              <li className="flex gap-2.5 text-xs text-text-muted">
+                <span className="text-oblivionis shrink-0 font-bold">④</span>
+                <span>版图上的<strong className="text-white">指示物按钮</strong>为能力区，在对应阶段可自由调节</span>
+              </li>
+            </ul>
             <button
               onClick={() => { setShowCardTutorial(false); localStorage.setItem('tl-card-tutorial-seen', '1'); }}
-              className="p-1 hover:bg-surface-3 rounded transition-colors text-text-muted hover:text-foreground"
+              className="w-full py-2 rounded-lg bg-oblivionis hover:bg-oblivionis/80 text-white text-sm font-bold transition-colors"
             >
-              <X size={16} />
+              知道了
             </button>
           </div>
-          <ul className="space-y-2.5 mb-4">
-            <li className="flex gap-2.5 text-xs text-text-muted">
-              <span className="text-oblivionis shrink-0 font-bold">①</span>
-              <span>点击底部卡牌选中，再点击 <strong className="text-white">NPC 角色</strong>即打出</span>
-            </li>
-            <li className="flex gap-2.5 text-xs text-text-muted">
-              <span className="text-oblivionis shrink-0 font-bold">②</span>
-              <span>打出后想反悔？<strong className="text-white">点击角色上的牌</strong>即可撤回</span>
-            </li>
-            <li className="flex gap-2.5 text-xs text-text-muted">
-              <span className="text-oblivionis shrink-0 font-bold">③</span>
-              <span>卡牌也可以打到<strong className="text-white">地点</strong>上——与密谋指示物相关</span>
-            </li>
-            <li className="flex gap-2.5 text-xs text-text-muted">
-              <span className="text-oblivionis shrink-0 font-bold">④</span>
-              <span>版图上的<strong className="text-white">指示物按钮</strong>为能力区，在对应阶段可自由调节</span>
-            </li>
-          </ul>
-          <button
-            onClick={() => { setShowCardTutorial(false); localStorage.setItem('tl-card-tutorial-seen', '1'); }}
-            className="w-full py-2 rounded-lg bg-oblivionis hover:bg-oblivionis/80 text-white text-sm font-bold transition-colors"
-          >
-            知道了
-          </button>
         </div>
       )}
 
@@ -259,48 +285,87 @@ export default function Home() {
           </div>
         </div>
       )}
-      {/* Left Panel: Info + Phase Control + Quick Ref */}
-      <div className={`w-72 flex flex-col border-r ${TL_THEME.shell} ${roleBorderColor}`}>
-        <GameInfo />
-        <div className="flex-1 p-3 overflow-y-auto flex flex-col">
-          <RulesReference />
-          <PhaseControl />
+
+      {/* Sidebar Launcher (left side, not top bar) */}
+      {!isSidebarOpen && (
+        <button
+          onClick={() => setIsSidebarOpen(true)}
+          className="fixed left-2 top-1/2 -translate-y-1/2 z-[95] h-10 w-9 rounded-r-md border border-slate-600 bg-slate-900/90 text-slate-200 hover:bg-slate-800 transition-colors flex items-center justify-center"
+          title="展开信息栏"
+          aria-label="展开信息栏"
+        >
+          <PanelLeft size={16} />
+        </button>
+      )}
+
+      {/* Mobile Sidebar Drawer */}
+      <div
+        className={`lg:hidden fixed inset-0 z-[90] transition-opacity duration-300 ${
+          isSidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+        }`}
+      >
+        <button
+          onClick={() => setIsSidebarOpen(false)}
+          aria-label="关闭信息栏"
+          className="absolute inset-0 bg-black/45"
+        />
+        <div
+          className={`absolute top-0 left-0 h-full w-[min(20rem,88vw)] border-r flex flex-col ${TL_THEME.shell} ${roleBorderColor} transition-transform duration-300 ease-in-out ${
+            isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+          }`}
+        >
+          <GameInfo />
+          <div className="flex-1 p-3 overflow-y-auto flex flex-col">
+            <RulesReference />
+            <PhaseControl />
+          </div>
         </div>
       </div>
 
-      {/* Floating Panels */}
-      <SupplementaryReference />
-      <GameIntroPanel />
-
-      {/* 手牌参考（顶部按钮） */}
-      <DeckReference />
+      {/* Desktop Sidebar */}
+      <div
+        className={`hidden lg:flex lg:min-h-screen overflow-hidden transition-all duration-300 ease-in-out lg:shrink-0 ${
+          isSidebarOpen
+            ? `lg:w-72 border-r ${TL_THEME.shell} ${roleBorderColor}`
+            : 'lg:w-0 border-r-0'
+        }`}
+      >
+        <div className={`w-72 flex flex-col ${TL_THEME.shell} ${roleBorderColor}`}>
+          <GameInfo />
+          <div className="flex-1 p-3 overflow-y-auto flex flex-col">
+            <RulesReference />
+            <PhaseControl />
+          </div>
+        </div>
+      </div>
 
       {/* Main Area */}
-      <div className="flex-1 flex flex-col relative min-w-0 overflow-hidden">
+      <div className="flex-1 flex flex-col relative min-w-0 overflow-hidden min-h-[60vh] lg:min-h-screen">
         {/* Top Bar */}
-        <div className={`border-b flex items-center gap-3 px-4 py-1.5 backdrop-blur-sm relative z-50 ${TL_THEME.panel} ${roleBorderColor}`}>
-            {/* 角色标识 + 放置数 */}
-            {isHotseat && (
-              <span className={`px-2 py-0.5 rounded text-xs font-bold shrink-0 ${roleColor} ${playerRole === 'mastermind' ? 'bg-timoris/15 border border-timoris/50' : 'bg-oblivionis/15 border border-oblivionis/50'}`}>
-                {roleLabel}
+        <div className={`border-b flex flex-col lg:flex-row lg:items-center gap-2 px-3 sm:px-4 py-2.5 backdrop-blur-sm relative z-50 ${TL_THEME.panel} ${roleBorderColor}`}>
+            <div className="min-w-0 flex-1 flex flex-wrap items-center gap-2 overflow-hidden">
+              {/* 角色标识 + 放置数 */}
+              {isHotseat && (
+                <span className={`h-8 px-2.5 rounded-md text-xs font-bold shrink-0 inline-flex items-center ${roleColor} ${playerRole === 'mastermind' ? 'bg-timoris/15 border border-timoris/50' : 'bg-oblivionis/15 border border-oblivionis/50'}`}>
+                  {roleLabel}
+                </span>
+              )}
+              <span className={`h-8 px-2.5 rounded-md text-xs shrink-0 inline-flex items-center ${TL_THEME.chip}`}>
+                <span className="font-bold text-doloris">{myPlayedCount}</span>/{maxCardsPerDay}
               </span>
-            )}
-            <span className={`px-2 py-0.5 rounded text-xs shrink-0 ${TL_THEME.chip}`}>
-              <span className="font-bold text-doloris">{myPlayedCount}</span>/{maxCardsPerDay}
-            </span>
 
-            {errorMsg && (
-              <span className="flex items-center gap-1 px-2 py-0.5 rounded bg-amoris/15 border border-amoris/50 text-amoris text-xs animate-pulse shrink-0">
-                <AlertCircle size={12} />
-                {errorMsg}
-              </span>
-            )}
+              {errorMsg && (
+                <span className="h-8 inline-flex items-center gap-1 px-2.5 rounded-md bg-amoris/12 border border-amoris/40 text-amoris text-xs shrink-0 max-w-full">
+                  <AlertCircle size={12} />
+                  <span className="truncate">{errorMsg}</span>
+                </span>
+              )}
 
-            {/* 分隔线 */}
-            <div className="w-px h-5 bg-slate-700 shrink-0" />
+              {/* 分隔线 */}
+              <div className="hidden sm:block w-px h-6 bg-slate-700/80 shrink-0 mx-1" />
 
-            {/* 剧情猜测 Y/X 下拉选择器 */}
-            {(() => {
+              {/* 剧情猜测 Y/X 下拉选择器 */}
+              {(() => {
               const tragedySet = gameState?.publicInfo.tragedySet ?? 'first_steps';
               const { main: mainPlots, sub: subPlots } = getPlotsForSet(tragedySet);
               const selectedPlots: PlotDef[] = [];
@@ -321,7 +386,7 @@ export default function Home() {
                   <select
                     value={guessY}
                     onChange={e => setGuessY(e.target.value)}
-                    className="rounded bg-slate-800 border border-slate-600 px-2 py-1 text-xs text-white focus:outline-none focus:border-violet-400 max-w-[120px]"
+                    className="h-8 rounded-md bg-slate-800/90 border border-slate-600 px-2.5 text-xs text-white focus:outline-none focus:border-violet-400 w-[108px] sm:w-auto"
                     title="猜测主线 Y"
                   >
                     <option value="">Y 主线</option>
@@ -330,7 +395,7 @@ export default function Home() {
                   <select
                     value={guessX1}
                     onChange={e => { setGuessX1(e.target.value); if (e.target.value === guessX2) setGuessX2(''); }}
-                    className="rounded bg-slate-800 border border-slate-600 px-2 py-1 text-xs text-white focus:outline-none focus:border-violet-400 max-w-[120px]"
+                    className="h-8 rounded-md bg-slate-800/90 border border-slate-600 px-2.5 text-xs text-white focus:outline-none focus:border-violet-400 w-[108px] sm:w-auto"
                     title="猜测支线 X1"
                   >
                     <option value="">X1 支线</option>
@@ -339,7 +404,7 @@ export default function Home() {
                   <select
                     value={guessX2}
                     onChange={e => { setGuessX2(e.target.value); if (e.target.value === guessX1) setGuessX1(''); }}
-                    className="rounded bg-slate-800 border border-slate-600 px-2 py-1 text-xs text-white focus:outline-none focus:border-violet-400 max-w-[120px]"
+                    className="h-8 rounded-md bg-slate-800/90 border border-slate-600 px-2.5 text-xs text-white focus:outline-none focus:border-violet-400 w-[108px] sm:w-auto"
                     title="猜测支线 X2（可不选）"
                   >
                     <option value="">X2（无）</option>
@@ -349,14 +414,14 @@ export default function Home() {
                   {/* 推算结果 */}
                   {hasSelection && (
                     <>
-                      <div className="w-px h-5 bg-slate-700 shrink-0" />
-                      <div className="flex items-center gap-1.5 text-xs flex-wrap">
+                      <div className="w-px h-6 bg-slate-700/80 shrink-0 mx-1" />
+                      <div className="flex items-center gap-1.5 text-[11px] flex-wrap">
                         {requiredRoles.map(({ roleId, count }) => (
-                          <span key={roleId} className="px-1.5 py-0.5 rounded bg-violet-500/20 border border-violet-400/40 text-violet-200 font-bold">
+                          <span key={roleId} className="h-6 inline-flex items-center px-2 rounded-md bg-violet-500/18 border border-violet-400/35 text-violet-200 font-bold">
                             {ROLE_NAMES[roleId]}×{count}
                           </span>
                         ))}
-                        <span className={`px-1.5 py-0.5 rounded font-bold ${
+                        <span className={`h-6 inline-flex items-center px-2 rounded-md font-bold ${
                           civilianCount < 0
                             ? 'bg-red-500/20 border border-red-400/50 text-red-300'
                             : 'bg-slate-700 border border-slate-600 text-slate-300'
@@ -369,12 +434,26 @@ export default function Home() {
                 </>
               );
             })()}
-
-            <div className="flex-1" />
+            </div>
 
             {/* 右侧按钮 */}
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="w-full flex items-center justify-end gap-1.5 shrink-0 max-w-full lg:w-auto lg:pl-2 lg:border-l lg:border-slate-700/70">
               {!isHotseat && <MultiplayerPanel />}
+              <DeckReference inTopbar />
+              <SupplementaryReference inTopbar />
+              <GameIntroPanel inTopbar />
+              <button
+                onClick={() => setCanDragCharacter((prev) => !prev)}
+                className={`h-7 px-2.5 rounded-md border text-xs font-bold transition-colors flex items-center justify-center gap-1 whitespace-nowrap shrink-0 ${
+                  canDragCharacter
+                    ? 'bg-amoris/25 border-amoris/60 text-amoris hover:bg-amoris/35'
+                    : 'bg-oblivionis border-oblivionis text-white hover:bg-oblivionis/80'
+                }`}
+                title={canDragCharacter ? '已启用移动NPC（点击关闭）' : '启用移动NPC（拖拽角色）'}
+              >
+                <Move size={13} />
+                {canDragCharacter ? '移动开' : '手动移动'}
+              </button>
               <button
                 onClick={() => setShowCardTutorial(v => !v)}
                 className="w-6 h-6 rounded-full bg-slate-700 hover:bg-slate-600 border border-slate-600 text-slate-300 hover:text-white text-xs font-bold transition-colors flex items-center justify-center"
@@ -386,11 +465,12 @@ export default function Home() {
         </div>
 
         {/* Game Board */}
-        <div className={`flex-1 overflow-auto p-4 relative ${TL_THEME.boardGradient}`}>
+        <div className="flex-1 overflow-auto p-2 sm:p-4 relative bg-black/30 backdrop-blur-[1px]">
              <GameBoard 
                 onCharacterClick={(charId) => handleCardPlay(charId, 'character')}
                 onLocationClick={(loc) => handleCardPlay(loc, 'location')}
                 isPlacingCard={!!selectedCardId}
+                canDragCharacter={canDragCharacter}
              />
              
              {/* 结算消息弹窗 */}

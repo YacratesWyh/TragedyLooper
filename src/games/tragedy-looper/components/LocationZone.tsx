@@ -24,6 +24,8 @@ interface LocationZoneProps {
   isPlacingCard?: boolean;
   /** 角色拖拽落下回调 */
   onCharacterDragEnd?: (charId: string, x: number, y: number) => void;
+  /** 是否启用角色拖拽移动 */
+  canDragCharacter?: boolean;
 }
 
 const LOCATION_COLORS: Record<LocationType, string> = {
@@ -52,7 +54,8 @@ export function LocationZone({
   onLocationClick, 
   onCharacterClick,
   isPlacingCard = false,
-  onCharacterDragEnd
+  onCharacterDragEnd,
+  canDragCharacter = false
 }: LocationZoneProps) {
   // 筛选打在地点上的牌（targetLocation === type）
   const myLocationCards = myPlacedCards.filter(pc => pc.targetLocation === type && !pc.targetCharacterId);
@@ -70,7 +73,7 @@ export function LocationZone({
       onClick={() => onLocationClick?.(type)}
       data-zone-type={type}
       className={cn(
-        "relative rounded-xl border-2 p-4 flex flex-col gap-4 transition-all duration-300 cursor-pointer",
+        "relative rounded-xl border-2 p-2 sm:p-4 flex flex-col gap-3 sm:gap-4 transition-all duration-300 cursor-pointer",
         LOCATION_COLORS[type],
         className
       )}
@@ -78,10 +81,10 @@ export function LocationZone({
       {/* Location Header */}
       <div className="flex justify-between items-center mb-2 pointer-events-none">
         <div className="flex items-center gap-2">
-            <div className={cn("p-1.5 rounded-lg text-white", LOCATION_BG_COLORS[type])}>
+            <div className={cn("p-1 rounded-lg text-white", LOCATION_BG_COLORS[type])}>
                 <MapPin size={16} />
             </div>
-            <h3 className="text-xl font-bold text-slate-200 tracking-wider">{LOCATION_NAMES[type]}</h3>
+            <h3 className="text-base sm:text-xl font-bold text-slate-200 tracking-wider">{LOCATION_NAMES[type]}</h3>
         </div>
         
         {/* Board Intrigue Tokens + 打在地点上的牌 */}
@@ -103,7 +106,7 @@ export function LocationZone({
       </div>
 
       {/* Character Grid */}
-      <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-4 place-items-start content-start flex-1">
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] sm:grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-2 sm:gap-4 place-items-start content-start flex-1">
         {characters.map((charState) => {
           const cards = getCharacterCards(charState.id as CharacterId);
           return (
@@ -121,6 +124,7 @@ export function LocationZone({
               onCharacterClick?.(charState.id);
             }}
             onDragEnd={onCharacterDragEnd}
+            canDragCharacter={canDragCharacter}
           />
           );
         })}

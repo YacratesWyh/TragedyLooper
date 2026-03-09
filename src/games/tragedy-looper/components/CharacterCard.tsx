@@ -52,6 +52,8 @@ interface CharacterCardProps {
   onClick?: (e: React.MouseEvent) => void;
   /** 拖拽结束回调 */
   onDragEnd?: (charId: CharacterId, x: number, y: number) => void;
+  /** 是否启用角色拖拽移动 */
+  canDragCharacter?: boolean;
 }
 
 export function CharacterCard({ 
@@ -63,7 +65,8 @@ export function CharacterCard({
   onRetreatCard,
   isPlacingCard = false,
   onClick,
-  onDragEnd
+  onDragEnd,
+  canDragCharacter = false
 }: CharacterCardProps) {
   const [showGuessPopup, setShowGuessPopup] = useState(false);
   const [showEnlarge, setShowEnlarge] = useState(false);
@@ -78,8 +81,8 @@ export function CharacterCard({
   const phase = gameState?.phase;
   const canToggleLife = phase !== 'protagonist_action';
 
-  // 除主人公打牌阶段外，均可拖拽（手动修正位置）
-  const canDrag = phase !== 'protagonist_action';
+  // 仅在启用移动模式且不在主人公打牌阶段时，允许拖拽（避免移动与点按冲突）
+  const canDrag = canDragCharacter && phase !== 'protagonist_action';
 
   // 是否允许手动编辑指示物（用于手动处理能力、纠错或剧作家操作）
   const canEditIndicators = true;
@@ -450,7 +453,7 @@ export function CharacterCard({
                 animate={{ scale: 1, opacity: 1 }}
                 exit={{ scale: 0.88, opacity: 0 }}
                 transition={{ type: 'spring', stiffness: 320, damping: 26 }}
-                className="relative bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden w-72"
+                className="relative bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden w-[min(90vw,18rem)]"
                 onClick={e => e.stopPropagation()}
               >
                 {/* 立绘区 */}

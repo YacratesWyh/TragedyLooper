@@ -294,7 +294,7 @@ export function MultiplayerPanel() {
 
               <button
                 onClick={handleLeaveRoom}
-                className="w-full mt-2 px-3 py-1.5 rounded bg-amber-700/50 hover:bg-amber-600/70 text-amber-200 text-xs transition-all flex items-center justify-center gap-2"
+                className="w-full mt-2 px-3 py-1.5 rounded bg-doloris/15 hover:bg-doloris/25 text-doloris text-xs transition-all flex items-center justify-center gap-2 border border-doloris/40"
               >
                 <LogOut size={14} />
                 退出房间

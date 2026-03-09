@@ -52,14 +52,22 @@ const DECK_COMPOSITION = [
   },
 ] as const;
 
-export function DeckReference() {
+interface DeckReferenceProps {
+  inTopbar?: boolean;
+}
+
+export function DeckReference({ inTopbar = false }: DeckReferenceProps) {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
     <>
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed top-2 right-36 z-[95] h-8 flex items-center gap-1.5 px-2.5 bg-[#7799CC] border border-[#7799CC] rounded-lg hover:bg-[#6f8fc1] transition-colors"
+        className={
+          inTopbar
+            ? "h-7 px-2.5 rounded-md border border-[#7799CC] bg-[#7799CC] hover:bg-[#6f8fc1] transition-colors flex items-center gap-1.5 text-xs font-bold"
+            : "fixed top-2 right-36 z-[95] h-8 flex items-center gap-1.5 px-2.5 bg-[#7799CC] border border-[#7799CC] rounded-lg hover:bg-[#6f8fc1] transition-colors"
+        }
         title="牌限"
       >
         <Layers size={14} className="text-white/90" />
@@ -87,7 +95,12 @@ export function DeckReference() {
                   <Layers size={16} className="text-doloris" />
                   <span className="font-bold text-sm">每轮回限用一次</span>
                 </div>
-                <button onClick={() => setIsOpen(false)} className="p-1 hover:bg-slate-800 rounded">
+                <button
+                  onClick={() => setIsOpen(false)}
+                  className="p-1 hover:bg-slate-800 rounded"
+                  title="关闭牌限"
+                  aria-label="关闭牌限"
+                >
                   <X size={16} className="text-slate-400" />
                 </button>
               </div>

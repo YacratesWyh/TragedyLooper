@@ -177,7 +177,7 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
   // 模式选择
   if (mode === null) {
     return (
-      <div className="min-h-screen rendered-dark-bg flex flex-col items-center justify-center p-8">
+      <div className="min-h-screen rendered-dark-bg flex flex-col items-center justify-center p-4 sm:p-8">
         <motion.div
           initial={{ opacity: 0, y: -30 }}
           animate={{ opacity: 1, y: 0 }}
@@ -191,7 +191,7 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15 }}
-          className="flex flex-col sm:flex-row gap-6"
+          className="flex w-full max-w-2xl flex-col sm:flex-row gap-4 sm:gap-6"
         >
           <button
             onClick={() => {
@@ -199,20 +199,24 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
               setGameMode('hotseat');
               setShowScriptSetup(true);
             }}
-            className="flex flex-col items-center gap-4 px-12 py-10 rounded-2xl bg-slate-800 border-2 border-slate-700
-              hover:bg-slate-700 hover:border-doloris/60 transition-all active:scale-95 min-w-[200px] group"
+            className="flex w-full sm:w-auto flex-col items-center gap-3 sm:gap-4 px-6 sm:px-12 py-7 sm:py-10 rounded-2xl bg-slate-800 border-2 border-slate-700
+              hover:bg-slate-700 hover:border-doloris/60 transition-all active:scale-95 sm:min-w-[200px] group"
           >
-            <Monitor size={40} className="text-doloris group-hover:scale-110 transition-transform" />
+            <div className="flex h-14 w-14 items-center justify-center rounded-xl border border-doloris/40 bg-doloris/10">
+              <Monitor size={34} className="block text-doloris group-hover:scale-110 transition-transform" />
+            </div>
             <span className="text-xl font-bold text-white">热座模式</span>
             <span className="text-sm text-slate-400 text-center">面对面传递设备<br/>剧作家 vs 主人公</span>
           </button>
 
           <button
             onClick={() => setMode('online')}
-            className="flex flex-col items-center gap-4 px-12 py-10 rounded-2xl bg-slate-800 border-2 border-slate-700
-              hover:bg-slate-700 hover:border-oblivionis/60 transition-all active:scale-95 min-w-[200px] group"
+            className="flex w-full sm:w-auto flex-col items-center gap-3 sm:gap-4 px-6 sm:px-12 py-7 sm:py-10 rounded-2xl bg-slate-800 border-2 border-slate-700
+              hover:bg-slate-700 hover:border-oblivionis/60 transition-all active:scale-95 sm:min-w-[200px] group"
           >
-            <Wifi size={40} className="text-oblivionis group-hover:scale-110 transition-transform" />
+            <div className="flex h-14 w-14 items-center justify-center rounded-xl border border-oblivionis/40 bg-oblivionis/10">
+              <Wifi size={34} className="block text-oblivionis group-hover:scale-110 transition-transform" />
+            </div>
             <span className="text-xl font-bold text-white">联机模式</span>
             <span className="text-sm text-slate-400 text-center">通过网络连接<br/>多设备联机</span>
           </button>
@@ -244,7 +248,7 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
   // 未设置用户名 - 显示用户名输入界面
   if (!username) {
     return (
-      <div className="min-h-screen rendered-dark-bg flex flex-col items-center justify-center p-8">
+      <div className="min-h-screen rendered-dark-bg flex flex-col items-center justify-center p-4 sm:p-8">
         <motion.div
           initial={{ opacity: 0, y: -30 }}
           animate={{ opacity: 1, y: 0 }}
@@ -317,7 +321,7 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
     const roleLabel = isSpectator ? '旁观者' : '主人公';
     const roleColor = isSpectator ? 'text-slate-400' : 'text-oblivionis';
     return (
-      <div className="min-h-screen rendered-dark-bg flex flex-col items-center justify-center p-8 relative">
+      <div className="min-h-screen rendered-dark-bg flex flex-col items-center justify-center p-4 sm:p-8 relative">
         {/* 非阻塞连接状态指示器 */}
         {!isConnected && (
           <div className="fixed top-16 right-4 z-50 flex items-center gap-2 px-3 py-2 rounded-full bg-doloris/20 border border-doloris text-doloris/80 shadow-lg">
@@ -366,7 +370,7 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
   // 如果已经尝试过初始连接，则进入大厅，连接状态由右上角图标显示
   if (!isConnected && !isReconnecting && !hasAttemptedInitialConnect) {
     return (
-      <div className="min-h-screen rendered-dark-bg flex flex-col items-center justify-center p-8">
+      <div className="min-h-screen rendered-dark-bg flex flex-col items-center justify-center p-4 sm:p-8">
         <motion.div
           initial={{ opacity: 0, y: -30 }}
           animate={{ opacity: 1, y: 0 }}
@@ -392,7 +396,7 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
     const protagonistStatus = getRoleStatus('protagonist');
     
     return (
-      <div className="min-h-screen rendered-dark-bg flex flex-col items-center justify-center p-8">
+      <div className="min-h-screen rendered-dark-bg flex flex-col items-center justify-center p-4 sm:p-8">
         {/* 顶部导航 */}
         <div className="absolute top-4 left-4">
           <button
@@ -451,7 +455,7 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
             whileTap={mastermindStatus === 'available' ? { scale: 0.98 } : {}}
             onClick={() => mastermindStatus === 'available' && handleSelectRole('mastermind')}
             className={cn(
-              "group relative w-full md:w-80 h-[400px] overflow-hidden rounded-2xl border-2 shadow-2xl transition-all",
+              "group relative w-full md:w-80 h-[320px] sm:h-[400px] overflow-hidden rounded-2xl border-2 shadow-2xl transition-all",
               mastermindStatus === 'available' 
                 ? "cursor-pointer border-timoris/30 hover:border-timoris hover:shadow-timoris/20 bg-gradient-to-br from-slate-900 to-slate-800"
                 : mastermindStatus === 'self' || mastermindStatus === 'selecting'
@@ -536,7 +540,7 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
             whileTap={protagonistStatus === 'available' ? { scale: 0.98 } : {}}
             onClick={() => protagonistStatus === 'available' && handleSelectRole('protagonist')}
             className={cn(
-              "group relative w-full md:w-80 h-[400px] overflow-hidden rounded-2xl border-2 shadow-2xl transition-all",
+              "group relative w-full md:w-80 h-[320px] sm:h-[400px] overflow-hidden rounded-2xl border-2 shadow-2xl transition-all",
               protagonistStatus === 'available' 
                 ? "cursor-pointer border-oblivionis/30 hover:border-oblivionis hover:shadow-oblivionis/20 bg-gradient-to-br from-slate-900 to-slate-800"
                 : protagonistStatus === 'self' || protagonistStatus === 'selecting'
@@ -620,7 +624,7 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
             whileTap={!isSpectator ? { scale: 0.98 } : {}}
             onClick={() => { if (!isSpectator) spectate(); }}
             className={cn(
-              "group relative w-full md:w-52 h-[400px] overflow-hidden rounded-2xl border-2 shadow-2xl transition-all",
+              "group relative w-full md:w-52 h-[320px] sm:h-[400px] overflow-hidden rounded-2xl border-2 shadow-2xl transition-all",
               isSpectator
                 ? "border-slate-500 shadow-slate-500/20 bg-gradient-to-br from-slate-800/80 to-slate-900"
                 : "cursor-pointer border-slate-700/50 hover:border-slate-500 hover:shadow-slate-400/10 bg-gradient-to-br from-slate-900 to-slate-800"
@@ -695,7 +699,7 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
 
   // 房间列表
   return (
-    <div className="min-h-screen rendered-dark-bg flex flex-col items-center justify-center p-8">
+    <div className="min-h-screen rendered-dark-bg flex flex-col items-center justify-center p-4 sm:p-8">
       {/* 标题 */}
       <motion.div
         initial={{ opacity: 0, y: -30 }}
