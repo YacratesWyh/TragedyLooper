@@ -23,6 +23,7 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
     clearUsername,
     isConnected, 
     isReconnecting,
+    hasAttemptedInitialConnect,
     connect, 
     serverVersion,
     rooms,
@@ -317,12 +318,11 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
     const roleColor = isSpectator ? 'text-slate-400' : 'text-oblivionis';
     return (
       <div className="min-h-screen rendered-dark-bg flex flex-col items-center justify-center p-8 relative">
-        {isReconnecting && (
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center">
-            <div className="flex items-center gap-3 px-6 py-3 rounded-full bg-doloris/20 border border-doloris text-doloris/80 shadow-2xl">
-              <Loader2 className="w-5 h-5 animate-spin" />
-              <span className="font-bold">正在重连...</span>
-            </div>
+        {/* 非阻塞连接状态指示器 */}
+        {!isConnected && (
+          <div className="fixed top-16 right-4 z-50 flex items-center gap-2 px-3 py-2 rounded-full bg-doloris/20 border border-doloris text-doloris/80 shadow-lg">
+            <Loader2 className="w-3 h-3 animate-spin" />
+            <span className="text-xs font-medium">{isReconnecting ? '正在重连' : '连接断开'}</span>
           </div>
         )}
         <motion.div
@@ -362,9 +362,9 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
     );
   }
 
-  // 未连接（首次连接，非重连状态）
-  // 如果正在重连且有房间/角色信息，保持当前界面而不是跳到连接界面
-  if (!isConnected && !isReconnecting) {
+  // 未连接且从未尝试过连接 - 显示连接中界面
+  // 如果已经尝试过初始连接，则进入大厅，连接状态由右上角图标显示
+  if (!isConnected && !isReconnecting && !hasAttemptedInitialConnect) {
     return (
       <div className="min-h-screen rendered-dark-bg flex flex-col items-center justify-center p-8">
         <motion.div
@@ -382,6 +382,9 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
       </div>
     );
   }
+
+  // 即使未连接，但已经尝试过初始连接，且不在房间内，显示房间列表/大厅
+  // 连接状态指示器已经在 layout/page 中统一显示了，这里不需要阻塞
 
   // 已在房间内 - 显示角色选择
   if (currentRoom) {

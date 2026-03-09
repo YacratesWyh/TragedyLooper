@@ -111,6 +111,7 @@ interface MultiplayerContextType {
   
   isConnected: boolean;
   isReconnecting: boolean;
+  hasAttemptedInitialConnect: boolean;
   serverVersion: string | null;
   connect: () => void;
   disconnect: () => void;
@@ -187,15 +188,23 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectAttemptsRef = useRef(0);
-  const maxReconnectAttempts = 15; // 增加重连尝试次数以匹配服务器的 2 分钟窗口
+  const maxReconnectAttempts = 50; // 大幅增加尝试次数
   const intentionalDisconnectRef = useRef(false);
   
+  // 追踪是否已经尝试过初始连接
+  const [hasAttemptedInitialConnect, setHasAttemptedInitialConnect] = useState(false);
+
+  // 使用 ref 来解决 connect 函数的循环引用问题
+  const connectRef = useRef<() => void>(() => {});
+
   // 初始化时从 localStorage 加载用户名
   useEffect(() => {
     const stored = getStoredUsername();
     if (stored) {
       setUsernameState(stored);
     }
+    // 标记初始加载完成
+    setHasAttemptedInitialConnect(false);
   }, []);
   
   // 设置用户名
@@ -257,9 +266,10 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
     setMyRole(null);
     setIsSpectator(false);
     setPendingSession(null);
+    setPlayerRole(null);
     setRooms([]);
     reconnectAttemptsRef.current = 0;
-  }, [clearReconnectTimeout]);
+  }, [clearReconnectTimeout, setPlayerRole]);
 
   // 连接服务器
   const connect = useCallback(() => {
@@ -271,6 +281,7 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
     if (wsRef.current?.readyState === WebSocket.CONNECTING) return;
 
     intentionalDisconnectRef.current = false;
+    setHasAttemptedInitialConnect(true);
     const wsUrl = getWsUrl();
     console.log('🔌 正在连接服务器:', wsUrl, '用户:', username);
     
@@ -280,7 +291,6 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
     ws.onopen = () => {
       console.log('✅ 已连接');
       setIsConnected(true);
-      setIsReconnecting(false);
       reconnectAttemptsRef.current = 0;
       
       // 启动心跳
@@ -296,6 +306,8 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
       const session = loadSession();
       if (session) {
         console.log('🔄 尝试恢复会话:', session.roomId, session.role);
+        // 重连期间保持 isReconnecting 为 true，直到成功或失败
+        setIsReconnecting(true);
         ws.send(JSON.stringify({
           type: 'REJOIN_ROOM',
           payload: {
@@ -304,6 +316,9 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
             role: session.role,
           },
         }));
+      } else {
+        // 没有会话，直接关闭重连状态
+        setIsReconnecting(false);
       }
     };
 
@@ -335,13 +350,20 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
             setPlayers(normalizePlayersInfo(data.payload.players));
             // 如果有游戏状态，同步到本地
             if (data.payload.gameState) {
+              const payload = data.payload;
               useGameStore.setState({
-                gameState: data.payload.gameState,
+                gameState: payload.gameState,
+                mastermindDeck: payload.mastermindDeck || useGameStore.getState().mastermindDeck,
+                protagonistDeck: payload.protagonistDeck || useGameStore.getState().protagonistDeck,
+                currentMastermindCards: payload.currentMastermindCards || [],
+                currentProtagonistCards: payload.currentProtagonistCards || [],
+                dayHistory: payload.dayHistory || useGameStore.getState().dayHistory,
               });
               console.log('🏠 已加入房间:', data.payload.roomId, '(含游戏状态)');
             } else {
               console.log('🏠 已加入房间:', data.payload.roomId);
             }
+            setIsReconnecting(false);
             break;
 
           case 'REJOIN_SUCCESS': {
@@ -358,7 +380,23 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
               setPlayerRole(rejoinRole);
             }
             setPlayers(normalizePlayersInfo(data.payload.players));
-            console.log('🔄 重连成功:', data.payload.roomId, rejoinRole);
+            // 重连成功后，优先应用服务端完整状态，避免 UI 抖动
+            if (data.payload.gameState) {
+              const payload = data.payload;
+              useGameStore.setState({
+                gameState: payload.gameState,
+                mastermindDeck: payload.mastermindDeck || useGameStore.getState().mastermindDeck,
+                protagonistDeck: payload.protagonistDeck || useGameStore.getState().protagonistDeck,
+                currentMastermindCards: payload.currentMastermindCards || [],
+                currentProtagonistCards: payload.currentProtagonistCards || [],
+                dayHistory: payload.dayHistory || useGameStore.getState().dayHistory,
+              });
+              console.log('🔄 重连成功:', data.payload.roomId, rejoinRole, '(含游戏状态)');
+            } else {
+              console.log('🔄 重连成功:', data.payload.roomId, rejoinRole);
+            }
+            setIsReconnecting(false);
+            // 更新会话时间戳
             saveSession({
               roomId: data.payload.roomId,
               roomName: data.payload.roomName,
@@ -380,6 +418,10 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
             console.log('❌ 重连失败:', data.payload?.message);
             clearSession();
             setPendingSession(null);
+            setMyRole(null);
+            setIsSpectator(false);
+            setPlayerRole(null);
+            setIsReconnecting(false);
             break;
 
           case 'ROOM_LEFT':
@@ -472,7 +514,6 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
     ws.onclose = () => {
       console.log('❌ 连接断开');
       wsRef.current = null;
-      setIsConnected(false);
       
       // 停止心跳
       if (heartbeatIntervalRef.current) {
@@ -483,25 +524,41 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
       // 如果不是主动断开且有会话，尝试重连
       const session = loadSession();
       if (!intentionalDisconnectRef.current && session && reconnectAttemptsRef.current < maxReconnectAttempts) {
-        const delay = 2000;
-        console.log(`⏳ ${delay/1000}秒后重连 (尝试 ${reconnectAttemptsRef.current + 1}/${maxReconnectAttempts})`);
+        // 立即设置重连状态，避免界面闪烁
         setIsReconnecting(true);
+        setIsConnected(false);
+        
+        const delay = Math.min(1000 * Math.pow(2, reconnectAttemptsRef.current), 10000);
+        console.log(`⏳ ${delay/1000}秒后重连 (尝试 ${reconnectAttemptsRef.current + 1}/${maxReconnectAttempts})`);
         
         reconnectTimeoutRef.current = setTimeout(() => {
           reconnectAttemptsRef.current++;
-          connect();
+          connectRef.current();
         }, delay);
       } else {
-        setCurrentRoom(null);
-        setMyRole(null);
+        // 只有在彻底放弃重连且不在房间里时才清空状态
+        setIsConnected(false);
         setIsReconnecting(false);
+        
+        if (!session && !currentRoom) {
+          setCurrentRoom(null);
+          setMyRole(null);
+          setPlayerRole(null);
+        }
+        
+        console.log('🛑 停止重连尝试');
       }
     };
 
     ws.onerror = (error) => {
       console.error('WebSocket 错误:', error);
     };
-  }, [setPlayerRole, currentRoom, startHeartbeat, username]);
+  }, [setPlayerRole, currentRoom, startHeartbeat, username]); // 移除了 connect 依赖
+
+  // 同步 connect 到 ref 以避免循环引用
+  useEffect(() => {
+    connectRef.current = connect;
+  }, [connect]);
 
   // 组件卸载时清理
   useEffect(() => {
@@ -537,7 +594,13 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify({ type: 'LEAVE_ROOM' }));
     }
-  }, []);
+    // 如果断开连接，立即清理本地状态
+    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
+      setCurrentRoom(null);
+      setMyRole(null);
+      setPlayerRole(null);
+    }
+  }, [setPlayerRole]);
 
   const refreshRooms = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -645,6 +708,7 @@ export function MultiplayerProvider({ children }: { children: React.ReactNode })
     clearUsername,
     isConnected,
     isReconnecting,
+    hasAttemptedInitialConnect,
     serverVersion,
     connect,
     disconnect,

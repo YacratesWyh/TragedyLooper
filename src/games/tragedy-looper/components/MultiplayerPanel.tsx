@@ -31,6 +31,7 @@ export function MultiplayerPanel() {
     connect, 
     disconnect, 
     currentRoom,
+    leaveRoom,
     myRole,
     isSpectator,
     availableRoles,
@@ -103,6 +104,14 @@ export function MultiplayerPanel() {
     // 不要立即关闭，等服务器确认后 myRole 会更新
   };
 
+  const handleLeaveRoom = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (confirm('确定要退出当前房间吗？')) {
+      leaveRoom();
+      setShowMenu(false);
+    }
+  };
+
   const handleDisconnect = (e: React.MouseEvent) => {
     e.stopPropagation();
     disconnect();
@@ -171,6 +180,8 @@ export function MultiplayerPanel() {
               ref={fileInputRef} 
               onChange={handleFileChange} 
               accept=".json" 
+              aria-label="选择存档文件"
+              title="选择存档文件"
               className="hidden" 
             />
           </div>
@@ -282,8 +293,16 @@ export function MultiplayerPanel() {
               )}
 
               <button
+                onClick={handleLeaveRoom}
+                className="w-full mt-2 px-3 py-1.5 rounded bg-amber-700/50 hover:bg-amber-600/70 text-amber-200 text-xs transition-all flex items-center justify-center gap-2"
+              >
+                <LogOut size={14} />
+                退出房间
+              </button>
+
+              <button
                 onClick={handleDisconnect}
-                className="w-full mt-2 px-3 py-1.5 rounded bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs transition-all"
+                className="w-full mt-1 px-3 py-1.5 rounded bg-slate-700 hover:bg-slate-600 text-slate-300 text-xs transition-all"
               >
                 断开连接
               </button>

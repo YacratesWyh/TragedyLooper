@@ -79,6 +79,9 @@ export function ScriptImageViewer() {
 
   // 加载剧本专属配置
   useEffect(() => {
+    // 切换剧本时先清空旧配置，防止图片路径混乱
+    setScriptConfig(null);
+    
     fetch(`/assets/${scriptAssetPath}/config.json`)
       .then(res => res.json())
       .then(data => setScriptConfig(data))
