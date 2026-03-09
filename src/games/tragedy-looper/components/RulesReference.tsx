@@ -1,264 +1,198 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
-import { 
+import {
   BookOpen, X, ChevronDown, ChevronRight,
-  AlertTriangle, Lightbulb,
-  Image as ImageIcon, Maximize2, Lock
+  Maximize2, Lightbulb, Lock
 } from 'lucide-react';
 import { useGameStore } from '@/games/tragedy-looper/store';
 import { useMultiplayer } from '@/shared/useMultiplayer';
-import { FS01_BEGINNER_PUBLIC } from '@/games/tragedy-looper/scripts/fs-01';
 import type { PlayerRole } from '@/games/tragedy-looper/types';
 
-// ===== 身份数据 =====
-interface RoleInfo {
-  id: string;
-  name: string;
-  limit?: number;           // 不安上限增减
-  ignoreGoodwill?: boolean; // 无视友好
-  alwaysIgnore?: boolean;   // 必定无视友好
-  timing: string;           // 触发时机
-  effect: string;           // 效果描述
-}
+// ===== 速查图片配置 =====
 
-const ROLES: RoleInfo[] = [
-  {
-    id: 'key_person',
-    name: '关键人物',
-    timing: '强制',
-    effect: '该角色死亡时，主人公失败，当前轮回立即结束。'
-  },
-  {
-    id: 'killer',
-    name: '杀手',
-    ignoreGoodwill: true,
-    timing: '任意能力：第⑧步·夜晚',
-    effect: '同一区域1名关键人物身上有2枚或以上【密谋】→那名关键人物死亡。'
-  },
-  {
-    id: 'brain',
-    name: '主犯',
-    ignoreGoodwill: true,
-    timing: '任意能力：第⑤步·剧作家身份能力',
-    effect: '对同一区域中任意1名角色身上，或者该角色所在的版图上放置1枚【密谋】。'
-  },
-  {
-    id: 'cultist',
-    name: '邪教徒',
-    alwaysIgnore: true,
-    timing: '任意能力：第④步·翻牌结算',
-    effect: '可以无效化同一区域中任意角色身上和该角色所在版图上放置的禁止密谋。'
-  },
-  {
-    id: 'conspiracy_theorist',
-    name: '传谣人',
-    limit: 1,
-    timing: '任意能力：第⑤步·剧作家身份能力',
-    effect: '对同一区域中任意1名角色身上放置1枚【不安】。'
-  },
-  {
-    id: 'serial_killer',
-    name: '杀人狂',
-    timing: '强制：第⑧步·夜晚',
-    effect: '若有1名角色与该角色位于同一区域→那名角色死亡。'
-  },
-  {
-    id: 'ghost',
-    name: '妖流',
-    ignoreGoodwill: true,
-    timing: '失败条件：轮回结束时',
-    effect: '该卡牌为死亡状态，此时需要告知主人公该卡牌的身份。'
-  },
-  {
-    id: 'friend',
-    name: '亲友',
-    limit: 2,
-    timing: '强制：轮回开始时',
-    effect: '该角色身份公开→在该角色身上放置1枚【友好】。'
-  },
-];
-
-// ===== 事件数据 =====
-type IncidentId = 'murder' | 'anxiety_spread' | 'suicide' | 'hospital_incident' | 'faraway_murder' | 'missing' | 'transfer';
-
-interface IncidentInfo {
-  id: IncidentId;
-  name: string;
-  effect: string;
-}
-
-const INCIDENTS: IncidentInfo[] = [
-  {
-    id: 'murder',
-    name: '谋杀案',
-    effect: '令犯人以外的1名和犯人处于同一区域的角色死亡。'
-  },
-  {
-    id: 'anxiety_spread',
-    name: '不安扩散',
-    effect: '往任意1名角色身上放置2枚【不安】，随后往另外1名角色身上放置1枚【密谋】。'
-  },
-  {
-    id: 'suicide',
-    name: '自杀',
-    effect: '犯人死亡。'
-  },
-  {
-    id: 'hospital_incident',
-    name: '医院的事件',
-    effect: '医院有1枚及更多【密谋】→处于医院的所有角色死亡。医院有2枚及更多【密谋】→主角死亡。'
-  },
-  {
-    id: 'faraway_murder',
-    name: '远距离杀人',
-    effect: '令1名放置有2枚及更多【密谋】的角色死亡。'
-  },
-  {
-    id: 'missing',
-    name: '行踪不明',
-    effect: '将犯人移动至任意版图，随后往犯人所在版图放置1枚【密谋】。'
-  },
-  {
-    id: 'transfer',
-    name: '流传',
-    effect: '移除任意1名角色身上2枚【友好】，随后往另外1名角色身上放置2枚【友好】。'
-  },
-];
-
-// ===== 剧本速查组件 =====
-interface ScriptImage {
+interface QuickRefImage {
   id: string;
   title: string;
   path: string;
-  visibleTo?: PlayerRole; // 可选：限制可见性，undefined 表示所有人可见
+  category?: string;
+  visibleTo?: PlayerRole;
 }
 
 interface ScriptConfig {
-  images: ScriptImage[];
+  images: QuickRefImage[];
 }
 
-function ScriptReference() {
+function getScriptAssetPath(tragedySet: string | undefined): string {
+  return tragedySet === 'basic_tragedy' ? 'tl/btx' : 'tl/fs';
+}
+
+// ===== 剧情·身份速查（左栏内嵌） =====
+
+export function RulesReference() {
+  const [expanded, setExpanded] = useState(true);
   const [config, setConfig] = useState<ScriptConfig | null>(null);
   const [zoomedImage, setZoomedImage] = useState<string | null>(null);
-  
-  // 优先使用多人游戏角色，回退到本地角色
-  const { myRole: multiplayerRole } = useMultiplayer();
+  const [mastermindUnlocked, setMastermindUnlocked] = useState(false);
+
+  const gameState = useGameStore((s) => s.gameState);
   const localRole = useGameStore((s) => s.playerRole);
-  const currentRole = multiplayerRole || localRole;
+  const gameMode = useGameStore((s) => s.gameMode);
+  const { myRole: multiplayerRole } = useMultiplayer();
+  const isHotseat = gameMode === 'hotseat';
+  const currentRole = isHotseat ? localRole : (multiplayerRole || localRole);
 
   useEffect(() => {
-    fetch('/assets/fs/config.json')
+    if (isHotseat) setMastermindUnlocked(false);
+  }, [currentRole, isHotseat]);
+
+  const scriptAssetPath = useMemo(() => {
+    return getScriptAssetPath(gameState?.publicInfo?.tragedySet);
+  }, [gameState?.publicInfo?.tragedySet]);
+
+  useEffect(() => {
+    fetch(`/assets/${scriptAssetPath}/config.json`)
       .then(res => res.json())
       .then(data => setConfig(data))
       .catch(err => console.error('Failed to load script config:', err));
-  }, []);
+  }, [scriptAssetPath]);
 
-  if (!config || config.images.length === 0) {
-    return (
-      <div className="text-xs text-slate-500 py-4 text-center border border-dashed border-slate-700 rounded-lg">
-        暂无剧本图片数据
-        <p className="mt-1">请在 public/assets/fs/config.json 中配置</p>
-      </div>
-    );
-  }
+  const quickRefImages = useMemo(() => {
+    if (!config) return [];
+    return config.images.filter(img => img.category === 'quick-ref');
+  }, [config]);
 
-  // 根据角色过滤可见图片
-  const visibleImages = config.images.filter(img => {
-    if (!img.visibleTo) return true; // 无限制，所有人可见
+  const visibleImages = quickRefImages.filter(img => {
+    if (!img.visibleTo) return true;
+    if (isHotseat && img.visibleTo === 'mastermind' && !mastermindUnlocked) return false;
     return img.visibleTo === currentRole;
   });
 
-  // 检测是否有隐藏图片（属于对方阵营）
-  const hiddenCount = config.images.length - visibleImages.length;
+  const lockedCount = isHotseat && currentRole === 'mastermind' && !mastermindUnlocked
+    ? quickRefImages.filter(img => img.visibleTo === 'mastermind').length
+    : 0;
+
+  const getImagePath = (img: QuickRefImage) =>
+    img.path.startsWith('/') ? img.path : `/assets/${scriptAssetPath}/${img.path}`;
+
+  if (quickRefImages.length === 0) return null;
 
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-3">
-        {visibleImages.map((img) => (
-          <div key={img.id} className="group relative">
-            <div 
-              className={cn(
-                "aspect-[3/4] rounded-lg overflow-hidden border bg-slate-800 cursor-pointer transition-colors relative",
-                img.visibleTo 
-                  ? img.visibleTo === 'mastermind' 
-                    ? "border-timoris/30 hover:border-timoris" 
-                    : "border-oblivionis/30 hover:border-oblivionis"
-                  : "border-slate-700 hover:border-doloris/50"
-              )}
-              onClick={() => setZoomedImage(`/assets/fs/${img.path}`)}
+    <>
+      <div className="border-t border-border-soft/70">
+        <button
+          onClick={() => setExpanded(v => !v)}
+          className="w-full flex items-center gap-2 px-3 py-2 hover:bg-surface-2/50 transition-colors"
+        >
+          <BookOpen size={14} className="text-doloris shrink-0" />
+          <span className="text-xs font-bold text-foreground flex-1 text-left">剧情 · 身份速查</span>
+          {expanded
+            ? <ChevronDown size={14} className="text-text-muted" />
+            : <ChevronRight size={14} className="text-text-muted" />}
+        </button>
+
+        <AnimatePresence initial={false}>
+          {expanded && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.15 }}
+              className="overflow-hidden"
             >
-              <img 
-                src={`/assets/fs/${img.path}`} 
-                alt={img.title}
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-              />
-              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
-                <Maximize2 size={20} className="text-white opacity-0 group-hover:opacity-100 transition-opacity" />
-              </div>
-              {/* 角色专属标记 */}
-              {img.visibleTo && (
-                <div className={cn(
-                  "absolute top-2 right-2 px-1.5 py-0.5 rounded text-[10px] font-bold",
-                  img.visibleTo === 'mastermind' 
-                    ? "bg-timoris/50 text-timoris" 
-                    : "bg-oblivionis/50 text-oblivionis"
-                )}>
-                  {img.visibleTo === 'mastermind' ? '剧作家' : '主人公'}
+              <div className="px-3 pb-3">
+                <div className="grid grid-cols-2 gap-2">
+                {visibleImages.map((img) => (
+                  <div
+                    key={img.id}
+                    className="group relative rounded-md overflow-hidden border border-border-soft hover:border-doloris/40 cursor-pointer transition-all"
+                    onClick={() => setZoomedImage(getImagePath(img))}
+                  >
+                    <div className="bg-surface-2 aspect-[4/3]">
+                      <img
+                        src={getImagePath(img)}
+                        alt={img.title}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                      <Maximize2 size={16} className="text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-lg" />
+                    </div>
+                    {img.visibleTo && (
+                      <div className={cn(
+                        "absolute top-1 right-1 px-1.5 py-0.5 rounded text-[9px] font-bold",
+                        img.visibleTo === 'mastermind'
+                          ? "bg-timoris/60 text-timoris"
+                          : "bg-oblivionis/60 text-oblivionis"
+                      )}>
+                        {img.visibleTo === 'mastermind' ? '剧作家' : '主人公'}
+                      </div>
+                    )}
+                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent px-2 py-1">
+                      <p className="text-[9px] text-white font-bold leading-tight">{img.title}</p>
+                    </div>
+                  </div>
+                ))}
                 </div>
-              )}
-            </div>
-            <p className="mt-1.5 text-xs text-center text-slate-400 font-medium truncate" title={img.title}>
-              {img.title}
-            </p>
-          </div>
-        ))}
+
+                {/* 热座模式：剧作家专属内容需确认解锁 */}
+                {lockedCount > 0 && (
+                  <div className="mt-2 p-2 rounded-lg border border-dashed border-timoris/30 bg-timoris/5 space-y-1.5">
+                    <div className="flex items-center gap-1.5 text-[11px] text-timoris font-bold">
+                      <Lock size={12} />
+                      <span>{lockedCount} 张剧作家专属已隐藏</span>
+                    </div>
+                    <button
+                      onClick={() => setMastermindUnlocked(true)}
+                      className="w-full px-2 py-1.5 rounded bg-timoris hover:bg-timoris/80 text-white text-[11px] font-bold transition-colors"
+                    >
+                      确认查看
+                    </button>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
-      {/* 隐藏图片提示 */}
-      {hiddenCount > 0 && (
-        <div className="flex items-center gap-2 text-xs text-slate-500 px-2 py-1.5 bg-slate-800/30 rounded-lg border border-slate-700/30">
-          <Lock size={12} />
-          <span>还有 {hiddenCount} 张对方阵营专属卡牌</span>
-        </div>
-      )}
-
-      {/* Zoomed Image Overlay */}
+      {/* 放大查看（全屏覆盖） */}
       <AnimatePresence>
         {zoomedImage && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4"
+              className="fixed inset-0 z-[200] bg-black/92 backdrop-blur-sm flex items-center justify-center p-4"
             onClick={() => setZoomedImage(null)}
           >
-            <motion.button
-              initial={{ scale: 0.5, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              className="absolute top-6 right-6 p-2 bg-slate-800/50 hover:bg-slate-700 text-white rounded-full transition-colors"
+            <button
+              className="absolute top-4 right-4 p-2 bg-surface-2/85 hover:bg-surface-3 text-white rounded-full transition-colors"
+              onClick={() => setZoomedImage(null)}
             >
               <X size={24} />
-            </motion.button>
+            </button>
             <motion.img
+              key={zoomedImage}
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               src={zoomedImage}
-              alt="Zoomed reference"
+              alt="速查大图"
               className="max-w-full max-h-full object-contain shadow-2xl rounded-lg"
               onClick={(e) => e.stopPropagation()}
             />
           </motion.div>
         )}
       </AnimatePresence>
-    </div>
+    </>
   );
 }
 
-// ===== 组件 =====
+// ===== 进阶策略面板 =====
+
 interface CollapsibleSectionProps {
   title: string;
   icon: React.ReactNode;
@@ -268,7 +202,7 @@ interface CollapsibleSectionProps {
 
 function CollapsibleSection({ title, icon, children, defaultOpen = false }: CollapsibleSectionProps) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
-  
+
   return (
     <div className="border-b border-slate-700 last:border-b-0">
       <button
@@ -297,226 +231,6 @@ function CollapsibleSection({ title, icon, children, defaultOpen = false }: Coll
   );
 }
 
-// 高亮指示物文本
-function highlightTokens(text: string) {
-  return text.split(/(\【[^】]+\】)/).map((part, i) => {
-    if (part.startsWith('【') && part.endsWith('】')) {
-      const token = part.slice(1, -1);
-      const colorMap: Record<string, string> = {
-        '密谋': 'text-slate-300 bg-slate-700',
-        '不安': 'text-amoris bg-amoris/20',
-        '友好': 'text-amoris bg-amoris/20',
-      };
-      return (
-        <span key={i} className={cn('px-1 rounded text-xs font-bold', colorMap[token] || 'text-doloris')}>
-          {token}
-        </span>
-      );
-    }
-    return part;
-  });
-}
-
-/** 当前剧本的事件列表 */
-function ScriptIncidents() {
-  const gameState = useGameStore((state) => state.gameState);
-  const publicInfo = gameState?.publicInfo ?? FS01_BEGINNER_PUBLIC;
-  const currentDay = gameState?.currentDay ?? 1;
-  
-  // 获取当前剧本的事件类型
-  const scriptIncidentTypes = publicInfo.incidentSchedule.map(i => i.type);
-  
-  // 当前剧本包含的事件
-  const relevantIncidents = INCIDENTS.filter(i => scriptIncidentTypes.includes(i.id as typeof scriptIncidentTypes[number]));
-  
-  // 其他事件（当前剧本不存在）
-  const otherIncidents = INCIDENTS.filter(i => !scriptIncidentTypes.includes(i.id as typeof scriptIncidentTypes[number]));
-  
-  return (
-    <div className="space-y-3">
-      {/* 事件时间表 */}
-      <div className="bg-slate-800/30 rounded-lg p-3 border border-slate-600/50">
-        <div className="text-xs text-slate-400 mb-2">📅 事件日程</div>
-        <div className="space-y-1">
-          {publicInfo.incidentSchedule.map((schedule, i) => {
-            const incidentInfo = INCIDENTS.find(inc => inc.id === schedule.type);
-            const isToday = schedule.day === currentDay;
-            const isPast = schedule.day < currentDay;
-            
-            return (
-              <div 
-                key={i}
-                className={cn(
-                  "flex items-center gap-2 px-2 py-1.5 rounded text-sm",
-                  isToday && "bg-amoris/15 border border-amoris/30",
-                  isPast && "opacity-50",
-                  !isToday && !isPast && "bg-slate-700/30"
-                )}
-              >
-                <span className={cn(
-                  "w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0",
-                  isToday ? "bg-amoris text-white" : "bg-slate-700 text-slate-400"
-                )}>
-                  {schedule.day}
-                </span>
-                <span className="font-medium">{incidentInfo?.name || schedule.type}</span>
-                {isToday && <span className="ml-auto text-amoris text-xs animate-pulse">今日!</span>}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-      
-      {/* 当前剧本的事件详情 - 直接展开 */}
-      {relevantIncidents.length > 0 && (
-        <div className="space-y-2">
-          {relevantIncidents.map(incident => (
-            <div key={incident.id} className="bg-slate-800/50 rounded-lg border border-slate-700/50 p-3">
-              <div className="flex items-center gap-2 mb-2">
-                <AlertTriangle size={14} className="text-doloris" />
-                <span className="font-bold text-white">{incident.name}</span>
-              </div>
-              <div className="text-sm text-slate-300 leading-relaxed">
-                {highlightTokens(incident.effect)}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-      
-      {/* 其他事件（当前不存在）- 整体折叠 */}
-      {otherIncidents.length > 0 && (
-        <OtherIncidentsSection incidents={otherIncidents} />
-      )}
-    </div>
-  );
-}
-
-/** 其他事件整体折叠区域 */
-function OtherIncidentsSection({ incidents }: { incidents: IncidentInfo[] }) {
-  const [expanded, setExpanded] = useState(false);
-  
-  return (
-    <div className="mt-4 pt-3 border-t border-slate-700/50">
-      <button
-        onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center gap-2 text-xs text-slate-500 hover:text-slate-400 transition-colors py-1"
-      >
-        {expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-        <span>🔒 其他事件（本剧本不存在）</span>
-        <span className="text-slate-600">({incidents.length})</span>
-      </button>
-      
-      <AnimatePresence>
-        {expanded && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            className="overflow-hidden"
-          >
-            <div className="space-y-2 mt-2">
-              {incidents.map(incident => (
-                <div 
-                  key={incident.id} 
-                  className="bg-slate-800/20 rounded-lg border border-slate-700/30 p-2.5 opacity-60"
-                >
-                  <div className="flex items-center gap-2 mb-1">
-                    <AlertTriangle size={12} className="text-slate-500" />
-                    <span className="font-bold text-slate-400 text-sm">{incident.name}</span>
-                  </div>
-                  <div className="text-xs text-slate-500 leading-relaxed">
-                    {highlightTokens(incident.effect)}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
-
-
-export function RulesReference() {
-  const [isOpen, setIsOpen] = useState(false);
-
-  return (
-    <>
-      {/* Toggle Button - Fixed on left side, z-[90] to stay above character cards */}
-      <button
-        onClick={() => setIsOpen(true)}
-        className="fixed left-0 top-1/2 -translate-y-1/2 z-[90] px-2 py-3 bg-slate-800 border border-slate-700 border-l-0 rounded-r-lg hover:bg-slate-700 transition-colors flex flex-col items-center gap-1"
-        title="规则速查"
-      >
-        <BookOpen size={16} className="text-doloris" />
-        <span className="text-[10px] text-slate-400">速查</span>
-      </button>
-
-      {/* Panel */}
-      <AnimatePresence>
-        {isOpen && (
-          <>
-            {/* Backdrop */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsOpen(false)}
-              className="fixed inset-0 bg-black/60 z-[110]"
-            />
-            
-            {/* Panel Content */}
-            <motion.div
-              initial={{ x: -400, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              exit={{ x: -400, opacity: 0 }}
-              className="fixed top-0 left-0 h-full w-96 bg-slate-900 border-r border-slate-700 z-[120] shadow-2xl overflow-hidden flex flex-col"
-            >
-              {/* Header */}
-              <div className="bg-gradient-to-r from-doloris/10 to-slate-900 border-b border-slate-700 p-4 flex justify-between items-center shrink-0">
-                <div className="flex items-center gap-3">
-                  <BookOpen className="text-doloris" size={24} />
-                  <div>
-                    <h3 className="font-bold text-lg">First Steps 速查表</h3>
-                    <p className="text-sm text-slate-400">事件 · 剧本图文</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setIsOpen(false)}
-                  className="p-2 hover:bg-slate-800 rounded-lg transition-colors"
-                >
-                  <X size={20} />
-                </button>
-              </div>
-
-              {/* Scrollable Content */}
-              <div className="flex-1 overflow-y-auto">
-                {/* 事件速查 */}
-                <CollapsibleSection title="本剧本事件" icon={<AlertTriangle size={16} />} defaultOpen>
-                  <ScriptIncidents />
-                </CollapsibleSection>
-
-                {/* 剧本速查 - 图片参考 */}
-                <CollapsibleSection title="剧本图文速查" icon={<ImageIcon size={16} />} defaultOpen>
-                  <ScriptReference />
-                </CollapsibleSection>
-              </div>
-
-              {/* Footer */}
-              <div className="shrink-0 border-t border-slate-700 p-3 bg-slate-900/80 text-xs text-slate-500 text-center">
-                First Steps (FS-01) 初学者剧本
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
-    </>
-  );
-}
-
-// ===== 补充内容面板（左下角）=====
 export function SupplementaryReference() {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -567,7 +281,6 @@ export function SupplementaryReference() {
               <div className="flex-1 overflow-y-auto">
                 <CollapsibleSection title="进阶策略" icon={<Lightbulb size={16} />} defaultOpen>
                   <div className="space-y-3">
-                    {/* ── 主人公策略 ── */}
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-medium text-oblivionis">☀️ 主人公策略</span>
                       <div className="flex-1 h-px bg-oblivionis/20" />
@@ -591,7 +304,6 @@ export function SupplementaryReference() {
                       </ul>
                     </div>
 
-                    {/* ── 剧作家策略 ── */}
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-medium text-timoris">🎭 剧作家策略</span>
                       <div className="flex-1 h-px bg-timoris/20" />

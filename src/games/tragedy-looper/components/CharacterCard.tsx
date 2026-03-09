@@ -1,15 +1,27 @@
 import React, { useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import type { CharacterState, Character, PlayedCard, Indicators, CharacterId } from '@/games/tragedy-looper/types';
+import type { CharacterState, Character, PlayedCard, Indicators, CharacterId, RoleType } from '@/games/tragedy-looper/types';
+import { ROLE_NAMES } from '@/games/tragedy-looper/types';
 import { IndicatorDisplay } from './IndicatorDisplay';
 import { PlacedCards } from './PlacedCards';
 import { cn } from '@/lib/utils';
 import { getCharacterSpriteStyle, hasCharacterAsset } from '@/games/tragedy-looper/characterAssets';
 import { useGameStore } from '@/games/tragedy-looper/store';
 import { useMultiplayer } from '@/shared/useMultiplayer';
-import { X, Skull, RefreshCw, MapPin, Ban } from 'lucide-react';
+import { X, Skull, RefreshCw, MapPin, Ban, HelpCircle } from 'lucide-react';
 import type { LocationType } from '@/games/tragedy-looper/types';
+import { TRAGEDY_SET_ROLES } from '@/games/tragedy-looper/data/plotRoles';
+
+const FRIENDLY_ROLES: Set<RoleType> = new Set(['key_person', 'friend', 'lover']);
+const HOSTILE_ROLES: Set<RoleType> = new Set(['killer', 'serial_killer', 'brain']);
+
+function getGuessStyle(role: RoleType | undefined) {
+  if (!role) return { bg: 'bg-slate-600', border: 'border-slate-500', text: 'text-white', hover: 'hover:bg-slate-500' };
+  if (FRIENDLY_ROLES.has(role)) return { bg: 'bg-[#663344]', border: 'border-[#FF8899]', text: 'text-[#FFCCDD]', hover: 'hover:bg-[#774455]' };
+  if (HOSTILE_ROLES.has(role)) return { bg: 'bg-[#5B1A1A]', border: 'border-[#CC4444]', text: 'text-[#FFAAAA]', hover: 'hover:bg-[#6B2222]' };
+  return { bg: 'bg-[#3B2D5B]', border: 'border-[#9977DD]', text: 'text-[#DDCCFF]', hover: 'hover:bg-[#4A3870]' };
+}
 
 /** 位置显示配置 */
 const LOCATION_STYLE: Record<LocationType, { label: string; short: string; color: string; bg: string }> = {
@@ -54,11 +66,14 @@ export function CharacterCard({
   onDragEnd
 }: CharacterCardProps) {
   const [showZoomedImage, setShowZoomedImage] = useState(false);
+  const [showGuessPopup, setShowGuessPopup] = useState(false);
   const hasCards = myPlacedCards.length > 0 || opponentPlacedCards.length > 0;
   
   const { isConnected, updateGameState, toggleCharacterLife } = useMultiplayer();
   const gameState = useGameStore((s) => s.gameState);
   const playerRole = useGameStore((s) => s.playerRole);
+  const protagonistGuesses = useGameStore((s) => s.protagonistGuesses);
+  const setProtagonistGuess = useGameStore((s) => s.setProtagonistGuess);
 
   const phase = gameState?.phase;
 
@@ -154,7 +169,7 @@ export function CharacterCard({
     
     // 正常状态
     return {
-      borderClass: "border-slate-600 hover:border-oblivionis",
+      borderClass: "border-slate-600 hover:border-slate-400",
       bgClass: "bg-slate-800",
       glowClass: "",
     };
@@ -344,6 +359,29 @@ export function CharacterCard({
         />
       </div>
 
+      {/* 主人公专属：身份猜测按钮 */}
+      {playerRole === 'protagonist' && (() => {
+        const currentGuess = protagonistGuesses[characterState.id];
+        const gs = getGuessStyle(currentGuess);
+        return (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowGuessPopup(prev => !prev);
+            }}
+            onPointerDown={e => e.stopPropagation()}
+            className={cn(
+              "w-full py-1 rounded border text-xs font-bold transition-all active:scale-95 flex items-center justify-center gap-1",
+              gs.bg, gs.border, gs.text, gs.hover
+            )}
+            title="猜测身份"
+          >
+            <HelpCircle size={11} />
+            {currentGuess ? ROLE_NAMES[currentGuess] : '猜测身份'}
+          </button>
+        );
+      })()}
+
       {/* 放大查看弹窗 - 使用 Portal 渲染到 body */}
       {typeof window !== 'undefined' && createPortal(
         <AnimatePresence mode="wait">
@@ -478,6 +516,73 @@ export function CharacterCard({
               </motion.div>
             </motion.div>
           )}
+        </AnimatePresence>,
+        document.body
+      )}
+
+      {/* 身份猜测弹窗 - Portal 到 body，完全脱离卡片事件 */}
+      {typeof window !== 'undefined' && createPortal(
+        <AnimatePresence>
+          {showGuessPopup && playerRole === 'protagonist' && (() => {
+            const tragedySet = gameState?.publicInfo.tragedySet ?? 'first_steps';
+            const availableRoles = TRAGEDY_SET_ROLES[tragedySet];
+            const currentGuess = protagonistGuesses[characterState.id];
+            return (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 z-[200] bg-black/60 flex items-center justify-center"
+                onClick={() => setShowGuessPopup(false)}
+              >
+                <motion.div
+                  initial={{ scale: 0.9, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.9, opacity: 0 }}
+                  className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl p-4 w-64"
+                  onClick={e => e.stopPropagation()}
+                >
+                  <div className="text-sm font-bold text-slate-200 mb-3">
+                    {characterDef.name} · 猜测身份
+                  </div>
+                  <div className="space-y-1 max-h-64 overflow-y-auto">
+                    {/* 清除选项 */}
+                    <button
+                      onClick={() => {
+                        setProtagonistGuess(characterState.id, null);
+                        setShowGuessPopup(false);
+                      }}
+                      className={cn(
+                        'w-full text-left px-3 py-2 rounded-lg text-sm transition-colors',
+                        !currentGuess
+                          ? 'bg-slate-700 text-white font-bold'
+                          : 'text-slate-400 hover:bg-slate-800'
+                      )}
+                    >
+                      未知
+                    </button>
+                    {availableRoles.map(roleId => (
+                      <button
+                        key={roleId}
+                        onClick={() => {
+                          setProtagonistGuess(characterState.id, roleId);
+                          setShowGuessPopup(false);
+                        }}
+                        className={cn(
+                          'w-full text-left px-3 py-2 rounded-lg text-sm transition-colors',
+                          currentGuess === roleId
+                            ? 'bg-violet-500/30 border border-violet-400/60 text-violet-200 font-bold'
+                            : 'text-slate-300 hover:bg-slate-800'
+                        )}
+                      >
+                        {ROLE_NAMES[roleId]}
+                      </button>
+                    ))}
+                  </div>
+                </motion.div>
+              </motion.div>
+            );
+          })()}
         </AnimatePresence>,
         document.body
       )}

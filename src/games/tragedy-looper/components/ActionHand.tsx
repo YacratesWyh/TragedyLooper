@@ -4,6 +4,7 @@ import type { ActionCard as ActionCardInterface, PlayerDeck } from '@/games/trag
 import { ActionCard } from './ActionCard';
 import { cn } from '@/lib/utils';
 import { ShieldAlert } from 'lucide-react';
+import { TL_ACCENT_COLORS } from '@/games/tragedy-looper/theme';
 
 interface ActionHandProps {
   deck: PlayerDeck;
@@ -15,8 +16,8 @@ interface ActionHandProps {
 }
 
 // MyGO!!!!!  主人公行配色（行索引 0-2 + 特殊牌）
-const MYGO_ROW_COLORS = ['#77BBDD', '#FF8899', '#77DD77'] as const;
-const MYGO_SPECIAL_COLOR = '#7777AA';
+const MYGO_ROW_COLORS = TL_ACCENT_COLORS.protagonistRows;
+const MYGO_SPECIAL_COLOR = TL_ACCENT_COLORS.protagonistSpecial;
 
 // 渲染单张卡牌
 function CardSlot({ 
@@ -150,7 +151,7 @@ export function ActionHand({ deck, selectedCardId, onCardSelect, className, disa
     
     return (
       <div className={cn(
-        "flex flex-col gap-2 p-2 transition-all items-start bg-slate-900/50 rounded-xl border border-slate-700/50 shadow-inner",
+        "flex flex-col gap-2 p-2 transition-all items-start bg-surface-1/70 rounded-xl border border-border-soft shadow-inner",
         disabled && "opacity-80",
         className
       )}>
@@ -165,7 +166,7 @@ export function ActionHand({ deck, selectedCardId, onCardSelect, className, disa
                 <div 
                   key={`row-${rowIndex}`} 
                   className={cn(
-                    "flex gap-1.5 p-1 bg-slate-800/30 rounded-lg transition-opacity duration-300",
+                    "flex gap-1.5 p-1 bg-surface-2/30 rounded-lg transition-opacity duration-300",
                     isRowDisabled ? "opacity-40 grayscale" : "opacity-100"
                   )}
                 >
@@ -196,9 +197,9 @@ export function ActionHand({ deck, selectedCardId, onCardSelect, className, disa
 
           {/* 右侧：特殊功能区 */}
           <div className="flex items-stretch h-full">
-            <div className="w-px bg-gradient-to-b from-transparent via-slate-700 to-transparent self-stretch mx-3" />
+            <div className="w-px bg-gradient-to-b from-transparent via-border-soft to-transparent self-stretch mx-3" />
             
-            <div className="flex flex-col items-center justify-between py-1 px-2 bg-slate-800/20 rounded-xl border border-slate-700/30">
+            <div className="flex flex-col items-center justify-between py-1 px-2 bg-surface-2/20 rounded-xl border border-border-soft/50">
               <div className="flex flex-col items-center gap-1.5 mb-2">
                 <ShieldAlert size={14} className="text-doloris/70" />
                 <div className="flex flex-col -gap-1">
@@ -223,7 +224,7 @@ export function ActionHand({ deck, selectedCardId, onCardSelect, className, disa
                 ))}
               </div>
               
-              <div className="mt-2 w-1.5 h-1.5 rounded-full bg-slate-700" />
+              <div className="mt-2 w-1.5 h-1.5 rounded-full bg-border-soft" />
             </div>
           </div>
         </div>

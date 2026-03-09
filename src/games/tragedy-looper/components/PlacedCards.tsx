@@ -22,18 +22,17 @@ const CARD_ICONS: Record<string, React.ReactNode> = {
   intrigue: <Eye size={12} />,
 };
 
-const CARD_COLORS: Record<string, string> = {
-  movement: 'bg-oblivionis border-oblivionis/80',
-  goodwill: 'bg-amoris border-amoris/80',
-  anxiety: 'bg-amoris border-amoris/80',
-  intrigue: 'bg-slate-600 border-slate-400',
+/** 根据 owner 决定牌的主色：剧作家=暗红，主人公=MyGO蓝 */
+const OWNER_BG: Record<PlayerRole, string> = {
+  mastermind: '#8B1A1A',
+  protagonist: '#77BBDD',
 };
 
 /** 面朝上的牌（自己放的，可撤回） */
 function FaceUpCard({ playedCard, onRetreat }: { playedCard: PlayedCard; onRetreat?: () => void }) {
   const { card } = playedCard;
-  
-  // 获取显示内容
+  const bgColor = OWNER_BG[card.owner] ?? '#334155';
+
   const getCardLabel = () => {
     if (card.isForbid) return '禁';
     if (card.value !== undefined && card.value !== 0) {
@@ -56,21 +55,18 @@ function FaceUpCard({ playedCard, onRetreat }: { playedCard: PlayedCard; onRetre
         e.stopPropagation();
         onRetreat?.();
       }}
-      className={cn(
-        "relative w-8 h-10 rounded border-2 flex flex-col items-center justify-center text-white text-[10px] font-bold shadow-lg cursor-pointer group",
-        CARD_COLORS[card.type],
-        card.isForbid && "border-timoris ring-1 ring-timoris"
-      )}
+      className="relative w-8 h-10 rounded border-2 flex flex-col items-center justify-center text-white text-[10px] font-bold shadow-lg cursor-pointer group"
+      style={{ backgroundColor: bgColor, borderColor: bgColor }}
       title={`点击撤回 - ${card.isForbid ? '禁止' : ''}${card.type}`}
     >
       {/* 撤回按钮（hover 时显示） */}
       {onRetreat && (
         <div className="absolute inset-0 bg-black/60 rounded opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-          <X size={14} className="text-timoris" />
+          <X size={14} className="text-white" />
         </div>
       )}
       {CARD_ICONS[card.type]}
-      <span className={cn(card.isForbid && "text-timoris/80")}>{getCardLabel()}</span>
+      <span>{getCardLabel()}</span>
     </motion.div>
   );
 }
@@ -82,15 +78,14 @@ function FaceDownCard({ owner }: { owner: PlayerRole }) {
     <motion.div
       initial={{ scale: 0, rotate: 20 }}
       animate={{ scale: 1, rotate: 0 }}
-      className={cn(
-        "w-8 h-10 rounded border-2 flex items-center justify-center shadow-lg",
-        isMastermind 
-          ? "bg-timoris/10 border-timoris/25" 
-          : "bg-oblivionis/10 border-oblivionis/25"
-      )}
+      className="w-8 h-10 rounded border-2 flex items-center justify-center shadow-lg"
+      style={isMastermind
+        ? { backgroundColor: '#8B1A1A', borderColor: '#8B1A1A' }
+        : { backgroundColor: '#77BBDD', borderColor: '#77BBDD' }
+      }
       title={isMastermind ? "剧作家的牌" : "主人公的牌"}
     >
-      <EyeOff size={14} className="text-slate-500" />
+      <EyeOff size={14} className="text-white/70" />
     </motion.div>
   );
 }

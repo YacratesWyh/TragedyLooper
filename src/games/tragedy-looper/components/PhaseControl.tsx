@@ -11,6 +11,7 @@ import { PHASE_NAMES } from '@/games/tragedy-looper/types';
 import { useGameStore } from '@/games/tragedy-looper/store';
 import { useMultiplayer } from '@/shared/useMultiplayer';
 import { processDawnPhase, isGameOver } from '@/games/tragedy-looper/engine';
+import { TL_PHASE_COLORS } from '@/games/tragedy-looper/theme';
 import { 
   Sunrise, 
   UserCircle, 
@@ -39,19 +40,6 @@ const PHASE_ICONS: Record<GamePhase, React.ReactNode> = {
   night: <Moon className="w-5 h-5" />,
   loop_end: <RefreshCw className="w-5 h-5" />,
   game_over: <AlertTriangle className="w-5 h-5" />,
-};
-
-const PHASE_COLORS: Record<GamePhase, string> = {
-  dawn: 'bg-amber-500/20 border-amber-500 text-amber-200',
-  mastermind_action: 'bg-red-500/20 border-red-500 text-red-200',
-  protagonist_action: 'bg-blue-500/20 border-blue-500 text-blue-200',
-  resolution: 'bg-green-500/20 border-green-500 text-green-200',
-  mastermind_ability: 'bg-red-500/20 border-red-400 text-red-200',
-  protagonist_ability: 'bg-blue-500/20 border-blue-400 text-blue-200',
-  incident: 'bg-orange-500/20 border-orange-500 text-orange-200',
-  night: 'bg-indigo-500/20 border-indigo-500 text-indigo-200',
-  loop_end: 'bg-purple-500/20 border-purple-500 text-purple-200',
-  game_over: 'bg-red-900/50 border-red-700 text-red-300',
 };
 
 // 阶段顺序
@@ -95,6 +83,8 @@ export function PhaseControl() {
   if (!gameState) return null;
 
   const isHotseat = gameMode === 'hotseat';
+  const currentScript = useGameStore((s) => s.currentScript);
+  const isTutorial = currentScript?.id === 'fs-01' || gameState.publicInfo.scriptName.includes('初学者');
 
   // 是否正在回放历史
   const isViewingHistory = currentHistoryIndex !== null;
@@ -102,7 +92,7 @@ export function PhaseControl() {
   const historySnapshot = isViewingHistory ? dayHistory[currentHistoryIndex] : null;
 
   const currentPhase = gameState.phase;
-  const currentPhaseColor = PHASE_COLORS[currentPhase];
+  const currentPhaseColor = TL_PHASE_COLORS[currentPhase];
   
   // 热座模式用 store 的角色，联机用 multiplayer 的角色
   const playerRole = isHotseat ? storeRole : myRole;
@@ -403,20 +393,20 @@ export function PhaseControl() {
               <span><strong className="text-doloris">翻牌结算</strong> — 已自动完成（移动 → 指示物叠加）</span>
             </div>
             <div className="flex items-start gap-2 text-slate-300">
-              <span className="w-5 h-5 rounded-full flex items-center justify-center shrink-0 font-bold text-[10px] mt-0.5" style={{ backgroundColor: '#77DD7740', color: '#77DD77' }}>⑤</span>
-              <span><strong style={{ color: '#77DD77' }}>剧作家身份能力</strong> — 主犯、传谣人等任意能力（手动调整指示物）</span>
+              <span className="w-5 h-5 rounded-full bg-timoris/30 text-timoris flex items-center justify-center shrink-0 font-bold text-[10px] mt-0.5">⑤</span>
+              <span><strong className="text-timoris">剧作家身份能力</strong> — 主犯、传谣人等任意能力（手动调整指示物）</span>
             </div>
             <div className="flex items-start gap-2 text-slate-300">
-              <span className="w-5 h-5 rounded-full bg-blue-500/40 text-blue-300 flex items-center justify-center shrink-0 font-bold text-[10px] mt-0.5">⑥</span>
-              <span><strong className="text-blue-300">主人公友好能力</strong> — 友好度达标的角色可由主人公发动</span>
+              <span className="w-5 h-5 rounded-full bg-oblivionis/40 text-oblivionis flex items-center justify-center shrink-0 font-bold text-[10px] mt-0.5">⑥</span>
+              <span><strong className="text-oblivionis">主人公友好能力</strong> — 友好度达标的角色可由主人公发动</span>
             </div>
             <div className="flex items-start gap-2 text-slate-300">
-              <span className="w-5 h-5 rounded-full bg-yellow-600/40 text-yellow-400 flex items-center justify-center shrink-0 font-bold text-[10px] mt-0.5">⑦</span>
-              <span><strong className="text-yellow-400">事件检查</strong> — 确认当事人存活且不安 ≥ 上限后触发事件</span>
+              <span className="w-5 h-5 rounded-full bg-doloris/40 text-doloris flex items-center justify-center shrink-0 font-bold text-[10px] mt-0.5">⑦</span>
+              <span><strong className="text-doloris">事件检查</strong> — 确认当事人存活且不安 ≥ 上限后触发事件</span>
             </div>
             <div className="flex items-start gap-2 text-slate-300">
-              <span className="w-5 h-5 rounded-full bg-indigo-500/40 text-indigo-300 flex items-center justify-center shrink-0 font-bold text-[10px] mt-0.5">⑧</span>
-              <span><strong className="text-indigo-300">夜晚能力</strong> — 杀手、杀人狂等强制/任意能力（手动调整指示物）</span>
+              <span className="w-5 h-5 rounded-full bg-mortis/35 text-mortis flex items-center justify-center shrink-0 font-bold text-[10px] mt-0.5">⑧</span>
+              <span><strong className="text-mortis">夜晚能力</strong> — 杀手、杀人狂等强制/任意能力（手动调整指示物）</span>
             </div>
           </div>
         )}
@@ -433,19 +423,31 @@ export function PhaseControl() {
           <motion.button
             whileHover={{ scale: 1.03 }}
             whileTap={{ scale: 0.97 }}
+            animate={isTutorial ? {
+              boxShadow: [
+                '0 0 0 0 rgba(250,204,21,0)',
+                '0 0 20px 4px rgba(250,204,21,0.4)',
+                '0 0 0 0 rgba(250,204,21,0)',
+              ],
+            } : undefined}
+            transition={isTutorial ? {
+              boxShadow: { duration: 1.6, repeat: Infinity, ease: 'easeInOut' },
+            } : undefined}
             onClick={nextAction.action}
             className={cn(
               "flex items-center justify-between gap-3 px-5 py-4 rounded-xl",
               "text-white font-black text-base tracking-wide shadow-xl transition-all",
-              currentPhase === 'mastermind_action' || currentPhase === 'night'
-                ? "bg-timoris hover:bg-timoris/80 shadow-timoris/20"
-                : currentPhase === 'protagonist_action'
-                  ? "bg-oblivionis hover:bg-oblivionis/80 shadow-oblivionis/20"
-                  : "bg-doloris hover:bg-doloris/80 shadow-doloris/20"
+              isTutorial
+                ? "bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-slate-900 ring-2 ring-amber-300/60"
+                : currentPhase === 'mastermind_action' || currentPhase === 'night'
+                  ? "bg-timoris hover:bg-timoris/80 shadow-timoris/20"
+                  : currentPhase === 'protagonist_action'
+                    ? "bg-oblivionis hover:bg-oblivionis/80 shadow-oblivionis/20"
+                    : "bg-doloris hover:bg-doloris/80 shadow-doloris/20"
             )}
           >
             <span>{nextAction.label}</span>
-            <ChevronRight className="w-6 h-6" />
+            <ChevronRight className={cn("w-6 h-6", isTutorial && "text-slate-900")} />
           </motion.button>
 
           {nextAction.description && (

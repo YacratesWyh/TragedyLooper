@@ -4,9 +4,13 @@
  * 游戏简介面板 - 独立侧边栏组件
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { BookOpen, X, Sparkles } from 'lucide-react';
+import { X, Sparkles, ChevronDown, ChevronRight, Image as ImageIcon, Maximize2, Lock } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { useGameStore } from '@/games/tragedy-looper/store';
+import { useMultiplayer } from '@/shared/useMultiplayer';
+import type { PlayerRole } from '@/games/tragedy-looper/types';
 
 export function GameIntroPanel() {
   const [isOpen, setIsOpen] = useState(false);
@@ -16,7 +20,7 @@ export function GameIntroPanel() {
       {/* Toggle Button - Fixed top-right */}
       <button
         onClick={() => setIsOpen(v => !v)}
-        className="fixed top-2 right-14 z-[90] flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-800 border border-slate-700 rounded-lg hover:bg-slate-700 transition-colors"
+        className="fixed top-2 right-14 z-[90] flex items-center gap-1.5 px-2.5 py-1.5 bg-surface-2/90 border border-border-soft rounded-lg hover:bg-surface-3 transition-colors backdrop-blur-sm"
         title="游戏简介"
       >
         <Sparkles size={14} className="text-timoris" />
@@ -41,10 +45,10 @@ export function GameIntroPanel() {
               initial={{ x: 400, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
               exit={{ x: 400, opacity: 0 }}
-              className="fixed top-0 right-0 h-full w-96 bg-slate-900 border-l border-slate-700 z-[120] shadow-2xl overflow-hidden flex flex-col"
+              className="fixed top-0 right-0 h-full w-96 bg-surface-1/95 border-l border-border-soft z-[120] shadow-2xl overflow-hidden flex flex-col backdrop-blur-md"
             >
               {/* Header */}
-              <div className="bg-gradient-to-r from-timoris/15 to-slate-900 border-b border-slate-700 p-4 flex justify-between items-center shrink-0">
+              <div className="bg-gradient-to-r from-timoris/15 to-surface-1 border-b border-border-soft p-4 flex justify-between items-center shrink-0">
                 <div className="flex items-center gap-3">
                   <Sparkles className="text-timoris" size={24} />
                   <div>
@@ -54,7 +58,7 @@ export function GameIntroPanel() {
                 </div>
                 <button
                   onClick={() => setIsOpen(false)}
-                  className="p-2 hover:bg-slate-800 rounded-lg transition-colors"
+                  className="p-2 hover:bg-surface-3 rounded-lg transition-colors"
                 >
                   <X size={20} />
                 </button>
@@ -63,14 +67,14 @@ export function GameIntroPanel() {
               {/* Scrollable Content */}
               <div className="flex-1 overflow-y-auto p-4 space-y-4">
                 {/* 剧情背景（含隐性设定的剧本化叙述） */}
-                <div className="bg-gradient-to-br from-slate-800/80 to-slate-900/80 rounded-lg p-4 border border-slate-600/50 space-y-5">
+                <div className="bg-gradient-to-br from-surface-2/90 to-surface-1/90 rounded-lg p-4 border border-border-soft space-y-5">
                   <p className="text-slate-300 leading-relaxed italic text-sm">
                     「这是一个被诅咒的小镇。每当惨剧发生，时间就会倒流，一切重来……
                     但记忆不会消失。主人公们必须在有限的轮回中找出真相，
                     阻止悲剧的发生——否则，他们将永远困在这个轮回之中。」
                   </p>
 
-                  <p className="text-slate-400 leading-relaxed text-sm border-t border-slate-600/50 pt-4">
+                  <p className="text-text-muted leading-relaxed text-sm border-t border-border-soft pt-4">
                     在这个世界里，<strong className="text-slate-300">主人公</strong>与<strong className="text-slate-300">剧作家</strong>都不会现身于版图之上；
                     舞台上行走的，唯有被命运摆布的<strong className="text-slate-300">NPC 角色</strong>。
                     当剧作家布下的<strong className="text-timoris">阴谋</strong>达成条件，或是<strong className="text-mortis">关键人物或主人公不幸死亡</strong>，
@@ -79,7 +83,7 @@ export function GameIntroPanel() {
                 </div>
 
                 {/* 游戏构成 */}
-                <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-700/50 space-y-2">
+                <div className="bg-surface-2/60 rounded-lg p-3 border border-border-soft/80 space-y-2">
                   <div className="flex items-center gap-2 text-sm">
                     <span className="text-slate-400">👥</span>
                     <span><strong className="text-timoris">1 名剧作家</strong> vs <strong className="text-oblivionis">1-3 名主人公</strong><span className="text-slate-500">（推荐 3 人共同推理，共用 3 张行动牌）</span></span>
@@ -294,6 +298,8 @@ export function GameIntroPanel() {
                     </div>
                   </div>
                 </div>
+                {/* 实体游戏图文参考（折叠） */}
+                <ReferenceGallery />
               </div>
 
               {/* Footer */}
@@ -302,6 +308,154 @@ export function GameIntroPanel() {
               </div>
             </motion.div>
           </>
+        )}
+      </AnimatePresence>
+    </>
+  );
+}
+
+// ===== 实体游戏图文参考 =====
+
+interface RefImage {
+  id: string;
+  title: string;
+  path: string;
+  category?: string;
+  visibleTo?: PlayerRole;
+}
+
+interface RefConfig {
+  images: RefImage[];
+}
+
+function getScriptAssetPath(scriptName: string): string {
+  if (scriptName.includes('Basic Tragedy') || scriptName.includes('基本悲剧')) {
+    return 'tl/btx';
+  }
+  return 'tl/fs';
+}
+
+function ReferenceGallery() {
+  const [expanded, setExpanded] = useState(false);
+  const [config, setConfig] = useState<RefConfig | null>(null);
+  const [zoomedImage, setZoomedImage] = useState<string | null>(null);
+
+  const { myRole: multiplayerRole } = useMultiplayer();
+  const localRole = useGameStore((s) => s.playerRole);
+  const gameState = useGameStore((s) => s.gameState);
+  const gameMode = useGameStore((s) => s.gameMode);
+  const isHotseat = gameMode === 'hotseat';
+  const currentRole = isHotseat ? localRole : (multiplayerRole || localRole);
+
+  const scriptAssetPath = useMemo(() => {
+    if (gameState?.publicInfo?.scriptName) {
+      return getScriptAssetPath(gameState.publicInfo.scriptName);
+    }
+    return 'tl/fs';
+  }, [gameState?.publicInfo?.scriptName]);
+
+  useEffect(() => {
+    fetch(`/assets/${scriptAssetPath}/config.json`)
+      .then(res => res.json())
+      .then(data => setConfig(data))
+      .catch(err => console.error('Failed to load ref config:', err));
+  }, [scriptAssetPath]);
+
+  const refImages = useMemo(() => {
+    if (!config) return [];
+    return config.images.filter(img => img.category === 'reference');
+  }, [config]);
+
+  const visibleImages = refImages.filter(img => {
+    if (!img.visibleTo) return true;
+    return img.visibleTo === currentRole;
+  });
+
+  if (visibleImages.length === 0) return null;
+
+  const getImagePath = (img: RefImage) => `/assets/${scriptAssetPath}/${img.path}`;
+
+  return (
+    <>
+      <div className="bg-slate-800/50 border border-slate-700/50 rounded-lg overflow-hidden">
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="w-full flex items-center gap-2 px-4 py-3 hover:bg-slate-800/50 transition-colors"
+        >
+          <ImageIcon size={16} className="text-slate-400" />
+          <span className="font-bold text-slate-300 flex-1 text-left text-sm">实体游戏图文参考</span>
+          <span className="text-xs text-slate-500">{visibleImages.length} 张</span>
+          {expanded ? <ChevronDown size={14} className="text-slate-500" /> : <ChevronRight size={14} className="text-slate-500" />}
+        </button>
+
+        <AnimatePresence>
+          {expanded && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="overflow-hidden"
+            >
+              <div className="px-4 pb-4 space-y-2">
+                <p className="text-xs text-slate-500">以下内容在游戏中已有体现，仅供还原实体游戏参考。</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {visibleImages.map((img) => (
+                    <div
+                      key={img.id}
+                      className="group relative rounded-lg overflow-hidden border border-slate-700 hover:border-doloris/40 cursor-pointer transition-all"
+                      onClick={() => setZoomedImage(getImagePath(img))}
+                    >
+                      <div className={cn(
+                        "bg-slate-800",
+                        img.path.endsWith('.png') ? "aspect-[4/3]" : "aspect-[3/2]"
+                      )}>
+                        <img
+                          src={getImagePath(img)}
+                          alt={img.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                      </div>
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                        <Maximize2 size={16} className="text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </div>
+                      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent px-2 py-1">
+                        <p className="text-[10px] text-white font-medium truncate">{img.title}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* 放大查看 */}
+      <AnimatePresence>
+        {zoomedImage && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[200] bg-black/95 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={() => setZoomedImage(null)}
+          >
+            <button
+              className="absolute top-4 right-4 p-2 bg-slate-800/80 hover:bg-slate-700 text-white rounded-full transition-colors"
+              onClick={() => setZoomedImage(null)}
+            >
+              <X size={24} />
+            </button>
+            <motion.img
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              src={zoomedImage}
+              alt="参考图片"
+              className="max-w-full max-h-full object-contain shadow-2xl rounded-lg"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </motion.div>
         )}
       </AnimatePresence>
     </>

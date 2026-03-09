@@ -150,7 +150,8 @@ export type RoleType =
   | 'loved_one'             // 病娇恋人
   | 'factor_role'           // 因子
   | 'time_traveler'         // 时间旅行者
-  | 'witch';                // 女巫
+  | 'witch'                 // 女巫
+  | 'shadow';               // 阴角（FS 专有）
 
 /** 身份名称映射 */
 export const ROLE_NAMES: Record<RoleType, string> = {
@@ -167,6 +168,7 @@ export const ROLE_NAMES: Record<RoleType, string> = {
   factor_role: '因子',
   time_traveler: '时间旅行者',
   witch: '女巫',
+  shadow: '阴角',
 };
 
 /** 事件类型 */
@@ -443,6 +445,7 @@ export interface PrivateInfo {
 /** 公开信息 */
 export interface PublicInfo {
   scriptName: string;
+  tragedySet: 'first_steps' | 'basic_tragedy';
   loops: number;
   days: number;
   characters: CharacterId[];
@@ -487,4 +490,20 @@ export interface PlayedCard {
   card: ActionCard;
   targetCharacterId?: CharacterId;
   targetLocation?: LocationType;
+}
+
+/** 教学剧本预设配牌 */
+export interface TutorialCardPlay {
+  cardId: string;
+  targetCharacterId?: CharacterId;
+  targetLocation?: LocationType;
+}
+
+/** 教学剧本单回合预设 */
+export interface TutorialTurn {
+  loop: number;
+  day: number;
+  role: PlayerRole;
+  plays: TutorialCardPlay[];
+  narration: string;
 }

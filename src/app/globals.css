@@ -1,8 +1,16 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #13110f;
+  --foreground: #ece7df;
+
+  --shell-bg: #13110f;
+  --surface-1: #1a1714;
+  --surface-2: #221e1a;
+  --surface-3: #2a2520;
+  --border-soft: #3d352f;
+  --border-strong: #534841;
+  --text-muted: #b6aca3;
 }
 
 @theme inline {
@@ -10,19 +18,26 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --color-shell-bg: var(--shell-bg);
+  --color-surface-1: var(--surface-1);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-border-soft: var(--border-soft);
+  --color-border-strong: var(--border-strong);
+  --color-text-muted: var(--text-muted);
 
   /* Ave Mujica palette */
-  --color-doloris: #BB9955;
-  --color-mortis: #779977;
-  --color-timoris: #335566;
-  --color-amoris: #AA4477;
-  --color-oblivionis: #7799CC;
+  --color-doloris: #b49159;
+  --color-mortis: #6f9870;
+  --color-timoris: #5d7480;
+  --color-amoris: #a55a75;
+  --color-oblivionis: #8d6ea3;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #100e0d;
+    --foreground: #ece7df;
   }
 }
 
@@ -30,4 +45,21 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+.rendered-dark-bg {
+  background-color: var(--shell-bg);
+  background-image:
+    radial-gradient(1200px 700px at 15% -10%, rgb(141 110 163 / 16%), transparent 60%),
+    radial-gradient(900px 500px at 85% 0%, rgb(180 145 89 / 14%), transparent 58%),
+    radial-gradient(1000px 700px at 50% 100%, rgb(93 116 128 / 12%), transparent 62%),
+    linear-gradient(180deg, rgb(255 255 255 / 2%), rgb(0 0 0 / 0%)),
+    repeating-linear-gradient(
+      45deg,
+      rgb(255 255 255 / 1.5%) 0px,
+      rgb(255 255 255 / 1.5%) 1px,
+      transparent 1px,
+      transparent 3px
+    );
+  background-attachment: fixed;
 }

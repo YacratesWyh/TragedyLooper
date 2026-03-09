@@ -1,6 +1,6 @@
 // Zustand 游戏状态存储
 import { create } from 'zustand';
-import type { GameState, PlayedCard, PlayerRole, PlayerDeck, ActionCard, CharacterId, LocationType } from '@/games/tragedy-looper/types';
+import type { GameState, PlayedCard, PlayerRole, PlayerDeck, ActionCard, CharacterId, LocationType, TutorialCardPlay, RoleType } from '@/games/tragedy-looper/types';
 import {
   createMastermindDeck,
   createProtagonistDeck,
@@ -58,6 +58,10 @@ interface GameStore {
   // 首次游戏简介引导（重新开始游戏时重置）
   introGuideDismissed: boolean;
   dismissIntroGuide: () => void;
+
+  // 主人公身份猜测（纯本地标注，不影响游戏逻辑）
+  protagonistGuesses: Partial<Record<CharacterId, RoleType>>;
+  setProtagonistGuess: (charId: CharacterId, role: RoleType | null) => void;
   
   // 牌组状态（每个玩家有自己的牌组）
   mastermindDeck: PlayerDeck;
@@ -83,6 +87,7 @@ interface GameStore {
   initializeHotseatGame: () => void;
   initializeWithScript: (role: PlayerRole, script: ScriptTemplate) => void;
   playCard: (card: PlayedCard) => void;
+  executeTutorialPlays: (plays: TutorialCardPlay[]) => void;
   retreatCard: (cardId: string) => void;  // 撤回牌
   
   // 阶段控制
@@ -144,6 +149,20 @@ export const useGameStore = create<GameStore>((set, get) => ({
   currentProtagonistCards: [],
 
   clearMessages: () => set({ resolutionMessages: [] }),
+
+  introGuideDismissed: false,
+  dismissIntroGuide: () => set({ introGuideDismissed: true }),
+
+  protagonistGuesses: {},
+  setProtagonistGuess: (charId, role) => set((state) => {
+    const next = { ...state.protagonistGuesses };
+    if (role === null) {
+      delete next[charId];
+    } else {
+      next[charId] = role;
+    }
+    return { protagonistGuesses: next };
+  }),
 
   setGameMode: (mode: GameMode) => set({ gameMode: mode }),
 
@@ -313,6 +332,49 @@ export const useGameStore = create<GameStore>((set, get) => ({
     }
   },
 
+  executeTutorialPlays: (plays: TutorialCardPlay[]) => {
+    const {
+      mastermindDeck, protagonistDeck,
+      currentMastermindCards, currentProtagonistCards,
+    } = get();
+
+    const mmPlays: PlayedCard[] = [];
+    const proPlays: PlayedCard[] = [];
+    let mmDeck = mastermindDeck;
+    let proDeck = protagonistDeck;
+
+    for (const play of plays) {
+      const isMM = play.cardId.startsWith('mm-');
+      const deck = isMM ? mmDeck : proDeck;
+      const card = deck.allCards.find(c => c.id === play.cardId);
+      if (!card) {
+        console.error(`[教学配牌] 找不到卡牌: ${play.cardId}`);
+        continue;
+      }
+
+      const played: PlayedCard = {
+        card,
+        targetCharacterId: play.targetCharacterId,
+        targetLocation: play.targetLocation,
+      };
+
+      if (isMM) {
+        mmPlays.push(played);
+        mmDeck = markCardUsed(mmDeck, card.id);
+      } else {
+        proPlays.push(played);
+        proDeck = markCardUsed(proDeck, card.id);
+      }
+    }
+
+    set({
+      currentMastermindCards: [...currentMastermindCards, ...mmPlays],
+      currentProtagonistCards: [...currentProtagonistCards, ...proPlays],
+      mastermindDeck: mmDeck,
+      protagonistDeck: proDeck,
+    });
+  },
+
   // 撤回已打出的牌
   retreatCard: (cardId: string) => {
     const { 
@@ -430,8 +492,32 @@ export const useGameStore = create<GameStore>((set, get) => ({
   proceedToNight: () => {
     const { gameState } = get();
     if (!gameState) return;
-    
-    set({ gameState: { ...gameState, phase: 'night' } });
+
+    const nightMessages: string[] = [];
+
+    // 检查杀人狂（serial_killer）夜晚强制能力
+    const roles = gameState.privateInfo?.roles ?? [];
+    const killerRole = roles.find(r => r.role === 'serial_killer');
+    if (killerRole) {
+      const killer = gameState.characters.find(c => c.id === killerRole.characterId && c.alive);
+      if (killer) {
+        const colocated = gameState.characters.filter(
+          c => c.alive && c.id !== killer.id && c.location === killer.location
+        );
+        if (colocated.length === 1) {
+          const victim = ALL_CHARACTERS[colocated[0].id];
+          const killerChar = ALL_CHARACTERS[killer.id];
+          nightMessages.push(
+            `⚠ 杀人狂触发——${killerChar?.name ?? killer.id}与${victim?.name ?? colocated[0].id}独处同一区域，${victim?.name ?? colocated[0].id}在夜晚死亡！`
+          );
+        }
+      }
+    }
+
+    set({
+      gameState: { ...gameState, phase: 'night' },
+      ...(nightMessages.length > 0 && { resolutionMessages: nightMessages }),
+    });
   },
 
   nextDay: () => {

@@ -1,26 +1,41 @@
 {
   "images": [
     {
-      "id": "btx-protagonist-1",
-      "title": "主角卡 1-5",
-      "path": "httpcloud3steamusercontentcomugc16465944448059785512761EF4C3268BFB3392C38479C51F8EDDF7D79B0.jpg"
+      "id": "plot-ref",
+      "title": "剧情速查 (1/5)",
+      "path": "剧情速查.jpg",
+      "category": "quick-ref"
     },
     {
-      "id": "btx-protagonist-2",
-      "title": "主角卡 6-10",
-      "path": "httpcloud3steamusercontentcomugc1645466345447210625612D66C3FD599A33CCB11354EC03C95AB0F9F863.jpg"
+      "id": "identity-ref",
+      "title": "身份速查 (2/5)",
+      "path": "身份速查.jpg",
+      "category": "quick-ref"
     },
     {
-      "id": "btx-scripter-1",
-      "title": "剧本家卡 1-5",
-      "path": "httpcloud3steamusercontentcomugc132119452387851887507563A9441962032021D0CC5612153932A40E364.jpg",
+      "id": "scripter-card",
+      "title": "脚本家卡（剧作家专属）",
+      "path": "/assets/tl/common/scripter.jpg",
+      "category": "quick-ref",
       "visibleTo": "mastermind"
     },
     {
-      "id": "btx-scripter-2",
-      "title": "剧本家卡 6-10",
+      "id": "protagonist-card",
+      "title": "主角卡（公开信息）",
+      "path": "/assets/tl/common/protagonist.jpg",
+      "category": "quick-ref"
+    },
+    {
+      "id": "event-ref",
+      "title": "事件速查 (3/5)",
+      "path": "事件速查.jpg",
+      "category": "quick-ref"
+    },
+    {
+      "id": "char-ref",
+      "title": "角色·行动牌速查 (5/5)",
       "path": "httpcloud3steamusercontentcomugc132119452387716363291FF709F91BE5A664376BA265B8F098CAF1E3345.jpg",
-      "visibleTo": "mastermind"
+      "category": "reference"
     }
   ]
 }

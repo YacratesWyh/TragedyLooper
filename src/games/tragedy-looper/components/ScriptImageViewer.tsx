@@ -104,7 +104,7 @@ export function ScriptImageViewer() {
       commonConfig.images.forEach(img => {
         images.push({
           ...img,
-          basePath: '/assets/common',
+          basePath: '/assets/tl/common',
         });
       });
     }

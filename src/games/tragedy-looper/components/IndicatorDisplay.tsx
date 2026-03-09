@@ -66,7 +66,7 @@ export function IndicatorDisplay({
       <div className="relative" key={type}>
         <div 
           className={cn(
-            "flex items-center gap-1 px-2 py-1 rounded-full border",
+            "flex items-center gap-0.5 px-1.5 py-0.5 rounded-full border",
             colorClasses.bg, colorClasses.text, colorClasses.border,
             indicatorStyle,
             editable && `${colorClasses.hoverBg} ${colorClasses.hoverBorder}`,
@@ -75,8 +75,8 @@ export function IndicatorDisplay({
           onClick={(e) => handleClick(type, e)}
           title={editable ? "点击调整" : undefined}
         >
-          <Icon size={14} fill={type !== 'intrigue' ? "currentColor" : undefined} />
-          <span className="text-xs font-bold">{value}</span>
+          <Icon size={12} fill={type !== 'intrigue' ? "currentColor" : undefined} />
+          <span className="text-[11px] font-bold leading-none">{value}</span>
         </div>
 
         {/* 弹出式调节器 */}
@@ -122,7 +122,7 @@ export function IndicatorDisplay({
   };
 
   return (
-    <div ref={containerRef} className={cn("flex items-center gap-1 sm:gap-3 flex-wrap", className)}>
+    <div ref={containerRef} className={cn("flex items-center gap-2", className)}>
       {/* Goodwill - 友好 */}
       {renderIndicator('goodwill', indicators.goodwill, Heart, {
         bg: 'bg-amoris/10',

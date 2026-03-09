@@ -15,9 +15,30 @@ export interface ScriptTemplate {
   characters: CharacterId[];
   incidents: Array<{ day: number; type: IncidentType }>;
   specialRules?: string[];
+  /** 教学剧本：提供全程引导提示 */
+  isTutorial?: boolean;
+  /** 自定义剧本：可在 UI 中进一步配置 */
+  isCustom?: boolean;
 }
 
 export const SCRIPT_TEMPLATES: ScriptTemplate[] = [
+  {
+    id: 'custom-freeplay',
+    name: '自定义自由剧本',
+    nameEn: 'Custom Freeplay',
+    tragedySet: 'first_steps',
+    difficulty: 'beginner',
+    loops: '3',
+    days: 4,
+    mainPlot: '自由配置',
+    subPlot: '由剧作家决定',
+    characters: ['boy_student', 'girl_student', 'shrine_maiden', 'detective', 'office_worker', 'doctor'],
+    incidents: [
+      { day: 2, type: 'murder' },
+    ],
+    specialRules: ['自由配置：剧本来源、角色、天数、轮回、事件日期'],
+    isCustom: true,
+  },
   // ========== First Steps 系列 ==========
   {
     id: 'fs-01',
@@ -25,8 +46,9 @@ export const SCRIPT_TEMPLATES: ScriptTemplate[] = [
     nameEn: 'First Steps',
     tragedySet: 'first_steps',
     difficulty: 'beginner',
-    loops: '2~3',
-    days: 4,
+    isTutorial: true,
+    loops: '4',
+    days: 3,
     mainPlot: '杀人计划',
     subPlot: '开膛手之影',
     characters: ['boy_student', 'girl_student', 'shrine_maiden', 'detective', 'office_worker', 'doctor'],
@@ -223,6 +245,7 @@ export function generatePublicInfo(template: ScriptTemplate): PublicInfo {
 
   return {
     scriptName: `${template.name} (${template.nameEn || template.id})`,
+    tragedySet: template.tragedySet,
     loops: loopsNum,
     days: template.days,
     characters: template.characters,

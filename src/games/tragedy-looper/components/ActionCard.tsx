@@ -27,7 +27,7 @@ const SIZE_CONFIG = {
     dotSize: 'w-2 h-2',
   },
   small: {
-    card: 'w-14 h-20 rounded-lg p-1',
+    card: 'w-14 h-[4.25rem] rounded-lg p-0.5',
     iconSize: 12,
     valueText: 'text-sm',
     moveText: 'text-[10px]',

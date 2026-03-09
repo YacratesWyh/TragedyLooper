@@ -176,7 +176,7 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
   // 模式选择
   if (mode === null) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex flex-col items-center justify-center p-8">
+      <div className="min-h-screen rendered-dark-bg flex flex-col items-center justify-center p-8">
         <motion.div
           initial={{ opacity: 0, y: -30 }}
           animate={{ opacity: 1, y: 0 }}
@@ -243,7 +243,7 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
   // 未设置用户名 - 显示用户名输入界面
   if (!username) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex flex-col items-center justify-center p-8">
+      <div className="min-h-screen rendered-dark-bg flex flex-col items-center justify-center p-8">
         <motion.div
           initial={{ opacity: 0, y: -30 }}
           animate={{ opacity: 1, y: 0 }}
@@ -316,7 +316,7 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
     const roleLabel = isSpectator ? '旁观者' : '主人公';
     const roleColor = isSpectator ? 'text-slate-400' : 'text-oblivionis';
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex flex-col items-center justify-center p-8 relative">
+      <div className="min-h-screen rendered-dark-bg flex flex-col items-center justify-center p-8 relative">
         {isReconnecting && (
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center">
             <div className="flex items-center gap-3 px-6 py-3 rounded-full bg-doloris/20 border border-doloris text-doloris/80 shadow-2xl">
@@ -366,7 +366,7 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
   // 如果正在重连且有房间/角色信息，保持当前界面而不是跳到连接界面
   if (!isConnected && !isReconnecting) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex flex-col items-center justify-center p-8">
+      <div className="min-h-screen rendered-dark-bg flex flex-col items-center justify-center p-8">
         <motion.div
           initial={{ opacity: 0, y: -30 }}
           animate={{ opacity: 1, y: 0 }}
@@ -389,7 +389,7 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
     const protagonistStatus = getRoleStatus('protagonist');
     
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex flex-col items-center justify-center p-8">
+      <div className="min-h-screen rendered-dark-bg flex flex-col items-center justify-center p-8">
         {/* 顶部导航 */}
         <div className="absolute top-4 left-4">
           <button
@@ -692,7 +692,7 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
 
   // 房间列表
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 flex flex-col items-center justify-center p-8">
+    <div className="min-h-screen rendered-dark-bg flex flex-col items-center justify-center p-8">
       {/* 标题 */}
       <motion.div
         initial={{ opacity: 0, y: -30 }}
