@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import {
   BookOpen, X, ChevronDown, ChevronRight,
-  Maximize2, Lightbulb, Lock
+  Maximize2, Lightbulb, Lock, Plus, Minus, RotateCcw
 } from 'lucide-react';
 import { useGameStore } from '@/games/tragedy-looper/store';
 import { useMultiplayer } from '@/shared/useMultiplayer';
@@ -94,6 +94,7 @@ export function RulesReference() {
   const [expanded, setExpanded] = useState(true);
   const [config, setConfig] = useState<ScriptConfig | null>(null);
   const [zoomedImage, setZoomedImage] = useState<string | null>(null);
+  const [zoomScale, setZoomScale] = useState(1);
   const [mastermindUnlocked, setMastermindUnlocked] = useState(false);
 
   const gameState = useGameStore((s) => s.gameState);
@@ -137,6 +138,11 @@ export function RulesReference() {
   const getImagePath = (img: QuickRefImage) =>
     img.path.startsWith('/') ? img.path : `/assets/${scriptAssetPath}/${img.path}`;
 
+  const openZoomedImage = (path: string) => {
+    setZoomScale(1);
+    setZoomedImage(path);
+  };
+
   const roleCardTileStyle = useMemo(() => {
     return getDefaultScriptTileStyle(currentScript?.id);
   }, [currentScript?.id]);
@@ -172,7 +178,7 @@ export function RulesReference() {
                     <div
                       key={img.id}
                       className="group relative rounded-md overflow-hidden border border-border-soft hover:border-doloris/40 cursor-pointer transition-all"
-                      onClick={() => setZoomedImage(getImagePath(img))}
+                      onClick={() => openZoomedImage(getImagePath(img))}
                     >
                       <div className={cn(
                         "bg-surface-2",
@@ -246,52 +252,90 @@ export function RulesReference() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[220] bg-black/92 backdrop-blur-sm flex items-center justify-center p-4"
+              className="fixed inset-0 z-[220] bg-black/45 backdrop-blur-[1px] flex items-center justify-center p-4"
               onClick={() => setZoomedImage(null)}
             >
-              <button
-                className="absolute top-4 right-4 p-2 bg-surface-2/85 hover:bg-surface-3 text-white rounded-full transition-colors"
-                onClick={() => setZoomedImage(null)}
-                title="关闭大图"
-                aria-label="关闭大图"
+              <motion.div
+                key={zoomedImage}
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                drag
+                dragMomentum={false}
+                dragElastic={0.06}
+                className="relative pointer-events-auto cursor-grab active:cursor-grabbing"
+                onClick={(e) => e.stopPropagation()}
+                onWheel={(e) => {
+                  e.preventDefault();
+                  setZoomScale(prev => {
+                    const next = prev + (e.deltaY < 0 ? 0.1 : -0.1);
+                    return Math.min(3, Math.max(0.5, Number(next.toFixed(2))));
+                  });
+                }}
               >
-                <X size={24} />
-              </button>
-              {(() => {
-                const zoomedMeta = visibleImages.find(img => getImagePath(img) === zoomedImage);
-                if (zoomedMeta && isSpriteSheetRoleCard(zoomedMeta.id) && roleCardTileStyle) {
-                  return (
-                    <motion.div
-                      key={zoomedImage}
-                      initial={{ scale: 0.9, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      exit={{ scale: 0.9, opacity: 0 }}
-                      className="h-[min(86vh,42rem)] max-w-[92vw] aspect-[3/5] shadow-2xl rounded-lg overflow-hidden"
-                      onClick={(e) => e.stopPropagation()}
-                    >
+                <div className="absolute -top-12 right-0 z-10 flex items-center gap-1.5 rounded-lg border border-slate-500/50 bg-slate-900/85 px-2 py-1.5 text-white">
+                  <button
+                    onClick={() => setZoomScale(prev => Math.max(0.5, Number((prev - 0.1).toFixed(2))))}
+                    className="p-1 hover:bg-slate-700 rounded transition-colors"
+                    title="缩小"
+                    aria-label="缩小"
+                  >
+                    <Minus size={14} />
+                  </button>
+                  <span className="text-xs w-12 text-center">{Math.round(zoomScale * 100)}%</span>
+                  <button
+                    onClick={() => setZoomScale(prev => Math.min(3, Number((prev + 0.1).toFixed(2))))}
+                    className="p-1 hover:bg-slate-700 rounded transition-colors"
+                    title="放大"
+                    aria-label="放大"
+                  >
+                    <Plus size={14} />
+                  </button>
+                  <button
+                    onClick={() => setZoomScale(1)}
+                    className="p-1 hover:bg-slate-700 rounded transition-colors"
+                    title="重置缩放"
+                    aria-label="重置缩放"
+                  >
+                    <RotateCcw size={14} />
+                  </button>
+                  <button
+                    className="p-1 hover:bg-slate-700 rounded transition-colors"
+                    onClick={() => setZoomedImage(null)}
+                    title="关闭大图"
+                    aria-label="关闭大图"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+                {(() => {
+                  const zoomedMeta = visibleImages.find(img => getImagePath(img) === zoomedImage);
+                  if (zoomedMeta && isSpriteSheetRoleCard(zoomedMeta.id) && roleCardTileStyle) {
+                    return (
                       <div
-                        className="w-full h-full"
-                        style={{
-                          ...roleCardTileStyle,
-                          backgroundImage: `url("${getRoleCardSpritePath(zoomedMeta.id) ?? zoomedImage}")`,
-                        }}
-                      />
-                    </motion.div>
+                        className="h-[min(86vh,42rem)] max-w-[92vw] aspect-[3/5] shadow-2xl rounded-lg overflow-hidden bg-surface-2"
+                        style={{ transform: `scale(${zoomScale})`, transformOrigin: 'center center' }}
+                      >
+                        <div
+                          className="w-full h-full"
+                          style={{
+                            ...roleCardTileStyle,
+                            backgroundImage: `url("${getRoleCardSpritePath(zoomedMeta.id) ?? zoomedImage}")`,
+                          }}
+                        />
+                      </div>
+                    );
+                  }
+                  return (
+                    <img
+                      src={zoomedImage}
+                      alt="速查大图"
+                      className="max-w-[92vw] max-h-[86vh] object-contain shadow-2xl rounded-lg"
+                      style={{ transform: `scale(${zoomScale})`, transformOrigin: 'center center' }}
+                    />
                   );
-                }
-                return (
-                  <motion.img
-                    key={zoomedImage}
-                    initial={{ scale: 0.9, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    exit={{ scale: 0.9, opacity: 0 }}
-                    src={zoomedImage}
-                    alt="速查大图"
-                    className="max-w-full max-h-full object-contain shadow-2xl rounded-lg"
-                    onClick={(e) => e.stopPropagation()}
-                  />
-                );
-              })()}
+                })()}
+              </motion.div>
             </motion.div>
           )}
         </AnimatePresence>,

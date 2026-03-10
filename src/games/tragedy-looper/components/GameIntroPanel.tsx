@@ -53,7 +53,7 @@ export function GameIntroPanel({ inTopbar = false }: GameIntroPanelProps) {
               initial={{ x: 400, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
               exit={{ x: 400, opacity: 0 }}
-              className="fixed top-0 right-0 h-full w-96 bg-surface-1/95 border-l border-border-soft z-[180] shadow-2xl overflow-hidden flex flex-col backdrop-blur-md"
+              className="fixed top-0 right-0 h-[100dvh] w-96 bg-surface-1/95 border-l border-border-soft z-[180] shadow-2xl overflow-hidden flex flex-col backdrop-blur-md"
             >
               {/* Header */}
               <div className="bg-gradient-to-r from-timoris/15 to-surface-1 border-b border-border-soft p-4 flex justify-between items-center shrink-0">
@@ -177,7 +177,7 @@ export function GameIntroPanel({ inTopbar = false }: GameIntroPanelProps) {
                     <p className="text-sm text-timoris font-medium mb-2">⚠️ 通用失败条件：</p>
                     <ul className="text-sm text-slate-400 space-y-1">
                       <li>• <strong className="text-timoris">关键人物死亡</strong>（立即结束当前轮回）</li>
-                      <li>• <strong className="text-timoris">身份能力击杀</strong>：杀手/杀人狂等角色的强制效果</li>
+                      <li>• <strong className="text-timoris">身份能力击杀</strong>：杀人狂（强制）/ 杀手（可选）等夜间能力</li>
                     </ul>
                     <p className="text-sm text-slate-500 font-medium mt-3 mb-1">📜 剧本特定失败条件<span className="font-normal">（因剧本而异）</span>：</p>
                     <ul className="text-sm text-slate-500 space-y-1">

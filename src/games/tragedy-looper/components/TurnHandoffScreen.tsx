@@ -33,7 +33,7 @@ const ROLE_CONFIG: Record<PlayerRole, {
   },
   protagonist: {
     label: '主人公',
-    icon: '🦸',
+    icon: '🕵️',
     gradient: 'from-oblivionis/20 via-slate-950 to-oblivionis/20',
     border: 'border-oblivionis',
     btnBg: 'bg-oblivionis',
@@ -49,7 +49,7 @@ const PHASE_HINTS: Partial<Record<GamePhase, string>> = {
   mastermind_ability: '按身份能力调整指示物——如主犯可以放密谋，传谣人可以加不安。',
   protagonist_ability: '友好值够的角色可以发动能力——点击角色查看。',
   incident: '今天有预定事件吗？当事人活着且不安达到上限，事件就会发生。',
-  night: '夜晚阶段：杀手等角色的强制能力在此触发。',
+  night: '夜晚阶段：依次结算能力、事件、夜晚。',
   dawn: '新的一天开始，但是轮回会结束吗。所有人重新拿回今天的行动牌。',
 };
 

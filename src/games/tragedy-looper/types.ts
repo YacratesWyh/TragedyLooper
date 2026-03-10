@@ -143,7 +143,7 @@ export type RoleType =
   | 'killer'                // 杀手
   | 'brain'                 // 幕后黑手
   | 'serial_killer'         // 连环杀手
-  | 'conspiracy_theorist'   // 误导者
+  | 'conspiracy_theorist'   // 传谣人
   | 'cultist'               // 邪教徒
   | 'friend'                // 挚友
   | 'lover'                 // 恋人
@@ -160,7 +160,7 @@ export const ROLE_NAMES: Record<RoleType, string> = {
   killer: '杀手',
   brain: '幕后黑手',
   serial_killer: '连环杀手',
-  conspiracy_theorist: '误导者',
+  conspiracy_theorist: '传谣人',
   cultist: '邪教徒',
   friend: '挚友',
   lover: '恋人',

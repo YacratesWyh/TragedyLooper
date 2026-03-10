@@ -14,7 +14,7 @@ export const ALL_CHARACTERS: Record<CharacterId, Character> = {
     abilities: [{
       goodwillRequired: 2,
       maxUsesPerLoop: null,
-      description: '安慰同学',
+      description: '',
       effect: '消除同一区域内除自身以外一名学生的1个不安标记',
     }],
   },
@@ -28,7 +28,7 @@ export const ALL_CHARACTERS: Record<CharacterId, Character> = {
     abilities: [{
       goodwillRequired: 2,
       maxUsesPerLoop: null,
-      description: '安慰同学',
+      description: '',
       effect: '消除同一区域内除自身以外一名学生的1个不安标记',
     }],
   },
@@ -42,7 +42,7 @@ export const ALL_CHARACTERS: Record<CharacterId, Character> = {
     abilities: [{
       goodwillRequired: 3,
       maxUsesPerLoop: null,
-      description: '贵族恩惠（限学校/都市）',
+      description: '',
       effect: '【限学校或都市】在同一区域内的1名角色上放置1个友好标记',
     }],
   },
@@ -53,12 +53,20 @@ export const ALL_CHARACTERS: Record<CharacterId, Character> = {
     initialLocation: 'shrine',
     forbiddenLocation: 'city',
     traits: ['student', 'girl'],
-    abilities: [{
-      goodwillRequired: 2,
-      maxUsesPerLoop: 1,
-      description: '神社净化（限神社）',
-      effect: '【限神社】移除神社的1个阴谋标记，并公开同一区域内1名角色的身份',
-    }],
+    abilities: [
+      {
+        goodwillRequired: 3,
+        maxUsesPerLoop: 1,
+        description: '',
+        effect: '【限神社】移除神社的1个阴谋标记',
+      },
+      {
+        goodwillRequired: 5,
+        maxUsesPerLoop: 1,
+        description: '',
+        effect: '公开同一区域内1名角色的身份',
+      },
+    ],
   },
   detective: {
     id: 'detective',
@@ -67,12 +75,20 @@ export const ALL_CHARACTERS: Record<CharacterId, Character> = {
     initialLocation: 'city',
     forbiddenLocation: null,
     traits: [],
-    abilities: [{
-      goodwillRequired: 4,
-      maxUsesPerLoop: 1,
-      description: '调查事件 + 守护',
-      effect: '公开本轮回某一事件的私人信息；并在同一区域内的1名角色上放置1个守护标记',
-    }],
+    abilities: [
+      {
+        goodwillRequired: 4,
+        maxUsesPerLoop: 1,
+        description: '',
+        effect: '公开这个轮回发生的一个事件的犯人',
+      },
+      {
+        goodwillRequired: 5,
+        maxUsesPerLoop: 1,
+        description: '',
+        effect: '于同一区域的一名角色上放置1个守护标记；该角色将要死亡时，改为移除守护标记并阻止该次死亡',
+      },
+    ],
   },
   office_worker: {
     id: 'office_worker',
@@ -82,9 +98,9 @@ export const ALL_CHARACTERS: Record<CharacterId, Character> = {
     forbiddenLocation: 'school',
     traits: [],
     abilities: [{
-      goodwillRequired: 2,
+      goodwillRequired: 3,
       maxUsesPerLoop: null,
-      description: '坦白身份',
+      description: '',
       effect: '剧作家必须公开该角色（上班族自身）的身份牌',
     }],
   },
@@ -98,7 +114,7 @@ export const ALL_CHARACTERS: Record<CharacterId, Character> = {
     abilities: [{
       goodwillRequired: 5,
       maxUsesPerLoop: 1,
-      description: '情报交换',
+      description: '',
       effect: '宣言一条支线的名称；剧作家必须公开本剧本正在使用的支线中，除所宣言支线之外的另一条支线',
     }],
   },
@@ -109,12 +125,20 @@ export const ALL_CHARACTERS: Record<CharacterId, Character> = {
     initialLocation: 'hospital',
     forbiddenLocation: null,
     traits: [],
-    abilities: [{
-      goodwillRequired: 2,
-      maxUsesPerLoop: null,
-      description: '诊察',
-      effect: '消除同一区域内1名角色的1个不安标记',
-    }],
+    abilities: [
+      {
+        goodwillRequired: 2,
+        maxUsesPerLoop: null,
+        description: '',
+        effect: '消除同一区域内1名角色的1个不安标记',
+      },
+      {
+        goodwillRequired: 3,
+        maxUsesPerLoop: 1,
+        description: '',
+        effect: '公开同一区域内1名角色的身份',
+      },
+    ],
   },
 
   // ========== 第2行（索引8-15）==========
@@ -137,7 +161,7 @@ export const ALL_CHARACTERS: Record<CharacterId, Character> = {
     abilities: [{
       goodwillRequired: 2,
       maxUsesPerLoop: 1,
-      description: '带队移动（限学校）',
+      description: '',
       effect: '【限学校】强制让同一区域内的1名角色随自身移动至下一区域',
     }],
   },
@@ -151,7 +175,7 @@ export const ALL_CHARACTERS: Record<CharacterId, Character> = {
     abilities: [{
       goodwillRequired: 3,
       maxUsesPerLoop: null,
-      description: '身份揭示',
+      description: '',
       effect: '公开这个角色的身份（第二轮回起可用，不能被友好无视/绝对友好无视拒绝）',
     }],
   },
@@ -165,7 +189,7 @@ export const ALL_CHARACTERS: Record<CharacterId, Character> = {
     abilities: [{
       goodwillRequired: 2,
       maxUsesPerLoop: 1,
-      description: '危险感知',
+      description: '',
       effect: '调查同一区域内是否存在身份为【杀手】或【杀人狂】的角色',
     }],
   },
@@ -179,7 +203,7 @@ export const ALL_CHARACTERS: Record<CharacterId, Character> = {
     abilities: [{
       goodwillRequired: 5,
       maxUsesPerLoop: 1,
-      description: '事件揭露',
+      description: '',
       effect: '公开一个事件的犯人',
     }],
   },
@@ -193,7 +217,7 @@ export const ALL_CHARACTERS: Record<CharacterId, Character> = {
     abilities: [{
       goodwillRequired: 3,
       maxUsesPerLoop: null,
-      description: '偶像魅力',
+      description: '',
       effect: '从自身以外同一区域的一名角色上移除1个不安标记；或在自身以外同一区域的一名角色上放置1个友好标记',
     }],
   },
@@ -207,7 +231,7 @@ export const ALL_CHARACTERS: Record<CharacterId, Character> = {
     abilities: [{
       goodwillRequired: 3,
       maxUsesPerLoop: null,
-      description: '独家报道',
+      description: '',
       effect: '在同一区域的一名角色上或者在所在的区域上放置1个阴谋标记',
     }],
   },
@@ -221,7 +245,7 @@ export const ALL_CHARACTERS: Record<CharacterId, Character> = {
     abilities: [{
       goodwillRequired: 5,
       maxUsesPerLoop: 1,
-      description: '领地情报',
+      description: '',
       effect: '公开自身以外处于领地内的一名角色的身份',
     }],
   },
@@ -237,7 +261,7 @@ export const ALL_CHARACTERS: Record<CharacterId, Character> = {
     abilities: [{
       goodwillRequired: 3,
       maxUsesPerLoop: null,
-      description: '专业护理',
+      description: '',
       effect: '消除自身以外同一区域内1名角色的1个不安标记',
     }],
   },
@@ -251,7 +275,7 @@ export const ALL_CHARACTERS: Record<CharacterId, Character> = {
     abilities: [{
       goodwillRequired: 4,
       maxUsesPerLoop: null,
-      description: '事件封印',
+      description: '',
       effect: '本轮回中，此角色作为犯人的事件不会发生',
     }],
   },
@@ -265,7 +289,7 @@ export const ALL_CHARACTERS: Record<CharacterId, Character> = {
     abilities: [{
       goodwillRequired: 3,
       maxUsesPerLoop: null,
-      description: '实验重置',
+      description: '',
       effect: '移除此角色上的所有标记；若使用了EX计量槽，将其增减1点',
     }],
   },
@@ -279,12 +303,12 @@ export const ALL_CHARACTERS: Record<CharacterId, Character> = {
     abilities: [{
       goodwillRequired: 3,
       maxUsesPerLoop: 1,
-      description: '空间转移',
+      description: '',
       effect: '令同一区域的一名角色移动到任意区域',
     }, {
       goodwillRequired: 5,
       maxUsesPerLoop: null,
-      description: '消散',
+      description: '',
       effect: '将此角色移出版图',
     }],
   },
@@ -298,7 +322,7 @@ export const ALL_CHARACTERS: Record<CharacterId, Character> = {
     abilities: [{
       goodwillRequired: 3,
       maxUsesPerLoop: 1,
-      description: '鉴识调查',
+      description: '',
       effect: '在自身以外同一区域的两名角色间移动1个标记；或公开一具尸体的身份',
     }],
   },
@@ -312,7 +336,7 @@ export const ALL_CHARACTERS: Record<CharacterId, Character> = {
     abilities: [{
       goodwillRequired: 3,
       maxUsesPerLoop: 1,
-      description: '事件模拟',
+      description: '',
       effect: '于公开情报中选择一个事件并结算，犯人视为A.I.；脚本家的决定改由领队进行（不视为发生了事件）',
     }],
   },
@@ -326,7 +350,7 @@ export const ALL_CHARACTERS: Record<CharacterId, Character> = {
     abilities: [{
       goodwillRequired: 3,
       maxUsesPerLoop: 1,
-      description: '关怀学生',
+      description: '',
       effect: '消除同一区域内1名学生的1个不安标记；或公开同一区域内1名学生的身份',
     }],
   },
@@ -340,7 +364,7 @@ export const ALL_CHARACTERS: Record<CharacterId, Character> = {
     abilities: [{
       goodwillRequired: 2,
       maxUsesPerLoop: null,
-      description: '净化标记',
+      description: '',
       effect: '将同一区域内一名角色的1个阴谋标记替换为友好标记',
     }],
   },
@@ -356,7 +380,7 @@ export const ALL_CHARACTERS: Record<CharacterId, Character> = {
     abilities: [{
       goodwillRequired: 3,
       maxUsesPerLoop: 1,
-      description: '精神压制',
+      description: '',
       effect: '于同一区域的一名角色上放置2个不安标记；本轮回中主人公不会死亡',
     }],
   },
@@ -379,12 +403,12 @@ export const ALL_CHARACTERS: Record<CharacterId, Character> = {
     abilities: [{
       goodwillRequired: 2,
       maxUsesPerLoop: null,
-      description: '外出许可',
+      description: '',
       effect: '本轮回中解除禁行限制，可移动到学校以外的区域',
     }, {
       goodwillRequired: 3,
       maxUsesPerLoop: 1,
-      description: '冒险',
+      description: '',
       effect: '移动到相邻区域',
     }],
   },
@@ -398,7 +422,7 @@ export const ALL_CHARACTERS: Record<CharacterId, Character> = {
     abilities: [{
       goodwillRequired: 5,
       maxUsesPerLoop: 1,
-      description: '恐怖审判',
+      description: '',
       effect: '公开自身以外不安标记达到不安临界值的一名角色的身份',
     }],
   },
@@ -412,7 +436,7 @@ export const ALL_CHARACTERS: Record<CharacterId, Character> = {
     abilities: [{
       goodwillRequired: 3,
       maxUsesPerLoop: null,
-      description: '身份揭示',
+      description: '',
       effect: '公开与此角色相同身份的所有角色名字（第二轮回起可用，不能被友好无视/绝对友好无视拒绝）',
     }],
   },
@@ -435,7 +459,7 @@ export const ALL_CHARACTERS: Record<CharacterId, Character> = {
     abilities: [{
       goodwillRequired: 6,
       maxUsesPerLoop: null,
-      description: '借用能力',
+      description: '',
       effect: '借用同区域一名大人的友好能力（视为友好标记已满足），不能被友好无视/绝对友好无视拒绝，但受次数限制',
     }],
   },

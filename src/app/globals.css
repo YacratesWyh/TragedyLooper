@@ -161,3 +161,13 @@ body[data-tutorial-highlight="end-loop-btn"] [data-tutorial-id="end-loop-btn"] {
   animation: tutorial-outline-pulse 1.4s ease-in-out infinite;
   border-radius: 0.5rem;
 }
+
+body[data-tutorial-highlight="incident-schedule"] [data-tutorial-id="incident-schedule"] {
+  animation: tutorial-outline-pulse 1.4s ease-in-out infinite;
+  border-radius: 0.5rem;
+}
+
+body[data-tutorial-highlight="plot-guess"] [data-tutorial-id="plot-guess"] {
+  animation: tutorial-outline-pulse 1.4s ease-in-out infinite;
+  border-radius: 0.5rem;
+}

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useGameStore } from '@/games/tragedy-looper/store';
 import { Calendar, RotateCcw, ChevronDown, ChevronRight, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -53,16 +53,19 @@ function IncidentRow({
   description,
   isToday,
   isPast,
+  forceOpen = false,
 }: {
   day: number;
   type: IncidentType;
   description: string;
   isToday: boolean;
   isPast: boolean;
+  forceOpen?: boolean;
 }) {
-  const [open, setOpen] = useState(isToday);
+  const [manualOpen, setManualOpen] = useState(false);
   const name = INCIDENT_NAMES[type] ?? type;
   const effect = INCIDENT_EFFECTS[type];
+  const open = forceOpen || isToday || manualOpen;
 
   return (
     <div className={cn(
@@ -73,7 +76,7 @@ function IncidentRow({
     )}>
       {/* 日程行（始终可见） */}
       <button
-        onClick={() => setOpen(v => !v)}
+        onClick={() => setManualOpen(v => !v)}
         className="w-full flex items-center gap-2 px-2.5 py-2 text-left"
       >
         <span className={cn(
@@ -110,6 +113,27 @@ function IncidentRow({
 
 export function GameInfo() {
   const { gameState } = useGameStore();
+  const [scheduleExpanded, setScheduleExpanded] = useState(true);
+  const [highlightIncidentSchedule, setHighlightIncidentSchedule] = useState(false);
+
+  useEffect(() => {
+    const syncFromBody = () => {
+      const shouldHighlight = document.body.dataset.tutorialHighlight === 'incident-schedule';
+      setHighlightIncidentSchedule(shouldHighlight);
+      if (shouldHighlight) {
+        setScheduleExpanded(true);
+      }
+    };
+
+    syncFromBody();
+    const observer = new MutationObserver(syncFromBody);
+    observer.observe(document.body, {
+      attributes: true,
+      attributeFilter: ['data-tutorial-highlight'],
+    });
+
+    return () => observer.disconnect();
+  }, []);
 
   if (!gameState) return null;
 
@@ -171,20 +195,37 @@ export function GameInfo() {
       })()}
 
       {/* 事件表 */}
-      <div className="flex-1 overflow-y-auto min-h-0">
-        <h3 className="text-xs font-bold text-slate-400 mb-2 uppercase tracking-wider">事件日程</h3>
-        <div className="space-y-1.5">
-          {publicInfo.incidentSchedule.map((incident, idx) => (
-            <IncidentRow
-              key={idx}
-              day={incident.day}
-              type={incident.type as IncidentType}
-              description={incident.description}
-              isToday={incident.day === currentDay}
-              isPast={incident.day < currentDay}
-            />
-          ))}
-        </div>
+      <div
+        data-tutorial-id="incident-schedule"
+        className={cn(
+          'flex-1 min-h-0 rounded-lg',
+          highlightIncidentSchedule && 'bg-amber-200/10'
+        )}
+      >
+        <button
+          onClick={() => setScheduleExpanded(v => !v)}
+          className="w-full flex items-center justify-between px-0.5 py-0.5"
+        >
+          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">事件日程</h3>
+          {scheduleExpanded
+            ? <ChevronDown size={13} className="text-slate-500 shrink-0" />
+            : <ChevronRight size={13} className="text-slate-500 shrink-0" />}
+        </button>
+        {scheduleExpanded && (
+          <div className="space-y-1.5">
+            {publicInfo.incidentSchedule.map((incident, idx) => (
+              <IncidentRow
+                key={idx}
+                day={incident.day}
+                type={incident.type as IncidentType}
+                description={incident.description}
+                isToday={incident.day === currentDay}
+                isPast={incident.day < currentDay}
+                forceOpen={highlightIncidentSchedule}
+              />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

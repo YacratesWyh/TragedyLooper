@@ -15,7 +15,7 @@ import { TL_PHASE_COLORS } from '@/games/tragedy-looper/theme';
 import { 
   Sunrise, 
   UserCircle, 
-  Users, 
+  Shield, 
   CheckCircle, 
   Sparkles, 
   AlertTriangle, 
@@ -32,7 +32,7 @@ import { cn } from '@/lib/utils';
 const PHASE_ICONS: Record<GamePhase, React.ReactNode> = {
   dawn: <Sunrise className="w-5 h-5" />,
   mastermind_action: <UserCircle className="w-5 h-5" />,
-  protagonist_action: <Users className="w-5 h-5" />,
+  protagonist_action: <Shield className="w-5 h-5" />,
   resolution: <CheckCircle className="w-5 h-5" />,
   mastermind_ability: <Sparkles className="w-5 h-5" />,
   protagonist_ability: <Sparkles className="w-5 h-5" />,
@@ -59,9 +59,11 @@ export function PhaseControl() {
     gameState, 
     resolveDay, 
     revertPhaseState,
+    revertToDayStart,
     dayHistory,
     currentHistoryIndex,
     saveDaySnapshot,
+    takeDayStartSnapshot,
     viewHistoryDay,
     exitHistoryView,
     getSyncPayload,
@@ -69,6 +71,7 @@ export function PhaseControl() {
   const { isConnected, myRole, isSpectator, players, updateGameState, resetGame } = useMultiplayer();
   const gameMode = useGameStore((s) => s.gameMode);
   const storeRole = useGameStore((s) => s.playerRole);
+  const dayStartSnapshot = useGameStore((s) => s.dayStartSnapshot);
 
   // 黎明阶段自动推进（包含游戏开局的初始 dawn）
   const advanceFromDawnRef = useRef<(() => void) | null>(null);
@@ -92,7 +95,12 @@ export function PhaseControl() {
   const historySnapshot = isViewingHistory ? dayHistory[currentHistoryIndex] : null;
 
   const currentPhase = gameState.phase;
-  const currentPhaseColor = TL_PHASE_COLORS[currentPhase];
+  const gameOverWinner = currentPhase === 'game_over' ? isGameOver(gameState).winner : null;
+  const currentPhaseColor = currentPhase === 'game_over'
+    ? gameOverWinner === 'protagonist'
+      ? 'bg-[#77BBDD]/25 border-[#77BBDD]/60 text-[#77BBDD]'
+      : 'bg-[#FF5522]/25 border-[#FF5522]/60 text-[#FF5522]'
+    : TL_PHASE_COLORS[currentPhase];
   
   // 热座模式用 store 的角色，联机用 multiplayer 的角色
   const playerRole = isHotseat ? storeRole : myRole;
@@ -162,6 +170,8 @@ export function PhaseControl() {
           usedToday: new Set(),
         }
       });
+      // 当天黎明开始时的快照（用于「复位到当天开始」）
+      takeDayStartSnapshot(newGameState);
     }
 
     // 更新本地状态
@@ -255,13 +265,28 @@ export function PhaseControl() {
 
   const nextAction = getNextAction();
 
-  // 热座模式下所有推进按钮可用（同一设备操作）
-  const canProceed = () => {
+  const mmCardCount = useGameStore((s) => s.currentMastermindCards.length);
+  const proCardCount = useGameStore((s) => s.currentProtagonistCards.length);
+  const REQUIRED_CARDS = 3;
+
+  const actionComplete =
+    currentPhase === 'mastermind_action' ? mmCardCount >= REQUIRED_CARDS
+    : currentPhase === 'protagonist_action' ? proCardCount >= REQUIRED_CARDS
+    : true;
+
+  const cardsPlayed =
+    currentPhase === 'mastermind_action' ? mmCardCount
+    : currentPhase === 'protagonist_action' ? proCardCount
+    : REQUIRED_CARDS;
+
+  const hasRolePermission = () => {
     if (isSpectator) return false;
     if (isHotseat) return true;
     if (nextAction.operator === 'any') return true;
     return nextAction.operator === playerRole;
   };
+
+  const canProceed = () => hasRolePermission() && actionComplete;
 
   return (
     <div className="flex flex-col gap-3 flex-1">
@@ -280,7 +305,7 @@ export function PhaseControl() {
           <div className="flex-1">
             <div className="font-bold text-lg">
               {currentPhase === 'game_over' 
-                ? (isGameOver(gameState).winner === 'mastermind' ? '🎭 剧作家获胜' : '🦸 主人公获胜')
+                ? (isGameOver(gameState).winner === 'mastermind' ? '🎭 剧作家获胜' : '🕵️ 主人公获胜')
                 : PHASE_NAMES[currentPhase]}
             </div>
             <div className="text-xs opacity-80 mt-0.5">
@@ -380,7 +405,7 @@ export function PhaseControl() {
         )}
         {currentPhase === 'protagonist_action' && (
           <div className="mt-2 text-sm opacity-90">
-            🦸 主人公打出行动牌（最多3张，暗置）
+            🕵️ 主人公打出行动牌（最多3张，暗置）
           </div>
         )}
         {currentPhase === 'resolution' && (
@@ -414,7 +439,7 @@ export function PhaseControl() {
             </div>
             <div className="flex items-start gap-2 text-slate-300">
               <span className="w-5 h-5 rounded-full bg-mortis/35 text-mortis flex items-center justify-center shrink-0 font-bold text-[10px] mt-0.5">⑧</span>
-              <span><strong className="text-mortis">夜晚能力</strong> — 杀手、杀人狂等强制/任意能力（手动调整指示物）</span>
+              <span><strong className="text-mortis">夜晚能力</strong> — 杀人狂（强制）、杀手（可选）等夜间能力（手动调整指示物）</span>
             </div>
           </div>
         )}
@@ -426,41 +451,47 @@ export function PhaseControl() {
       </motion.div>
 
       {/* 阶段推进按钮 — 仅打牌阶段和夜晚阶段显示 */}
-      {nextAction.label && currentPhase !== 'game_over' && canProceed() && (
+      {nextAction.label && currentPhase !== 'game_over' && hasRolePermission() && (
         <div className="flex flex-col gap-2">
           <motion.button
-            whileHover={{ scale: 1.03 }}
-            whileTap={{ scale: 0.97 }}
-            animate={isTutorial ? {
+            whileHover={actionComplete ? { scale: 1.03 } : undefined}
+            whileTap={actionComplete ? { scale: 0.97 } : undefined}
+            animate={isTutorial && actionComplete ? {
               boxShadow: [
                 '0 0 0 0 rgba(250,204,21,0)',
                 '0 0 20px 4px rgba(250,204,21,0.4)',
                 '0 0 0 0 rgba(250,204,21,0)',
               ],
             } : undefined}
-            transition={isTutorial ? {
+            transition={isTutorial && actionComplete ? {
               boxShadow: { duration: 1.6, repeat: Infinity, ease: 'easeInOut' },
             } : undefined}
+            disabled={!actionComplete}
             onClick={nextAction.action}
             className={cn(
               "flex items-center justify-between gap-3 px-5 py-4 rounded-xl",
-              "text-white font-black text-base tracking-wide shadow-xl transition-all",
-              isTutorial
-                ? "bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-slate-900 ring-2 ring-amber-300/60"
-                : currentPhase === 'mastermind_action'
-                  ? "bg-amoris hover:bg-amoris/80 shadow-amoris/20"
-                  : currentPhase === 'night'
-                    ? "bg-timoris hover:bg-timoris/80 shadow-timoris/20"
-                  : currentPhase === 'protagonist_action'
-                    ? "bg-[#FF5522] hover:bg-[#ff6a3d] shadow-[#FF5522]/25"
-                    : "bg-doloris hover:bg-doloris/80 shadow-doloris/20"
+              "font-black text-base tracking-wide shadow-xl transition-all",
+              !actionComplete
+                ? "bg-slate-700 text-slate-500 cursor-not-allowed opacity-60"
+                : isTutorial
+                  ? "bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-slate-900 ring-2 ring-amber-300/60"
+                  : currentPhase === 'mastermind_action'
+                    ? "bg-amoris hover:bg-amoris/80 shadow-amoris/20 text-white"
+                    : currentPhase === 'night'
+                      ? "bg-timoris hover:bg-timoris/80 shadow-timoris/20 text-white"
+                    : currentPhase === 'protagonist_action'
+                      ? "bg-[#FF5522] hover:bg-[#ff6a3d] shadow-[#FF5522]/25 text-white"
+                      : "bg-doloris hover:bg-doloris/80 shadow-doloris/20 text-white"
             )}
           >
-            <span>{nextAction.label}</span>
-            <ChevronRight className={cn("w-6 h-6", isTutorial && "text-slate-900")} />
+            <span>
+              {nextAction.label}
+              {!actionComplete && <span className="ml-2 text-sm opacity-80">({cardsPlayed}/{REQUIRED_CARDS})</span>}
+            </span>
+            <ChevronRight className={cn("w-6 h-6", isTutorial && actionComplete && "text-slate-900")} />
           </motion.button>
 
-          {nextAction.description && (
+          {actionComplete && nextAction.description && (
             <div className="text-xs text-slate-400 text-center">
               {nextAction.description}
             </div>
@@ -468,28 +499,48 @@ export function PhaseControl() {
 
           {/* 复位按钮（仅夜晚阶段） */}
           {currentPhase === 'night' && (
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => {
-                revertPhaseState();
-                if (isConnected) {
-                  setTimeout(() => {
-                    updateGameState(getSyncPayload());
-                  }, 50);
-                }
-              }}
-              className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 text-sm border border-slate-600 transition-all"
-            >
-              <RotateCcw size={14} />
-              <span>复位到该阶段前</span>
-            </motion.button>
+            <div className="flex flex-col gap-2">
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => {
+                  revertPhaseState();
+                  if (isConnected) {
+                    setTimeout(() => {
+                      updateGameState(getSyncPayload());
+                    }, 50);
+                  }
+                }}
+                className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 text-sm border border-slate-600 transition-all"
+              >
+                <RotateCcw size={14} />
+                <span>复位到该阶段前</span>
+              </motion.button>
+              {dayStartSnapshot && (
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => {
+                    revertToDayStart();
+                    if (isConnected) {
+                      setTimeout(() => {
+                        updateGameState(getSyncPayload());
+                      }, 50);
+                    }
+                  }}
+                  className="flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 text-slate-300 text-sm border border-slate-600 transition-all"
+                >
+                  <RotateCcw size={14} />
+                  <span>复位到当天开始</span>
+                </motion.button>
+              )}
+            </div>
           )}
         </div>
       )}
 
-      {/* 对方行动提示（仅打牌阶段有效） */}
-      {nextAction.label && !canProceed() && (
+      {/* 对方行动提示（联机且角色权限不足时） */}
+      {nextAction.label && !hasRolePermission() && (
         <div className="px-4 py-3 rounded-lg bg-slate-700/50 border border-slate-600 text-slate-300 text-sm text-center">
           ⏳ 等待{playerRole === 'mastermind' ? '主人公' : '剧作家'}行动...
         </div>
@@ -509,7 +560,7 @@ export function PhaseControl() {
             "text-sm font-bold",
             playerRole === 'mastermind' ? "text-timoris" : "text-oblivionis"
           )}>
-            {playerRole === 'mastermind' ? '🎭 剧作家' : '🦸 主人公'}
+            {playerRole === 'mastermind' ? '🎭 剧作家' : '🕵️ 主人公'}
           </span>
           <span className="ml-auto text-xs px-2 py-0.5 rounded bg-slate-700/50 text-slate-400">
             {isHotseat ? '热座' : isConnected ? '联机中' : '离线'}
@@ -525,7 +576,7 @@ export function PhaseControl() {
               </span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-oblivionis">🦸 主人公</span>
+              <span className="text-oblivionis">🕵️ 主人公</span>
               <span className={players.protagonist.connected ? 'text-slate-300' : 'text-slate-600'}>
                 {players.protagonist.connected ? players.protagonist.name || '未知' : '等待加入'}
               </span>

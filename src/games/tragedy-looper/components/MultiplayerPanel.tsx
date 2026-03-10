@@ -248,7 +248,7 @@ export function MultiplayerPanel() {
                     : "bg-slate-700 text-slate-500 cursor-not-allowed"
                 )}
               >
-                <span>🦸 主人公</span>
+                <span>🕵️ 主人公</span>
                 {players.protagonist.connected && <Check className="w-4 h-4 text-mortis" />}
               </button>
 
@@ -277,7 +277,7 @@ export function MultiplayerPanel() {
               </div>
               
               <div className="flex items-center justify-between px-2 py-1.5 rounded bg-slate-800/50 text-sm">
-                <span>🦸 主人公</span>
+                <span>🕵️ 主人公</span>
                 <span className={players.protagonist.connected ? 'text-mortis' : 'text-slate-500'}>
                   {players.protagonist.connected 
                     ? (players.protagonist.name || '未知') + (!isSpectator && myRole === 'protagonist' ? ' (我)' : '')

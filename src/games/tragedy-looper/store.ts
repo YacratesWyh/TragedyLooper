@@ -133,6 +133,11 @@ interface GameStore {
   saveDaySnapshot: () => void;  // 保存当天状态到历史
   viewHistoryDay: (index: number) => void;  // 查看历史某天
   exitHistoryView: () => void;  // 退出回放，返回当前状态
+
+  // 当天开始快照（用于「复位到当天开始」）
+  dayStartSnapshot: { characters: GameState['characters']; boardIntrigue: GameState['boardIntrigue'] } | null;
+  takeDayStartSnapshot: (state: GameState) => void;
+  revertToDayStart: () => void;
 }
 
 export const useGameStore = create<GameStore>((set, get) => ({
@@ -142,6 +147,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
   currentScript: null,
   dayHistory: [],
   currentHistoryIndex: null,
+  dayStartSnapshot: null,
   resolutionMessages: [],
   mastermindDeck: createMastermindDeck(),
   protagonistDeck: createProtagonistDeck(),
@@ -224,6 +230,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       currentProtagonistCards: [],
       dayHistory: [initialSnapshot],  // 保存初始状态
       currentHistoryIndex: null,
+      dayStartSnapshot: { characters: JSON.parse(JSON.stringify(gameState.characters)), boardIntrigue: { ...gameState.boardIntrigue } },
     });
   },
 
@@ -250,6 +257,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       currentProtagonistCards: [],
       dayHistory: [initialSnapshot],
       currentHistoryIndex: null,
+      dayStartSnapshot: { characters: JSON.parse(JSON.stringify(gameState.characters)), boardIntrigue: { ...gameState.boardIntrigue } },
     });
   },
 
@@ -295,6 +303,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       currentProtagonistCards: [],
       dayHistory: [initialSnapshot],  // 保存初始状态
       currentHistoryIndex: null,
+      dayStartSnapshot: { characters: JSON.parse(JSON.stringify(gameState.characters)), boardIntrigue: { ...gameState.boardIntrigue } },
     });
     
     console.log('🎭 游戏初始化完成，脚本:', script.name, '角色:', script.characters);
@@ -558,6 +567,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       protagonistDeck: resetLoopUsage(protagonistDeck),
       currentMastermindCards: [],
       currentProtagonistCards: [],
+      dayStartSnapshot: null,
     });
   },
 
@@ -571,6 +581,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       currentProtagonistCards: [],
       dayHistory: [],
       currentHistoryIndex: null,
+      dayStartSnapshot: null,
     });
   },
 
@@ -628,6 +639,28 @@ export const useGameStore = create<GameStore>((set, get) => ({
         characters: gameState.phaseSnapshot.characters,
         boardIntrigue: gameState.phaseSnapshot.boardIntrigue
       }
+    });
+  },
+
+  takeDayStartSnapshot: (state: GameState) => {
+    set({
+      dayStartSnapshot: {
+        characters: JSON.parse(JSON.stringify(state.characters)),
+        boardIntrigue: { ...state.boardIntrigue },
+      },
+    });
+  },
+
+  revertToDayStart: () => {
+    const { gameState, dayStartSnapshot } = get();
+    if (!gameState || !dayStartSnapshot) return;
+
+    set({
+      gameState: {
+        ...gameState,
+        characters: dayStartSnapshot.characters,
+        boardIntrigue: dayStartSnapshot.boardIntrigue,
+      },
     });
   },
 

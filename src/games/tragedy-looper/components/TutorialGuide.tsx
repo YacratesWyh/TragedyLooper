@@ -37,14 +37,14 @@ interface TutorialStep {
   day?: number;
   /** 仅在这个轮回显示，undefined = 任意轮回 */
   loop?: number;
-  /** 优先级：数字越小越先显示（同一时机多条时取最小值） */
-  priority: number;
   title: string;
   content: string;
   /** 正文里需要加粗的关键词；同时作为 body[data-tutorial-highlight] 的值来高亮对应 UI 区域 */
   highlight?: string;
   /** 可选的补充小字 */
   tip?: string;
+  /** 可选的操作指引（会以操作框高亮展示） */
+  action?: string;
   /** 卡片锚点位置，默认 top-right */
   position?: TutorialPosition;
 }
@@ -57,7 +57,6 @@ const STEPS: TutorialStep[] = [
     phases: ['dawn', 'mastermind_action'],
     day: 1,
     loop: 1,
-    priority: -10,
     position: 'center',
     title: '惨剧轮回',
     content:
@@ -65,7 +64,7 @@ const STEPS: TutorialStep[] = [
       '但记忆不会消失。\n\n' +
       '在这场宿命对决中，1 名「剧作家」对抗 1-3+ 名「主人公」。\n' +
       '两位玩家都不会现身于版图之上；舞台上行走的，唯有被命运摆布的 NPC 角色。',
-    tip: '请双方玩家一起阅读接下来的教学内容，熟悉基本规则。',
+    tip: '请双方玩家一起阅读接下来的教学内容，熟悉基本规则。\n💨 已熟悉本轮规则？直接点击左下角「结束当前轮回」可跳过当前轮回的教学。',
   },
   {
     id: 'both-board',
@@ -73,7 +72,6 @@ const STEPS: TutorialStep[] = [
     phases: ['dawn', 'mastermind_action'],
     day: 1,
     loop: 1,
-    priority: -9,
     position: 'top-right',
     highlight: 'action-hand',
     title: '版图与角色',
@@ -90,7 +88,6 @@ const STEPS: TutorialStep[] = [
     phases: ['dawn', 'mastermind_action'],
     day: 1,
     loop: 1,
-    priority: -8,
     position: 'top-right',
     highlight: 'character-indicators',
     title: '三种指示物',
@@ -106,7 +103,6 @@ const STEPS: TutorialStep[] = [
     phases: ['dawn', 'mastermind_action'],
     day: 1,
     loop: 1,
-    priority: -7,
     position: 'top-right',
     title: '每天的流程',
     content:
@@ -126,7 +122,6 @@ const STEPS: TutorialStep[] = [
     phases: ['dawn', 'mastermind_action'],
     day: 1,
     loop: 1,
-    priority: -6,
     position: 'top-right',
     title: '胜负条件',
     content:
@@ -142,7 +137,6 @@ const STEPS: TutorialStep[] = [
     phases: ['dawn', 'mastermind_action'],
     day: 1,
     loop: 1,
-    priority: -5,
     position: 'top-left',
     title: '速查面板在哪里？',
     content:
@@ -161,7 +155,6 @@ const STEPS: TutorialStep[] = [
     phases: ['dawn', 'mastermind_action'],
     day: 1,
     loop: 1,
-    priority: -4,
     position: 'top-left',
     highlight: 'rules-reference',
     title: '速查：剧情与身份',
@@ -182,23 +175,24 @@ const STEPS: TutorialStep[] = [
     phases: ['dawn', 'mastermind_action'],
     day: 1,
     loop: 1,
-    priority: -3,
-    position: 'top-right',
+    position: 'top-left',
+    highlight: 'rules-reference',
     title: '技能怎么发动？',
     content:
       '技能在结算阶段按顺序触发，分为两类：\n\n' +
       '🌑 剧作家技能（第⑤步）\n' +
       '剧作家根据角色身份发动（这些技能剧情/身份速查里都有！），会暴露信息！\n' +
-      '• 「无视友好」身份：剧作家可以选择不发动\n' +
-      '• 「绝对无视友好」身份：无论如何，技能永远不会发动\n\n' +
       '☀️ 主人公技能（第⑥步）\n' +
       '好感度达到 NPC 的要求后，主人公可主动声明触发。\n' +
       '技能效果与 NPC 本人有关，和身份无关。\n\n' +
+      '注意身份中的词条能力：\n'+
+      '• 「无视友好」：剧作家可以选择不发动友好技能\n' +
+      '• 「绝对无视友好」：无论如何，友好技能永远不会发动\n\n' +
       '⚠️ 重要规则：\n' +
       '主人公声明发动技能时，剧作家只需宣告结果（如「无事发生」），\n' +
-      '不需要说明是否满足条件——保持信息的神秘感。\n' +
+      '不需要说明原因——保持推理信息的神秘感。\n' +
       '每个技能每天只能发动一次；标注「1/L」的技能每个轮回只能发动一次。',
-    tip: '技能触发顺序很重要——先结算剧作家技能，再结算主人公技能。如果同一步骤有多个技能，按版图上角色顺序依次结算。',
+    tip: '技能触发顺序很重要——先结算剧作家技能，再结算主人公技能。如果同一步骤有多个技能，按执行人喜欢的顺序发动。',
   },
   {
     id: 'both-handoff',
@@ -206,7 +200,6 @@ const STEPS: TutorialStep[] = [
     phases: ['dawn', 'mastermind_action'],
     day: 1,
     loop: 1,
-    priority: -1,
     position: 'top-left',
     highlight: 'rules-reference',
     title: '⚠️ 请将设备交给剧作家',
@@ -224,7 +217,6 @@ const STEPS: TutorialStep[] = [
     phases: ['dawn', 'mastermind_action'],
     day: 1,
     loop: 1,
-    priority: -0.5,
     position: 'center',
     title: '你是这场惨剧的编剧',
     content:
@@ -236,7 +228,7 @@ const STEPS: TutorialStep[] = [
       '• 按步宣告——在正确的阶段宣告正确的效果，不跳步不提前\n' +
       '• 只说结果——只说「发生了什么」和「在第几步」，绝不解释原因\n\n' +
       '主人公的唯一情报来源，就是你每一步的宣告。\n' +
-      '你透露的真实信息越少，他们就越迷茫——这本身就是你最大的武器。',
+      '你透露的真实信息越少，或者误导他们想知道的信息，他们就越迷茫，这就是你的武器。',
     tip: '接下来先打开左侧「速查」面板，了解你手中的底牌。',
   },
   {
@@ -245,13 +237,12 @@ const STEPS: TutorialStep[] = [
     phases: ['dawn', 'mastermind_action'],
     day: 1,
     loop: 1,
-    priority: 0,
     position: 'top-left',
     highlight: 'rules-reference',
     title: '剧作家步骤 1：打开速查',
     content:
-      '点击左侧「📖 速查」，展开「剧情·身份速查」区域。\n\n' +
-      '热座模式下，剧作家专属图片默认隐藏——\n' +
+      '点击展开「剧情·身份速查」区域。\n\n' +
+      '热座模式下，剧作家专属脚本卡默认隐藏——\n' +
       '点击底部「确认查看」解锁全部内容。\n\n' +
       '这里有你需要的一切：\n' +
       '角色的真实身份、每个身份的能力说明、事件的犯人列表。\n' +
@@ -264,7 +255,6 @@ const STEPS: TutorialStep[] = [
     phases: ['dawn', 'mastermind_action'],
     day: 1,
     loop: 1,
-    priority: 1,
     position: 'top-left',
     highlight: 'rules-reference',
     title: '剧作家步骤 2：确认身份与路线',
@@ -284,7 +274,6 @@ const STEPS: TutorialStep[] = [
     phases: ['mastermind_action'],
     day: 1,
     loop: 1,
-    priority: 2,
     position: 'bottom-right',
     title: '第一次行动——三路并进',
     content:
@@ -300,7 +289,7 @@ const STEPS: TutorialStep[] = [
     role: 'mastermind',
     phases: ['mastermind_action'],
     day: 2,
-    priority: 1,
+    loop: 1,
     position: 'bottom-right',
     title: 'Day2——谋杀案触发检查',
     content:
@@ -312,7 +301,7 @@ const STEPS: TutorialStep[] = [
     role: 'mastermind',
     phases: ['mastermind_action'],
     day: 3,
-    priority: 0,
+    loop: 4,
     position: 'bottom-right',
     title: 'Day3——刑警传谣·女学生自杀',
     content:
@@ -326,7 +315,6 @@ const STEPS: TutorialStep[] = [
     phases: ['mastermind_ability'],
     day: 1,
     loop: 1,
-    priority: -1,
     position: 'top-right',
     title: '翻牌结算完毕——进入宣告阶段',
     content:
@@ -351,7 +339,6 @@ const STEPS: TutorialStep[] = [
     phases: ['mastermind_ability'],
     day: 1,
     loop: 1,
-    priority: 0,
     position: 'top-right',
     title: '⑤ 剧作家能力',
     content:
@@ -376,7 +363,6 @@ const STEPS: TutorialStep[] = [
     phases: ['protagonist_ability'],
     day: 1,
     loop: 1,
-    priority: 0,
     position: 'top-left',
     title: '⑥ 主人公能力：女学生的「安慰同学」',
     content:
@@ -396,7 +382,6 @@ const STEPS: TutorialStep[] = [
     phases: ['incident'],
     day: 1,
     loop: 1,
-    priority: 0,
     position: 'top-right',
     title: '⑦ 事件检查：今天无事件',
     content:
@@ -417,23 +402,27 @@ const STEPS: TutorialStep[] = [
     phases: ['night'],
     day: 1,
     loop: 1,
-    priority: 0,
     position: 'top-right',
     title: '⑧ 夜晚：检查杀人狂',
     content:
-      '🔒 默读（不要念出来）：\n' +
+      '🔊 切换阶段：\n' +
+      '「现在进入第⑧步·夜晚阶段，请将设备交还给剧作家，由剧作家执行夜晚检查并宣告结果。」\n\n' +
+      '🔒 总结：\n' +
       '翻牌结算后，你的纵向移动让巫女从神社移到了学校，\n' +
       '横向移动让男学生从学校移到了都市。\n' +
       '现在确认版图：巫女和女学生是否在学校独处？\n\n' +
       '巫女的真实身份是「杀人狂」——强制能力：\n' +
       '若有其他角色与她独处同一区域，那名角色立即死亡。\n\n' +
-      '• 独处 → 触发，进入下一步宣告\n' +
+      '• 独处 → 触发，进入下一步宣告（本剧本），剧作家不能决定杀人狂操作\n' +
       '• 未独处 → 不触发',
     tip:
-      '🔊 宣告格式：\n' +
+      '🔊 以下内容按顺序朗读给所有玩家：\n' +
+      '1) 剧作家结算宣告格式：\n' +
       '✅「第⑧步·夜晚：女学生死亡。」\n' +
       '✅「第⑧步·夜晚：无事发生。」\n' +
-      '❌ 不要说出巫女、杀人狂、独处等任何原因，但是本剧本中，夜晚阶段产生角色死亡的可能只有杀人狂一种。',
+      '❌ 不要说出巫女、杀人狂、独处等任何原因。\n\n' +
+      '2) 本剧本中，第一天夜晚阶段若出现角色死亡，原因只有「杀人狂」。\n' +
+      '3) 由于剧作家宣布当前轮回立刻结束，第一天原因只有「关键人物死亡」。',
   },
   {
     id: 'mm-night-kill-day1',
@@ -441,7 +430,6 @@ const STEPS: TutorialStep[] = [
     phases: ['night'],
     day: 1,
     loop: 1,
-    priority: 1,
     position: 'center',
     title: '⑧ 夜晚：女学生死亡',
     content:
@@ -450,8 +438,9 @@ const STEPS: TutorialStep[] = [
       '「第⑧步·夜晚：女学生被发现死亡。」\n\n' +
       '主人公可能追问原因，你只需回答：\n' +
       '「这发生在第⑧步·夜晚阶段。」——其余让他们自己推理。\n\n' +
-      '操作：点击女学生卡片左下角的「☠ 死亡」按钮。\n' +
-      '女学生是关键人物——关键人物死亡，当前轮回立即结束。',
+      '女学生是关键人物——关键人物死亡，当前轮回立即结束。\n' +
+      '也就是说：结束轮回的原因只有关键人物死亡。',
+    action: '点击女学生卡片左下角的「☠ 死亡」按钮。',
     tip: '提醒主人公回想：今天谁被移动了？谁和女学生在同一区域？这就是推理的起点。',
   },
   {
@@ -460,7 +449,6 @@ const STEPS: TutorialStep[] = [
     phases: ['night'],
     day: 1,
     loop: 1,
-    priority: 3,
     position: 'center',
     highlight: 'end-loop-btn',
     title: '轮回结束——等待主人公确认',
@@ -474,36 +462,119 @@ const STEPS: TutorialStep[] = [
     tip: '时间倒流，但记忆不会消失。你已经知道了什么？',
   },
   {
+    id: 'mm-ability-loop2-day2',
+    role: 'mastermind',
+    phases: ['mastermind_ability'],
+    day: 2,
+    loop: 2,
+    position: 'top-right',
+    title: '⑤ 剧作家能力：黑幕追加密谋',
+    content:
+      '🔒 默读：\n' +
+      '医生的真实身份是「黑幕」——能力：对同区域任一角色 +1 密谋。\n' +
+      '医生和上班族现在都在都市，条件满足。\n\n' +
+      '🔊 向主人公宣告：\n' +
+      '「第⑤步：上班族密谋 +1。」',
+    action: '手动点击上班族卡片，将密谋 +1。',
+    tip: '主人公会记下这个信息——有人在第⑤步给上班族加了密谋，但他们不知道是谁、为什么。',
+  },
+  {
+    id: 'pro-ability-loop2-day2',
+    role: 'mastermind',
+    phases: ['protagonist_ability'],
+    day: 2,
+    loop: 2,
+    position: 'top-right',
+    title: '⑥ 主人公能力：上班族坦白身份',
+    content:
+      '主人公声明发动上班族的友好能力「坦白身份」（好感≥3）。\n\n' +
+      '🔊 向主人公宣告：\n' +
+      '「上班族的身份是——杀手。」',
+    tip: '这是主人公主动逼出的情报。从现在起，他们知道了上班族就是杀手。',
+  },
+  {
+    id: 'mm-night-loop2-day2',
+    role: 'mastermind',
+    phases: ['night'],
+    day: 2,
+    loop: 2,
+    position: 'center',
+    title: '⑧ 夜晚：双杀',
+    content:
+      '🔒 默读 · 检查杀手能力：\n' +
+      '上班族（杀手）密谋 4 ≥ 2，女学生（关键人物）在同区 → 可选触发。\n' +
+      '选择发动——女学生死亡，主人公死亡。\n\n' +
+      '🎭 剧作家宣告：\n' +
+      '「第⑧步·夜晚：女学生死亡——你们，也就是主人公，也死了。」\n\n' +
+      '然后向主人公说明「双杀」：\n' +
+      '① 女学生是关键人物——关键人物死亡是基础失败条件，轮回立即结束。\n' +
+      '② 主人公死亡——这是一种独立的基础胜利方式，剧作家可以直接击杀主人公玩家。\n' +
+      '两种死法同时发生在这一晚。',
+    action: '点击女学生卡片的「☠ 死亡」按钮。',
+    tip: '这是惨剧轮回的仪式感——剧作家不只是主持人，也是这场惨剧的导演。享受这个瞬间。',
+  },
+  {
+    id: 'both-loop-end-loop2',
+    role: 'both',
+    phases: ['night'],
+    day: 2,
+    loop: 2,
+    position: 'center',
+    highlight: 'end-loop-btn',
+    title: '轮回2回顾：已见过三种胜利方式',
+    content:
+      '两个轮回下来，你们已经见过剧作家的三种胜利方式：\n\n' +
+      '轮回1 — 杀人狂击杀关键人物：巫女与女学生独处，强制触发，女学生死亡。\n' +
+      '轮回2 — 杀手击杀关键人物：上班族密谋≥2 + 女学生同区，可选触发，女学生死亡。\n' +
+      '轮回2 — 主人公死亡：杀手4密谋触发。这是一种全游戏通用的基础胜利方式,主人公死亡意味立刻开始轮回。\n\n' +
+      '⚠️ 本教学轮回没有 Loop3——教学中这个轮回算作两次轮回消耗，暴露了两个信息：主谋存在、上班族是杀手。\n' +
+      '💡 实战中，主人公其实应该给上班族打「禁止密谋」来阻止密谋积累。\n' +
+      '但教学局刻意不这样做，只是为了完整展示剧本中剧作家的所有埋点种类。',
+    action: '点击左下角「结束当前轮回」按钮两次（跳过轮回3，直接进入轮回4）。',
+    tip: '实际游玩中，剧作家不会在同一轮回同时走多条路线，而是分别消耗轮回。教学是为了压缩演示。',
+  },
+  {
+    id: 'both-loop3-skip',
+    role: 'both',
+    phases: ['dawn', 'mastermind_action'],
+    loop: 3,
+    position: 'top-left',
+    title: '教学局：跳过轮回3',
+    content:
+      '本轮回在教学局中强制跳过，不进行任何操作。\n\n' +
+      '轮回2已经算作两次轮回消耗——\n' +
+      '直接点击「结束当前轮回」进入轮回4。',
+    action: '点击左下角「结束当前轮回」按钮。',
+    tip: '轮回4将是最后一个轮回，届时你们将自由发挥。',
+  },
+  {
     id: 'mm-night-general',
     role: 'mastermind',
     phases: ['night'],
-    priority: 2,
     position: 'top-right',
-    title: '⑧ 夜晚结算',
+    title: '请将设备交给剧作家',
     content:
-      '🔒 默读 · 按顺序检查两个夜间能力：\n\n' +
-      '① 杀人狂（巫女）—— 强制触发\n' +
-      '条件：有其他角色与巫女独处同一区域\n' +
-      '效果：该角色立即死亡，无法阻止\n\n' +
-      '② 杀手（上班族）—— 可选触发\n' +
-      '条件：同区域有关键人物，且该人物身上密谋≥2\n' +
-      '效果：你可以选择杀死那名关键人物\n\n' +
-      '🔊 向主人公宣告：\n' +
-      '• 有人死亡 →「第⑧步·夜晚：[角色名]死亡。」\n' +
-      '• 无人死亡 →「第⑧步·夜晚：无事发生。」',
-    tip: '绝不解释死因。「为什么死了？」是主人公需要推理的核心问题。',
+      '🔊 朗读给所有玩家：\n' +
+      '「现在进入第⑤步～第⑧步。\n' +
+      '请将设备交还给剧作家，由剧作家依次主持：\n' +
+      '能力阶段 → 事件检查 → 夜晚阶段，并宣告结果。」\n\n' +
+      '🔒 剧作家拿到设备后，按左侧速查面板逐项检查，完成后朗读结果。',
+    tip: '每个阶段只宣告「发生了什么」和「在第几步」，绝不解释原因。',
   },
   {
     id: 'mm-loop2',
     role: 'mastermind',
     phases: ['dawn', 'mastermind_action'],
     loop: 2,
-    priority: 0,
     position: 'top-right',
-    title: '轮回2：主人公学到了什么？',
+    title: '轮回2：杀手路线',
     content:
-      '他们记住了你的行动。换一个迷惑策略：\n• 把不安打在和上局不同的角色上\n• 用密谋牌虚晃一枪\n• 改变巫女的移动路线\n你还有机会！',
-    tip: '他们轮回次数有限，每次他们失败都离你的胜利更近一步。',
+      '本轮教学固定出牌请按顺序执行：\n' +
+      'Day1：给上班族堆密谋，同时用巫女的移动逼主人公交出禁止移动牌。\n' +
+      'Day2：继续堆密谋（+2牌），不动女学生——她已经和上班族在都市同区了。\n\n' +
+      'Day2 第⑤步：医生（黑幕）和上班族同在都市，发动能力再给上班族 +1 密谋。\n' +
+      '夜晚：上班族密谋≥2，女学生（关键人物）在同区 → 杀手触发 → 女学生死亡 → 轮回结束。',
+    tip: '轮回1展示了杀人狂路线，轮回2展示杀手路线。实际游玩中剧作家只会分别消耗轮回，教学为了方便压缩演示。',
   },
 
   // ─── 主人公引导 ──────────────────────────────────────────────────────────
@@ -513,19 +584,17 @@ const STEPS: TutorialStep[] = [
     phases: ['dawn', 'protagonist_action'],
     day: 1,
     loop: 2,
-    priority: 0,
     position: 'top-right',
     title: '轮回2：你已经知道了一些事',
     content:
-      '观察剧作家把行动牌打在哪些位置——' +
-      '那些位置就是他想控制的关键坐标。\n\n' +
-      '你的首要任务是让巫女和女学生跟进到同一位置，' +
-      '用她们的技能干扰或抵消剧作家的布局。\n' +
-      '同时持续给她们加「好感+1」，好感满后即可发动主动技能，直接改变局面。',
+      '本轮教学固定出牌请按顺序执行：\n' +
+      'Day1：先锁巫女移动，再给上班族增加好感，并让女学生横向移动。\n' +
+      'Day2：尝试把女学生从高风险位置移开，同时继续上班族好感推进。\n\n' +
+      '这里让女学生进都市，可以规避无法进入都市的巫女。\n' +
+      '目标是优先规避夜晚被击杀的风险，再在后续结算里观察剧作家的真实路线。\n\n' +
+      '以后：如果剧作家没有在上班族打牌，就可以在下次打出「友好+2」，直接触发上班族技能，逼迫剧作家浪费友好禁止牌。',
     tip:
-      '好感技能是本局最强的干预手段——' +
-      '巫女满好感可移除角色上的阴谋，女学生满好感可阻止一次死亡。\n' +
-      '不要等到危机出现才加好感，提前布局才来得及。'
+      '行动阶段先做可执行操作，不在这里提前下结论。'
   },
   {
     id: 'pro-welcome',
@@ -533,7 +602,6 @@ const STEPS: TutorialStep[] = [
     phases: ['dawn', 'protagonist_action'],
     day: 1,
     loop: 1,
-    priority: 0,
     position: 'top-right',
     title: '欢迎来到惨剧轮回！',
     content:
@@ -546,7 +614,6 @@ const STEPS: TutorialStep[] = [
     phases: ['protagonist_action'],
     day: 1,
     loop: 1,
-    priority: 0,
     position: 'bottom-right',
     title: '打牌基础规则',
     content:
@@ -564,7 +631,6 @@ const STEPS: TutorialStep[] = [
     phases: ['protagonist_action'],
     day: 1,
     loop: 1,
-    priority: 1,
     position: 'top-left',
     title: '📋 分析公开信息——你的第一个推理',
     content:
@@ -579,7 +645,7 @@ const STEPS: TutorialStep[] = [
       '前两个轮回信息极少，很可能守不住——\n' +
       '但每次失败都是信息，不要放弃观察。',
     tip:
-      '先关注各角色的技能，再决定行动路线。\n例：上班族好感≥2后可发动「坦白身份」，剧作家必须当场公开上班族的身份牌——直接排除一个嫌疑人。',
+      '先关注各角色的技能，再决定行动路线。\n例：上班族好感≥3后可发动「坦白身份」，剧作家必须当场公开上班族的身份牌——直接排除一个嫌疑人。',
   },
   {
     id: 'pro-shrine-maiden-read',
@@ -587,7 +653,6 @@ const STEPS: TutorialStep[] = [
     phases: ['resolution'],
     day: 1,
     loop: 1,
-    priority: 0,
     position: 'top-right',
     title: '翻牌：从剧作家的「空位」推理',
     content:
@@ -599,7 +664,8 @@ const STEPS: TutorialStep[] = [
       '正因如此，这些位置反而是你加好感的好目标：\n' +
       '剧作家不会优先干扰你积累他「不在乎」的角色好感。',
     tip:
-      '巫女好感=2（轮回限）：移除神社的1个密谋标记并公开同区域角色身份。\n' +
+      '巫女好感=3（轮回限）：移除神社的1个密谋标记。\n' +
+      '巫女好感=5（轮回限）：公开同区域1名角色身份。\n' +
       '如果你在神社附近的角色里发现一个剧作家始终没打牌的——重点怀疑她就是巫女。',
   },
   {
@@ -608,7 +674,6 @@ const STEPS: TutorialStep[] = [
     phases: ['protagonist_action'],
     day: 1,
     loop: 1,
-    priority: 2,
     position: 'bottom-right',
     title: '第一次行动',
     content:
@@ -617,14 +682,30 @@ const STEPS: TutorialStep[] = [
       '① 给1~2名角色放「友好+1」——好感是你撬开秘密的杠杆\n' +
       '② 给看起来危险的角色放「不安-1」——也许能拖住某场灾难\n\n' +
       '这一局的目的不是赢，而是让剧作家暴露他的计划。',
-    tip: '迷茫时，就加好感。\n信息就是力量——\n刑警好感≥4：逼出事件犯人\n上班族好感≥2：逼出上班族身份\n巫女好感≥2：清除密谋 + 公开神社附近角色\n医生好感≥2：为同区角色移除不安\n\n哪怕这轮回失败，收集到足够线索，最终至少能 Normal End。',
+    tip: '迷茫时，就加好感。\n信息就是力量——\n刑警好感≥4：逼出事件犯人\n上班族好感≥3：逼出上班族身份\n巫女好感≥3：清除神社密谋；巫女好感≥5：公开同区域身份\n医生好感≥2：为同区角色移除不安；医生好感≥3：公开同区域身份\n\n哪怕这轮回失败，收集到足够线索，最终至少能 Normal End。',
+  },
+  {
+    id: 'pro-loop2-day2',
+    role: 'protagonist',
+    phases: ['dawn', 'protagonist_action'],
+    day: 2,
+    loop: 2,
+    position: 'top-right',
+    title: '总算多过了一天！',
+    content:
+      '上一次轮回，你们连第一天都没撑过去。\n' +
+      '这一次，巫女被锁住了，女学生挺过了夜晚——时间线终于推进到了 Day2。\n\n' +
+      '但危机没有解除。剧作家一直在给上班族堆密谋，而女学生还在都市……\n' +
+      '如果你不做点什么，今晚可能就是另一种死法。\n\n' +
+      '现在的关键：让医生进城，同时继续给上班族加好感——\n' +
+      '信息越多，下一轮你就越有底牌。',
+    tip: '就算这轮守不住，只要逼出足够信息，后面的轮回就能精准防守。',
   },
   {
     id: 'pro-force-reveal',
     role: 'protagonist',
     phases: ['protagonist_action'],
     day: 2,
-    priority: 0,
     position: 'bottom-right',
     title: '打破剧本：让剧作家失控',
     content:
@@ -643,7 +724,6 @@ const STEPS: TutorialStep[] = [
     role: 'protagonist',
     phases: ['protagonist_action'],
     day: 2,
-    priority: 1,
     position: 'bottom-right',
     title: '行动进阶技巧',
     content:
@@ -656,7 +736,6 @@ const STEPS: TutorialStep[] = [
     phases: ['resolution'],
     day: 1,
     loop: 1,
-    priority: 0,
     position: 'top-right',
     title: '翻牌！观察剧作家的行动',
     content:
@@ -667,7 +746,6 @@ const STEPS: TutorialStep[] = [
     role: 'protagonist',
     phases: ['mastermind_action', 'protagonist_action'],
     day: 3,
-    priority: 0,
     position: 'center',
     title: '第3天有事件！',
     content:
@@ -679,84 +757,106 @@ const STEPS: TutorialStep[] = [
     role: 'protagonist',
     phases: ['dawn', 'protagonist_action'],
     loop: 2,
-    priority: 0,
     position: 'top-right',
-    title: '你记住了！这次不同',
+    title: '时间倒流，记忆犹在',
     content:
-      '轮回重置，但你的记忆保留。\n回顾上一轮：哪个角色不安增长最快？剧作家的牌集中在谁身上？\n这一轮用掌握的线索来精准阻止——你离真相又近了一步。',
-    tip: '推理身份：关键人物一般是剧作家最想「保住」同时主人公最该保护的那个。',
+      '世界回到了起点——但你没有。\n' +
+      '上一次轮回的惨剧还历历在目：有人在夜晚死去。\n\n' +
+      '这一次，你知道该先做什么了——控制住巫女。\n' +
+      '只要她无法与任何人独处，夜晚就不会重演。\n\n' +
+      '锁死巫女之后，腾出手来观察剧作家的其他布局：\n' +
+      '他的牌会集中在谁身上？那个人，很可能就是下一个目标。',
+    tip: '行动阶段只做操作，不下结论。把观察到的事实留到轮回结束再统一解读。',
   },
   {
     id: 'pro-incident-trigger',
-    role: 'protagonist',
+    role: 'both',
     phases: ['incident'],
-    priority: 0,
-    position: 'top-right',
-    title: '事件检查阶段',
+    day: 2,
+    loop: 2,
+    position: 'top-left',
+    highlight: 'incident-schedule',
+    title: '事件检查：请先看左侧事件日程',
     content:
-      '剧作家正在检查今日事件是否触发。\n此时你无法再行动，只能等待结果。\n如果事件触发，轮回结束；如果没触发，则安全进入夜晚。',
-    tip: '下一轮记住今天谁的不安最高——他很可能是当事人。',
+      '现在进入事件检查。\n' +
+      '请先看左侧「事件日程」并逐条核对三件事：\n' +
+      '1) 今天是否有该事件\n' +
+      '2) 当事人是否存活\n' +
+      '3) 当事人不安是否达到上限\n\n' +
+      '确认后再宣告是否触发。',
+    tip: '事件日程会自动展开并高亮。先核对条件，再给结论。',
   },
 
-  // ─── 轮回3：YX线推理 ──────────────────────────────────────────────────
   {
-    id: 'pro-loop3-yx',
-    role: 'protagonist',
-    phases: ['dawn', 'protagonist_action'],
-    day: 1,
-    loop: 3,
-    priority: 0,
-    position: 'top-left',
-    title: '第三轮回：该暴露传谣人了',
-    content:
-      '经过两次轮回，你已经知道了巫女是杀人狂——剧作家靠这招赢过你一次。\n\n' +
-      '但支线剧情「开膛手之影」意味着场上必定藏着一个传谣人。\n' +
-      '现在剧作家已经不能再靠"你不知道谁是杀人狂"来赢了，\n' +
-      '他必须启用传谣人这张暗牌。\n\n' +
-      '仔细观察：剧作家能力阶段（第⑤步），\n' +
-      '如果有角色莫名其妙地+1不安——那就是传谣人！',
-    tip:
-      '传谣人的能力是在第⑤步给同区域角色+1不安。这不受牌效控制，无法用「禁止不安」阻挡——只有把传谣人移走才能阻止。',
-  },
-  {
-    id: 'mm-loop3',
+    id: 'mm-loop4',
     role: 'mastermind',
     phases: ['dawn', 'mastermind_action'],
     day: 1,
-    loop: 3,
-    priority: 0,
+    loop: 4,
     position: 'top-right',
-    title: '轮回3：启用传谣人',
+    title: '轮回4：自由发挥——混淆身份',
     content:
-      '主人公已经知道巫女是杀人狂了，但你还有暗牌——刑警是传谣人。\n' +
-      '这一轮把刑警移到女学生附近，在第⑤步利用传谣能力额外+1不安。\n' +
-      '同时别忘了巫女——主人公可能防密谋却忘了防移动。',
-    tip: '传谣人+1不安在第⑤步执行，不受「禁止不安」牌的影响。这是你最隐蔽的武器。',
+      '本轮交给你自由发挥，不再有固定出牌。\n\n' +
+      '⚠️ 关键提醒：规避 Normal End\n' +
+      '如果主人公猜对所有角色的身份，他们可以直接获胜。\n' +
+      '你必须混淆医生、刑警、男学生这三人的身份——\n' +
+      '他们分别是黑幕、传谣人、平民，能力差异很大。\n\n' +
+      '混淆技巧：\n' +
+      '• 尽量让医生和刑警在同一区域时再发动第⑤步能力\n' +
+      '• 这样主人公无法分辨「+1 密谋」来自黑幕还是「+1 不安」来自传谣人\n' +
+      '• 对男学生也偶尔打干扰牌，制造他可能有身份的假象\n\n' +
+      '你的目标不变：让惨剧发生。但同时要让主人公猜不准谁是谁。',
+    tip: '如果主人公没能通关，还要他们猜错至少一个身份，你才能赢。',
+  },
+  {
+    id: 'pro-loop4',
+    role: 'protagonist',
+    phases: ['dawn', 'protagonist_action'],
+    day: 1,
+    loop: 4,
+    position: 'top-right',
+    title: '轮回4：自由发挥——终盘防守',
+    content:
+      '本轮没有固定出牌，由你自由决策。\n\n' +
+      '防守优先级：\n' +
+      '1) 锁巫女移动，防止杀人狂路线\n' +
+      '2) 压低女学生不安，阻止 Day3 自杀事件\n' +
+      '3) 拆散刑警与女学生同区，切断传谣人 +1 不安\n\n' +
+      '经过三轮观察，你应该已经锁定了关键身份——用行动验证你的推理。',
+    tip: '三天全部存活即通关。集中资源在最危险的一天。',
   },
 
-  // ─── 游戏结束：教学总结 ────────────────────────────────────────────────
+  // ─── 教学总结（轮回4开头，紧跟在角色引导之后） ──────────────────────────
   {
     id: 'tutorial-game-over',
     role: 'both',
-    phases: ['game_over'],
-    priority: 0,
+    phases: ['dawn', 'mastermind_action', 'protagonist_action'],
+    loop: 4,
     position: 'center',
-    title: '轮回的尽头',
+    highlight: 'plot-guess',
+    title: '🎓 教程结束',
     content:
-      '「这个世界真是糟透了……四次轮回，四次失败。\n' +
-      '时间的齿轮停止了转动。」\n\n' +
-      '「但命运给了我们最后一个机会——\n' +
-      '如果你能猜中所有角色的真实身份，就能逆转这一切，达成 Normal End。」\n\n' +
-      '「相信经历了这么多轮回，你心中已经有了答案。」',
+      '你已经见过了剧作家的三种武器：\n' +
+      '• 杀人狂（夜晚强制击杀同区角色）\n' +
+      '• 杀手（密谋≥2 时夜晚击杀同区关键人物）\n' +
+      '• 黑幕（第⑤步给同区角色 +1 密谋）\n\n' +
+      '但剧本中还有一个身份没有暴露——\n' +
+      '点击顶栏的剧情猜测下拉框，选择主线「杀人计划」和支线「开膛手之影」，\n' +
+      '系统会自动推算必须存在的身份组合。\n' +
+      '对比你已经确认的身份，剩下那个就是隐藏的第四人。\n\n' +
+      '💡 即使四次轮回全部失败，主人公仍有最后机会：\n' +
+      '猜中所有角色的真实身份 → 达成 Normal End。\n\n' +
+      '从现在开始，双方自由发挥。\n' +
+      '教学引导不再出现——祝你好运。',
+    action: '在顶栏点击「Y 主线」选择「杀人计划」，「X1 支线」选择「开膛手之影」。',
     tip:
-      '教学中的每一步都是为了展示不同的游戏机制。\n' +
-      '在真实对局中，主人公只要让所有人四处移动来消耗剧作家的移动牌，\n' +
-      '就能迫使剧作家暴露大量信息，最终使其无法达成击杀条件而失败。\n\n' +
       'Ending 体系：\n' +
-      '• Best End — 在较短轮回范围内通关\n' +
-      '• Good End — 在较长轮回范围内通关\n' +
-      '• Normal End — 猜中全部角色身份\n' +
-      '• Bad End — 猜错身份',
+      '• Best End — 在较短轮回内通关\n' +
+      '• Good End — 在较长轮回内通关\n' +
+      '• Normal End — 猜中全部角色身份（最后的翻盘机会）\n' +
+      '• Bad End — 猜错身份\n\n' +
+      '实战技巧：本剧本中，主人公只要让所有人四处移动来消耗剧作家的移动牌，让巫女乱杀人（毕竟这个剧本大部分NPC都是坏人！）\n' +
+      '就能迫使剧作家暴露大量信息，最终使其无法达成击杀条件。但是这样就达不成教学目的了！',
   },
 ];
 
@@ -829,31 +929,33 @@ export function TutorialGuide() {
   const [hidden, setHidden] = useState(false);
   // 已执行的教学配牌 key: "loop-day-role"
   const [executedTurns, setExecutedTurns] = useState<Set<string>>(new Set());
+  const isInitialTurn = gameState?.currentLoop === 1 && gameState?.currentDay === 1;
 
   useEffect(() => {
-    setDismissedIds([]);
-    setCollapsed(false);
-    setHidden(false);
-    setExecutedTurns(new Set());
-  }, [gameState?.currentLoop === 1 && gameState?.currentDay === 1]);
+    const timer = window.setTimeout(() => {
+      setDismissedIds([]);
+      setCollapsed(false);
+      setHidden(false);
+      setExecutedTurns(new Set());
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [isInitialTurn]);
 
   const scriptName = gameState?.publicInfo.scriptName ?? '';
   const scriptId = currentScript?.id;
-  const isTutorial = isTutorialScript(scriptName, scriptId);
-
-  const phase = gameState?.phase ?? 'dawn';
+  const shouldRenderGuide = !!gameState && isTutorialScript(scriptName, scriptId) && !hidden;
+  const phase: GamePhase = gameState?.phase ?? 'dawn';
   const currentDay = gameState?.currentDay ?? 1;
   const currentLoop = gameState?.currentLoop ?? 1;
 
   const dismissedSet = new Set(dismissedIds);
 
-  // 当前可展示的步骤：匹配 + 未消除 + 按优先级排序
-  const candidates = (!gameState || !isTutorial || hidden)
-    ? []
-    : STEPS
+  // 当前可展示的步骤：匹配 + 未消除 + 按声明顺序
+  const candidates = shouldRenderGuide
+    ? STEPS
       .filter(s => !dismissedSet.has(s.id))
       .filter(s => matchesStep(s, phase, currentDay, currentLoop, playerRole))
-      .sort((a, b) => a.priority - b.priority);
+    : [];
 
   const current = candidates[0] ?? null;
 
@@ -868,10 +970,9 @@ export function TutorialGuide() {
   // 配牌已执行 → 面板移到左侧提示"点击按钮进入下一阶段"
   const shouldDockLeft = !!playbookTurn && isExecuted;
 
-  // 已完成数（用于底部进度提示）
-  const roleSteps = STEPS.filter(s => s.role === playerRole || s.role === 'both');
-  const completedCount = roleSteps.filter(s => dismissedSet.has(s.id)).length;
-  const totalCount = roleSteps.length;
+  // 已完成数：分母 = 已消除 + 当前待读，只统计玩家实际会遇到的步骤
+  const completedCount = dismissedIds.length;
+  const totalCount = dismissedIds.length + candidates.length;
 
   useEffect(() => {
     // 教学配牌执行后会进入“等待推进到下一阶段”状态，此时关闭高亮闪烁，避免左栏视觉抖动感。
@@ -947,7 +1048,7 @@ export function TutorialGuide() {
     return () => { delete document.body.dataset.tutorialSidebar; };
   }, [shouldOpenSidebarForTutorial]);
 
-  if (!gameState || !isTutorial || hidden) return null;
+  if (!shouldRenderGuide) return null;
 
   return (
     <motion.div
@@ -1017,6 +1118,15 @@ export function TutorialGuide() {
                       <p className="text-slate-700 text-xs leading-relaxed">
                         {formatContent(current.content)}
                       </p>
+
+                      {/* 操作框 */}
+                      {current.action && (
+                        <div className="bg-sky-50 border border-sky-300 rounded-lg px-3 py-2">
+                          <p className="text-sky-800 text-[11px] leading-relaxed font-medium">
+                            🛠 操作：{formatContent(current.action)}
+                          </p>
+                        </div>
+                      )}
 
                       {/* 小贴士 */}
                       {current.tip && (

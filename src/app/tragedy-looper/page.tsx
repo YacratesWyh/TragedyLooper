@@ -219,7 +219,7 @@ export default function Home() {
   // 当前角色颜色标识
   const roleColor = playerRole === 'mastermind' ? 'text-timoris' : 'text-oblivionis';
   const roleBorderColor = playerRole === 'mastermind' ? 'border-timoris/30' : 'border-oblivionis/30';
-  const roleLabel = playerRole === 'mastermind' ? '🎭 剧作家' : '🦸 主人公';
+  const roleLabel = playerRole === 'mastermind' ? '🎭 剧作家' : '🕵️ 主人公';
 
   return (
     <main className={`flex min-h-screen flex-col lg:flex-row font-sans relative bg-[url('/assets/tl/20220605022917_d75a4.jpg')] bg-cover bg-center bg-fixed ${TL_THEME.page}`}>
@@ -382,7 +382,7 @@ export default function Home() {
               const hasSelection = guessY || guessX1;
 
               return (
-                <>
+                <div data-tutorial-id="plot-guess" className="flex items-center gap-2 flex-wrap">
                   <select
                     value={guessY}
                     onChange={e => setGuessY(e.target.value)}
@@ -431,7 +431,7 @@ export default function Home() {
                       </div>
                     </>
                   )}
-                </>
+                </div>
               );
             })()}
             </div>
@@ -475,7 +475,7 @@ export default function Home() {
              
              {/* 结算消息弹窗 */}
              {showMessages && resolutionMessages.length > 0 && (
-               <div className="absolute inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm z-50">
+              <div className="absolute inset-0 flex items-center justify-center bg-slate-950/20 z-50">
                  <div className="bg-surface-2 border border-doloris/50 rounded-lg shadow-2xl p-6 max-w-md mx-4 animate-in fade-in zoom-in duration-200">
                    <div className="flex items-center justify-between mb-4">
                      <h3 className="text-lg font-bold text-doloris flex items-center gap-2">
@@ -529,7 +529,7 @@ export default function Home() {
       if (isMyTurn) return null;
       if (isHandFull && isActionPhase) return '✅ 今日已打满 3 张牌，请等待结算';
       if (currentPhase === 'mastermind_action') return '🎭 等待剧作家行动...';
-      if (currentPhase === 'protagonist_action') return '🦸 等待主人公行动...';
+      if (currentPhase === 'protagonist_action') return '🕵️ 等待主人公行动...';
       if (currentPhase === 'dawn') return '☀️ 黎明阶段';
       if (currentPhase === 'resolution') return '📋 结算中...';
       if (currentPhase === 'mastermind_ability') return '🎭 剧作家能力阶段';

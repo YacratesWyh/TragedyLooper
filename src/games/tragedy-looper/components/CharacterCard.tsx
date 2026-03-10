@@ -357,22 +357,25 @@ export function CharacterCard({
         />
       </div>
 
-      {/* 主人公专属：身份猜测按钮 */}
-      {playerRole === 'protagonist' && (() => {
+      {/* 身份猜测：有猜测结果时始终可见，无结果时仅主人公视角显示 */}
+      {(() => {
         const currentGuess = protagonistGuesses[characterState.id];
+        if (!currentGuess && playerRole !== 'protagonist') return null;
         const gs = getGuessStyle(currentGuess);
+        const canEdit = playerRole === 'protagonist';
         return (
           <button
             onClick={(e) => {
               e.stopPropagation();
-              setShowGuessPopup((prev: boolean) => !prev);
+              if (canEdit) setShowGuessPopup((prev: boolean) => !prev);
             }}
             onPointerDown={e => e.stopPropagation()}
             className={cn(
-              "w-full py-1 rounded border text-xs font-bold transition-all active:scale-95 flex items-center justify-center gap-1",
-              gs.bg, gs.border, gs.text, gs.hover
+              "w-full py-1 rounded border text-xs font-bold transition-all flex items-center justify-center gap-1",
+              gs.bg, gs.border, gs.text,
+              canEdit ? cn(gs.hover, "active:scale-95 cursor-pointer") : "cursor-default"
             )}
-            title="猜测身份"
+            title={canEdit ? '猜测身份' : undefined}
           >
             <HelpCircle size={11} />
             {currentGuess ? ROLE_NAMES[currentGuess] : '猜测身份'}
