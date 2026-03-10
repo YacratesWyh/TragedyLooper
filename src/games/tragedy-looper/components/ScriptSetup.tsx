@@ -481,6 +481,7 @@ export function ScriptSetup({ onSelect, onCancel }: ScriptSetupProps) {
           <h1 className="text-3xl font-black text-white">选择剧本</h1>
         </div>
         <p className="text-slate-400">作为剧作家，选择要使用的剧本</p>
+        <p className="text-slate-400">强烈推荐如果有新手玩家，先玩一下初来乍到熟悉操作</p>        
       <div className="mb-3 flex items-center justify-center">
         <span className="text-sm text-red-300 font-bold">
           警告！剧本名和主线支线不要透露给主人公！
