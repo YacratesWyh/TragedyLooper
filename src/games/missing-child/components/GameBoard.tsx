@@ -1,15 +1,31 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useMissingChildStore } from '../store';
 import { getCardDef, isMaigo } from '../types';
-import { getLeftPlayerIndex, hasPlayableCard, getWinnersByHp } from '../engine';
-import { MaigoCard, DeckPile } from './Card';
+import type { CardRef } from '../types';
+import { getDrawSourcePlayerIndex, hasPlayableCard, getWinnersByHp } from '../engine';
+import { MaigoCard, DeckPile, DiscardPile } from './Card';
+import { EffectPanel } from './EffectPanel';
+import { BadEndOverlay } from './BadEndOverlay';
+import { WaitingIndicator, MiniWaitingIndicator } from './WaitingIndicator';
+import { LogPanel } from './LogPanel';
+import { TestMode } from './TestMode';
 
 const MAIGO_BG_BVID = 'BV1sN4y1T72q';
 const RULE_IMAGE = '/assets/maigo/rule.png';
+const MAIGO_SFX = '/assets/maigo/gugugaga.mp3';
+
+let lastSfxTime = 0;
+function playMaigoSfx() {
+  const now = Date.now();
+  if (now - lastSfxTime < 2000) return;
+  lastSfxTime = now;
+  const audio = new Audio(MAIGO_SFX);
+  audio.play().catch(() => {});
+}
 
 function buildBilibiliSrc(bvid: string, muted: boolean) {
   return `//player.bilibili.com/player.html?isOutside=true&bvid=${bvid}&p=1&autoplay=1&danmaku=0&loop=1&t=0${muted ? '&muted=1' : ''}`;
@@ -32,21 +48,32 @@ function SetupScreen({
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen gap-8 p-8 bg-stone-950/80 text-stone-200">
-      <h1 className="text-4xl font-bold">迷子</h1>
+      <h1 className="text-4xl font-bold tracking-wider">
+        <span className="text-red-400">迷</span>子
+      </h1>
 
       <div
-        className="w-full max-w-lg rounded-xl border border-stone-700/80 p-5 text-left"
+        className="w-full max-w-lg rounded-xl border border-stone-700/80 p-5 text-left space-y-3"
         style={{
           backgroundColor: 'rgba(20,12,8,0.85)',
           backgroundImage: 'radial-gradient(ellipse 70% 60% at 50% 0%, rgba(60,30,20,0.2), transparent)',
         }}
       >
-        <p className="text-red-400/95 text-sm leading-relaxed">
-          抽鬼牌的恐怖变体。每回合从上家或牌库抽一张、再打出一张；「迷子」不能打出，手牌里只剩迷子的人出局，被带往彼端。最后留下的人，才能回到这边的世界。
+        <p className="text-red-400/90 text-sm leading-relaxed font-medium">
+          「迷子でもいい…迷子でも進め！！」——可高松灯没告诉你的是，企鹅们会跟过来。
+        </p>
+        <p className="text-stone-400 text-sm leading-relaxed">
+          三只高松灯企鹅潜伏在 34 张牌里。它们不能打出、不能丢弃、只会在你手牌里越攒越多。每回合你必须从上家手中盲抽一张——也许是救命的街灯，也许是又一只黑眼睛的企鹅。
+        </p>
+        <p className="text-stone-400 text-sm leading-relaxed">
+          当手牌无光亮牌和企鹅在一起时，你会听到它们的叫声——然后自爆出局，<span className="text-red-400">-3 血</span>，被拖入永远迷路的彼端。全 3 轮打完，血量最高的人才能活着走出来。
+        </p>
+        <p className="text-stone-500 text-xs leading-relaxed italic">
+          如果齐心打光全部牌……企鹅会暂时消失，这名玩家<span className="text-amber-400/80">+2 血</span>，Happy End。但别高兴太早——牌会重新发，企鹅还会回来。撑过 3 轮，血量最高的人才算真正赢了。
         </p>
       </div>
 
-      <p className="text-stone-400">2～4 人 · 从上家或牌库抽一张再出一张，别让手里只剩迷子</p>
+      <p className="text-stone-500 text-sm">2～4 人 · 抽鬼牌の恐怖变体 · 企鹅在看着你</p>
 
       <div className="flex gap-2">
         {[2, 3, 4].map((n) => (
@@ -101,6 +128,164 @@ function SetupScreen({
   );
 }
 
+/**
+ * 抽牌动画覆盖层：卡背滑入 → 翻转正面 → 调用 onDone
+ */
+function DrawRevealOverlay({
+  card,
+  title,
+  subtitle,
+  onDone,
+  requireClickToDone = false,
+  doneHint,
+}: {
+  card: CardRef;
+  title: string;
+  subtitle?: string;
+  onDone: () => void;
+  requireClickToDone?: boolean;
+  doneHint?: string;
+}) {
+  const [revealed, setRevealed] = useState(false);
+  const doneCalledRef = useRef(false);
+
+  const finish = () => {
+    if (!doneCalledRef.current) {
+      doneCalledRef.current = true;
+      onDone();
+    }
+  };
+
+  useEffect(() => {
+    const t1 = setTimeout(() => {
+      setRevealed(true);
+      if (isMaigo(card.cardId)) playMaigoSfx();
+    }, 500);
+    const t2 = requireClickToDone
+      ? undefined
+      : setTimeout(() => {
+          finish();
+        }, 1400);
+    return () => {
+      clearTimeout(t1);
+      if (t2 !== undefined) clearTimeout(t2);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return createPortal(
+    <motion.div
+      className={`fixed inset-0 z-[9998] flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm ${requireClickToDone && revealed ? 'cursor-pointer' : ''}`}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.2 }}
+      onClick={requireClickToDone && revealed ? finish : undefined}
+    >
+      <motion.p
+        className="text-stone-300 text-sm mb-2 font-medium"
+        initial={{ opacity: 0, y: -8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+      >
+        {title}
+      </motion.p>
+      {subtitle && (
+        <motion.p
+          className="text-stone-500 text-xs mb-5"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.2 }}
+        >
+          {subtitle}
+        </motion.p>
+      )}
+      <motion.div
+        initial={{ y: 80, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ type: 'spring', stiffness: 280, damping: 24, delay: 0.05 }}
+      >
+        <MaigoCard
+          card={revealed ? card : undefined}
+          faceUp={revealed}
+          width={160}
+          backVariant="normal"
+        />
+      </motion.div>
+      {revealed && (
+        <motion.p
+          className="mt-6 text-xs text-stone-500"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.3 }}
+        >
+          {requireClickToDone ? (doneHint ?? '点击继续') : '结算中…'}
+        </motion.p>
+      )}
+    </motion.div>,
+    document.body,
+  );
+}
+
+function EndingQuickRef({ open, onClose }: { open: boolean; onClose: () => void }) {
+  if (!open) return null;
+  return createPortal(
+    <AnimatePresence>
+      {open && (
+        <>
+          <motion.div
+            className="fixed inset-0 z-[9996]"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={onClose}
+          />
+          <motion.div
+            className="fixed top-12 right-4 z-[9997] w-72 rounded-xl border border-stone-700/80 p-4 text-left"
+            style={{
+              backgroundColor: 'rgba(12,10,8,0.96)',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
+            }}
+            initial={{ opacity: 0, y: -8, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -8, scale: 0.96 }}
+            transition={{ duration: 0.15 }}
+          >
+            <p className="text-xs font-bold text-stone-300 mb-3 tracking-wide">结局速查</p>
+            <div className="space-y-2.5 text-xs leading-relaxed">
+              <div>
+                <span className="text-red-400 font-bold">Bad End</span>
+                <span className="text-stone-500 mx-1">·</span>
+                <span className="text-stone-400">手牌仅剩企鹅 → 自爆 <span className="text-red-300">-3 血</span>，永久出局</span>
+              </div>
+              <div>
+                <span className="text-amber-400 font-bold">Happy End</span>
+                <span className="text-stone-500 mx-1">·</span>
+                <span className="text-stone-400">所有牌打光（牌库+手牌=0）→ 全员 <span className="text-amber-300">+2 血</span>，重新发牌进入下一轮</span>
+              </div>
+              <div>
+                <span className="text-stone-300 font-bold">Normal End</span>
+                <span className="text-stone-500 mx-1">·</span>
+                <span className="text-stone-400">其他人全部自爆，仅剩最后 1 人 → <span className="text-stone-200">游戏结束</span>，该玩家获胜</span>
+              </div>
+              <div>
+                <span className="text-purple-400 font-bold">3 轮结算</span>
+                <span className="text-stone-500 mx-1">·</span>
+                <span className="text-stone-400">3 轮打满仍未决出胜者 → 血量最高者获胜（初始 7 / 上限 7）</span>
+              </div>
+            </div>
+            <div className="mt-3 pt-2 border-t border-stone-800 text-[10px] text-stone-600 leading-relaxed space-y-1">
+              <p>每回合：从上家盲抽 1 张 → 打出 1 张（企鹅不能打出）→ 下一家</p>
+              <p>无论别人是自爆还是打光牌，最后活着的那个人进入 Normal End</p>
+            </div>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>,
+    document.body,
+  );
+}
+
 function RuleCardPanel({
   open,
   onClose,
@@ -108,35 +293,75 @@ function RuleCardPanel({
   open: boolean;
   onClose: () => void;
 }) {
+  const [scale, setScale] = useState(1);
+  const containerRef = useRef<HTMLDivElement>(null);
+  
+  // 滚轮缩放
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? 0.9 : 1.1;
+    setScale(prev => Math.min(Math.max(prev * delta, 0.5), 3));
+  }, []);
+  
+  // 重置缩放当关闭时
+  useEffect(() => {
+    if (!open) setScale(1);
+  }, [open]);
+  
   if (typeof document === 'undefined') return null;
+  
   return createPortal(
     <AnimatePresence>
       {open && (
-        <motion.div
-          className="fixed right-4 top-4 bottom-4 z-[9999] flex w-[320px] max-w-[calc(100vw-2rem)] flex-col rounded-xl border border-stone-600 bg-stone-900/95 shadow-2xl backdrop-blur-sm"
-          initial={{ x: '100%', opacity: 0 }}
-          animate={{ x: 0, opacity: 1 }}
-          exit={{ x: '100%', opacity: 0 }}
-          transition={{ type: 'tween', duration: 0.2 }}
-        >
-          <div className="flex shrink-0 items-center justify-between border-b border-stone-700 px-3 py-2">
-            <span className="text-sm font-medium text-stone-400">规则速查</span>
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-lg px-2 py-1 text-sm text-stone-500 hover:bg-stone-800 hover:text-stone-200"
-            >
-              關閉
-            </button>
-          </div>
-          <div className="flex-1 overflow-y-auto p-2">
+        <>
+          {/* 背景遮罩 */}
+          <motion.div
+            className="fixed inset-0 z-[9998] bg-black/60"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={onClose}
+          />
+          {/* 图片容器 - 支持滚轮缩放，点击任意位置关闭 */}
+          <motion.div
+            ref={containerRef}
+            className="fixed inset-4 z-[9999] flex items-center justify-center overflow-hidden cursor-pointer"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onWheel={handleWheel}
+            onClick={onClose}
+          >
             <img
               src={RULE_IMAGE}
               alt="迷子 回合流程與 END 條件速查"
-              className="w-full object-contain"
+              className="max-w-none pointer-events-none"
+              style={{ 
+                transform: `scale(${scale})`,
+                transition: 'transform 0.1s ease-out',
+              }}
+              draggable={false}
             />
-          </div>
-        </motion.div>
+          </motion.div>
+          {/* 关闭按钮和缩放提示 */}
+          <motion.div
+            className="fixed top-4 right-4 z-[10000] flex items-center gap-2"
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+          >
+            <span className="text-xs text-stone-400 bg-stone-900/80 px-2 py-1 rounded">
+              滚轮缩放 {Math.round(scale * 100)}%
+            </span>
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-lg px-3 py-1 text-sm bg-stone-800 text-stone-300 hover:bg-stone-700"
+            >
+              关闭
+            </button>
+          </motion.div>
+        </>
       )}
     </AnimatePresence>,
     document.body,
@@ -147,17 +372,74 @@ export default function MissingChildGameBoard() {
   const {
     gameState,
     selectedInstanceIds,
+    extraGained,
+    pendingDraw,
+    aquariumReveal,
     startGame,
     drawFromLeftByInstanceId,
+    commitPendingDraw,
     drawFromDeck,
     toggleSelect,
     playSelected,
     skipTurnNoPlayable,
+    confirmTurnEnd,
+    confirmGameEnd,
+    triggerNormalEndFromDraw,
+    clearExtraGained,
+    clearAquariumReveal,
+    crossroadDrawDone,
     resetGame,
+    skipBadEndAnimation,
   } = useMissingChildStore();
 
   const [bgMuted, setBgMuted] = useState(true);
   const [showRuleCard, setShowRuleCard] = useState(false);
+  const [showEndingRef, setShowEndingRef] = useState(false);
+
+  // crossroad_draw 自动结算：展示 pendingEffect.card 后触发 crossroadDrawDone
+  const crossroadEffect = gameState?.pendingEffect?.type === 'crossroad_draw'
+    ? gameState.pendingEffect
+    : null;
+
+  // 抽牌阶段：找第一个有手牌的上家；如果是自己则触发 Normal End
+  const drawSourceIdx = gameState?.phase === 'playing'
+    ? getDrawSourcePlayerIndex(gameState)
+    : -1;
+
+  useEffect(() => {
+    if (!gameState || gameState.phase !== 'playing') return;
+    if (gameState.gameEndPending || gameState.pendingEffect) return;
+    const cur = gameState.players[gameState.currentPlayerIndex];
+    
+    // 当前玩家已死亡（HE/BE），自动进入下一位
+    if (!cur.alive) {
+      confirmTurnEnd();
+      return;
+    }
+    
+    if (gameState.turnEndPending || cur.drawnCard !== null) return;
+    if (drawSourceIdx === gameState.currentPlayerIndex) {
+      triggerNormalEndFromDraw();
+    }
+  }, [drawSourceIdx, gameState?.currentPlayerIndex, gameState?.phase, gameState?.gameEndPending]);
+
+  const prevLogCountRef = useRef(0);
+  useEffect(() => {
+    if (!gameState) return;
+    const logs = gameState.logs;
+    if (logs.length > prevLogCountRef.current) {
+      const newLogs = logs.slice(prevLogCountRef.current);
+      if (newLogs.some(l => l.type === 'bad_end')) playMaigoSfx();
+      prevLogCountRef.current = logs.length;
+    }
+  }, [gameState?.logs.length]);
+
+  useEffect(() => {
+    if (extraGained > 0) {
+      const t = setTimeout(() => clearExtraGained(), 1200);
+      return () => clearTimeout(t);
+    }
+  }, [extraGained, clearExtraGained]);
 
   let content: React.ReactNode;
   if (!gameState) {
@@ -218,11 +500,11 @@ export default function MissingChildGameBoard() {
           {gameState.players.map((p) => (
             <span key={p.id}>
               {p.name} —{' '}
-              {p.alive
-                ? `血量 ${p.hp}`
-                : p.hand.length === 0
-                  ? `Happy End（+2 血） 最終 ${p.hp}`
-                  : 'Bad End（自爆）'}
+              {p.badEnded
+                ? `💀 Bad End（-3血）最终 ${p.hp} 血`
+                : p.happyEnded
+                  ? `🌟 Happy End（+2血）最终 ${p.hp} 血`
+                  : `${p.hp} 血`}
             </span>
           ))}
         </div>
@@ -237,34 +519,84 @@ export default function MissingChildGameBoard() {
     );
   } else {
     const cur = gameState.players[gameState.currentPlayerIndex];
-    const leftIdx = getLeftPlayerIndex(gameState);
-    const leftPlayer = gameState.players[leftIdx];
-    const needDraw = cur.alive && cur.drawnCard === null;
+    // 防御：当前玩家不存在时显示错误
+    if (!cur) {
+      content = (
+        <div className="flex flex-col items-center justify-center min-h-screen gap-6 p-8 bg-stone-950/80 text-stone-200">
+          <h2 className="text-2xl font-bold">游戏状态错误</h2>
+          <p className="text-stone-400">当前玩家不存在，请重新开始游戏</p>
+          <button
+            type="button"
+            onClick={resetGame}
+            className="px-6 py-2 bg-stone-700 hover:bg-stone-600 rounded-lg"
+          >
+            返回
+          </button>
+        </div>
+      );
+    } else {
+    const leftPlayer = gameState.players[drawSourceIdx];
+    const turnEndPending = !!gameState.turnEndPending;
+    const needDraw =
+      !turnEndPending &&
+      !gameState.gameEndPending &&
+      cur.alive &&
+      cur.drawnCard === null &&
+      !pendingDraw &&
+      drawSourceIdx !== gameState.currentPlayerIndex;
     const playsLeft = gameState.playsLeft ?? 1;
     const canPlay =
+      !turnEndPending &&
       cur.alive &&
       !cur.actionEnd &&
+      cur.drawnCard !== null &&
       selectedInstanceIds.length > 0 &&
-      (cur.drawnCard !== null || playsLeft > 0);
+      playsLeft > 0;
     const noPlayable =
+      !turnEndPending &&
       cur.alive &&
       cur.drawnCard !== null &&
       !cur.actionEnd &&
       !hasPlayableCard(gameState);
+    
+    // 热座模式下当前玩家就是当前回合玩家
+    const currentPlayerIndex = gameState.currentPlayerIndex;
 
     content = (
-      <div className="flex flex-col min-h-screen bg-stone-950/80 text-stone-200">
+      <div className="flex flex-col min-h-screen bg-stone-950/80 text-stone-200 lg:pr-80">
+      {/* 日志面板 */}
+      <LogPanel gameState={gameState} currentPlayerIndex={currentPlayerIndex} />
+      
+      {/* 效果选择面板 */}
+      <EffectPanel gameState={gameState} currentPlayerIndex={currentPlayerIndex} />
+      
+      {/* 等待指示器 */}
+      <WaitingIndicator gameState={gameState} currentPlayerIndex={currentPlayerIndex} />
+      
       <div className="flex items-center justify-between px-4 py-3 border-b border-stone-800 bg-stone-900/80">
-        <span className="text-sm text-stone-400">
-          第 <span className="font-bold text-stone-200">{gameState.round + 1}</span>/3 轮
-          <span className="mx-2 text-stone-600">·</span>
-          当前：<span className="font-bold text-amber-400">{cur.name}</span>
-          {playsLeft > 1 && (
-            <span className="ml-2 text-amber-300">可再出牌 {playsLeft} 次</span>
+        <span className="text-sm text-stone-400 flex items-center gap-2">
+          <span>第 <span className="font-bold text-stone-200">{gameState.round + 1}</span>/3 轮</span>
+          <span className="text-stone-600">·</span>
+          <span>第 <span className="font-bold text-stone-200">{gameState.turn ?? 1}</span> 回合</span>
+          <span className="text-stone-600">·</span>
+          <span>当前：<span className="font-bold text-amber-400">{cur.name}</span></span>
+          <span className="text-amber-300">剩余行动 {playsLeft}{playsLeft > 1 ? '（仅打牌）' : ''}</span>
+          {!cur.alive && <span className="text-red-400">（自爆）</span>}
+          {gameState.protectedDraw && (
+            <span className="text-purple-400">
+              {gameState.protectedDraw.source === 'amulet' ? '🔮 护身符' : '⚡ 灯塔'}生效中
+            </span>
           )}
-          {!cur.alive && <span className="ml-2 text-red-400">（自爆）</span>}
+          <MiniWaitingIndicator gameState={gameState} currentPlayerIndex={currentPlayerIndex} />
         </span>
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setShowEndingRef(v => !v)}
+            className="text-xs text-stone-500 hover:text-amber-400 transition-colors"
+          >
+            结局速查
+          </button>
           <button
             type="button"
             onClick={() => setShowRuleCard(true)}
@@ -282,8 +614,75 @@ export default function MissingChildGameBoard() {
         </div>
       </div>
 
-      <div className="flex-1 p-4 space-y-6">
-        {/* 抽牌阶段：从上家手牌（牌背）选一张，或点牌库抽一张 */}
+      <div className="flex-1 p-4 space-y-6 relative">
+        {/* 获得额外行动时的浮现动画 */}
+        <AnimatePresence>
+          {extraGained > 0 && (
+            <motion.div
+              key="extra-gained"
+              className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+            >
+              <motion.div
+                className="rounded-xl bg-amber-500/95 px-8 py-4 text-2xl font-bold text-amber-950 shadow-xl"
+                initial={{ scale: 0.5, opacity: 0, y: 20 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 1.1, opacity: 0, y: -30 }}
+                transition={{
+                  type: 'spring',
+                  stiffness: 300,
+                  damping: 25,
+                }}
+              >
+                行动+{extraGained}
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Normal End：等待玩家确认进入终局结算 */}
+        {gameState.gameEndPending && (
+          <motion.section
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="rounded-xl border border-red-500/50 bg-red-950/30 p-6 text-center"
+          >
+            <p className="text-red-200/90 mb-2 font-bold text-lg">游戏结束 — Normal End</p>
+            <p className="text-stone-400 text-sm mb-4">
+              {gameState.players.find(p => p.alive)?.name ?? '无人'} 最后一人存活
+            </p>
+            <button
+              type="button"
+              onClick={confirmGameEnd}
+              className="px-6 py-3 bg-red-700 hover:bg-red-600 text-white font-bold rounded-xl transition-colors"
+            >
+              确认进入结算
+            </button>
+          </motion.section>
+        )}
+
+        {/* 本回合已结束，等待当前玩家确认后进入下一位 */}
+        {turnEndPending && (
+          <motion.section
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="rounded-xl border border-amber-500/50 bg-amber-950/30 p-6 text-center"
+          >
+            <p className="text-amber-200/90 mb-4">本回合已结束</p>
+            <button
+              type="button"
+              onClick={confirmTurnEnd}
+              className="px-6 py-3 bg-amber-600 hover:bg-amber-500 text-amber-950 font-bold rounded-xl transition-colors"
+            >
+              确认结束回合
+            </button>
+          </motion.section>
+        )}
+
+        {/* 抽牌阶段：从上家手牌选一张 */}
         {needDraw && (
           <motion.section
             initial={{ opacity: 0, y: 8 }}
@@ -291,34 +690,62 @@ export default function MissingChildGameBoard() {
             className="rounded-xl border border-amber-500/30 bg-amber-950/20 p-4"
           >
             <p className="text-sm font-medium text-amber-200/90 mb-3">
-              抽一张牌：点击上家手牌中的一张，或点击牌库顶
+              抽一张牌：{gameState.protectedDraw 
+                ? `${gameState.players[gameState.protectedDraw.pickedBy].name} 使用${gameState.protectedDraw.source === 'amulet' ? '护身符' : '灯塔'}，请为 ${leftPlayer.name} 挑选一张牌` 
+                : `点击上家手牌中的一张抽取`}
             </p>
             <div className="flex flex-wrap items-end gap-4">
-              {leftPlayer.hand.length > 0 && (
+              {leftPlayer.hand.length > 0 ? (
                 <div className="flex flex-col items-center gap-2">
                   <span className="text-xs text-stone-500">
-                    {leftPlayer.name} 的手牌（看背面点一张抽取）
+                    {leftPlayer.name} 的手牌（{gameState.protectedDraw ? '正面选择' : '看背面点一张抽取'}）
                   </span>
                   <div className="flex gap-2 flex-wrap">
-                    {leftPlayer.hand.map((card) => (
-                      <MaigoCard
-                        key={card.instanceId}
-                        faceUp={false}
-                        width={96}
-                        onClick={() => drawFromLeftByInstanceId(card.instanceId)}
-                      />
-                    ))}
+                    {leftPlayer.hand.map((card) => {
+                      // 护身符/灯塔约束：判断该牌是否可被选中
+                      let isDisabled = false;
+                      let isHighlighted = false;
+                      if (gameState.protectedDraw && leftPlayer.hand.length > 1) {
+                        const { source, instanceId: markedId } = gameState.protectedDraw;
+                        if (source === 'amulet' && card.instanceId === markedId) {
+                          isDisabled = true; // 护身符：被保护的牌不能选
+                        }
+                        if (source === 'lighthouse' && card.instanceId !== markedId) {
+                          isDisabled = true; // 灯塔：只能选被指定的牌
+                        }
+                        if (source === 'lighthouse' && card.instanceId === markedId) {
+                          isHighlighted = true; // 灯塔：高亮被指定的牌
+                        }
+                      }
+                      
+                      return (
+                        <div key={card.instanceId} className="relative">
+                          <MaigoCard
+                            card={gameState.protectedDraw ? card : undefined}
+                            faceUp={!!gameState.protectedDraw}
+                            width={96}
+                            backVariant="normal"
+                            onClick={isDisabled ? undefined : () => drawFromLeftByInstanceId(card.instanceId)}
+                            className={isDisabled ? 'opacity-30 grayscale' : isHighlighted ? 'ring-2 ring-amber-400' : ''}
+                          />
+                          {isDisabled && (
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <span className="text-2xl">🚫</span>
+                            </div>
+                          )}
+                          {isHighlighted && (
+                            <div className="absolute -top-2 -right-2 bg-amber-500 text-amber-950 text-xs font-bold px-2 py-0.5 rounded-full">
+                              必须抽
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
+              ) : (
+                <p className="text-stone-500 text-sm">上家手牌为空，无法抽牌</p>
               )}
-              <div className="flex flex-col items-center gap-2">
-                <span className="text-xs text-stone-500">牌库（点牌库顶抽取）</span>
-                <DeckPile
-                  count={gameState.deck.length}
-                  width={96}
-                  onClick={gameState.deck.length > 0 ? drawFromDeck : undefined}
-                />
-              </div>
             </div>
           </motion.section>
         )}
@@ -331,11 +758,11 @@ export default function MissingChildGameBoard() {
           </section>
         )}
 
-        {/* 手牌：卡牌正面，可多选坏掉的街道 */}
+        {/* 手牌：卡牌正面，可多选坏掉的街灯 */}
         {cur.hand.length > 0 && (
-          <section>
+          <section className={needDraw ? 'opacity-40' : ''}>
             <p className="text-xs text-stone-500 mb-2">
-              手牌（迷子不能打出；可多选「坏掉的街道」一起打出）
+              手牌（迷子不能打出；可多选「坏掉的街灯」一起打出）
             </p>
             <div className="flex flex-wrap gap-2">
               <AnimatePresence>
@@ -353,7 +780,7 @@ export default function MissingChildGameBoard() {
                       width={100}
                       selected={selectedInstanceIds.includes(c.instanceId)}
                       onClick={() => {
-                        if (cur.actionEnd) return;
+                        if (cur.drawnCard === null || cur.actionEnd) return;
                         const def = getCardDef(c.cardId);
                         if (def && (def.id >= 18 && def.id <= 22)) {
                           toggleSelect(c.instanceId);
@@ -392,31 +819,50 @@ export default function MissingChildGameBoard() {
         )}
       </div>
 
-      <div className="p-4 border-t border-stone-800 flex flex-wrap items-center gap-4">
-        <div className="flex items-center gap-2">
-          <DeckPile count={gameState.deck.length} width={56} />
-          <span className="text-xs text-stone-500">牌库</span>
-        </div>
-        <span className="text-xs text-stone-500">
-          弃牌 {gameState.discard.length} 张
-        </span>
-        <div className="flex flex-wrap gap-2">
-          {gameState.players.map((p) => (
-            <span
-              key={p.id}
-              className={`px-2 py-1 rounded text-sm ${
-                p.alive
-                  ? 'bg-stone-800 text-stone-300'
-                  : 'bg-red-900/30 text-red-300 line-through'
-              } ${p.id === gameState.currentPlayerIndex ? 'ring-1 ring-amber-500' : ''}`}
-            >
-              {p.name} 血{p.hp} · {p.hand.length}张
-            </span>
-          ))}
+      {/* mb-20 为左下角路由按钮留出空间 */}
+      <div className="p-4 border-t border-stone-800 space-y-3 mb-20">
+        {/* 弃牌堆展示 */}
+        <DiscardPile discard={gameState.discard} />
+        
+        {/* 牌库和玩家状态 */}
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex items-center gap-2">
+            {/* 牌库尺寸加大 */}
+            <DeckPile count={gameState.deck.length} width={60} topIsMaigo={gameState.deckTopIsMaigo} />
+            <span className="text-xs text-stone-500">牌库</span>
+            {gameState.deckTopIsMaigo && <span className="text-[10px] text-red-400">迷子在顶!</span>}
+          </div>
+          <span className="text-xs text-stone-500">
+            弃牌 {gameState.discard.length} 张
+          </span>
+          <div className="flex flex-wrap gap-2">
+            {gameState.players.map((p) => {
+              const isHE = Boolean(p.happyEnded);
+              const isBE = Boolean(p.badEnded);
+
+              return (
+                <span
+                  key={p.id}
+                  className={`px-2 py-1 rounded text-sm ${
+                    isBE
+                      ? 'bg-red-900/30 text-red-300'
+                      : isHE
+                        ? 'bg-amber-900/30 text-amber-300'
+                        : 'bg-stone-800 text-stone-300'
+                  } ${p.id === gameState.currentPlayerIndex ? 'ring-1 ring-amber-500' : ''}`}
+                >
+                  {p.name} 血{p.hp} · {p.hand.length}张
+                  {isBE && <span className="ml-1 text-red-400">💀BE</span>}
+                  {isHE && <span className="ml-1 text-amber-400">🌟HE</span>}
+                </span>
+              );
+            })}
+          </div>
         </div>
       </div>
     </div>
     );
+  }
   }
 
   return (
@@ -432,6 +878,46 @@ export default function MissingChildGameBoard() {
       <div className="relative z-10 flex flex-col min-h-screen">
         {content}
       </div>
+
+      {/* 回合开始抽牌动画 */}
+      <AnimatePresence>
+        {pendingDraw && (
+          <DrawRevealOverlay
+            key={pendingDraw.animKey}
+            card={pendingDraw.card}
+            title={`从 ${pendingDraw.fromPlayerName} 的手牌中抽取`}
+            onDone={commitPendingDraw}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* 平交道抽牌动画（crossroad_draw） */}
+      <AnimatePresence>
+        {crossroadEffect?.card && (
+          <DrawRevealOverlay
+            key={`crossroad-${crossroadEffect.card.instanceId}`}
+            card={crossroadEffect.card}
+            title={isMaigo(crossroadEffect.card.cardId) ? '平交道：当前自爆的牌' : '平交道：从牌库顶抽取'}
+            subtitle={isMaigo(crossroadEffect.card.cardId) ? '抽到了迷子，点击进入下一位' : undefined}
+            requireClickToDone={isMaigo(crossroadEffect.card.cardId)}
+            doneHint={isMaigo(crossroadEffect.card.cardId) ? '点击进入下一位' : undefined}
+            onDone={crossroadDrawDone}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* 水族馆：展示当前玩家收到的牌 */}
+      <AnimatePresence>
+        {aquariumReveal && (
+          <DrawRevealOverlay
+            key={`aquarium-${aquariumReveal.receivedCard.instanceId}`}
+            card={aquariumReveal.receivedCard}
+            title={`水族馆：${aquariumReveal.playerName} 收到了`}
+            subtitle={isMaigo(aquariumReveal.receivedCard.cardId) ? '是迷子…' : undefined}
+            onDone={clearAquariumReveal}
+          />
+        )}
+      </AnimatePresence>
       <button
         type="button"
         onClick={() => setBgMuted((m) => !m)}
@@ -441,6 +927,19 @@ export default function MissingChildGameBoard() {
         {bgMuted ? '🔇' : '🔊'}
       </button>
       <RuleCardPanel open={showRuleCard} onClose={() => setShowRuleCard(false)} />
+      <EndingQuickRef open={showEndingRef} onClose={() => setShowEndingRef(false)} />
+      
+      {/* 测试模式（开发调试用） */}
+      <TestMode />
+
+      {/* BE动画覆盖层 */}
+      {gameState?.badEndAnimation && (
+        <BadEndOverlay
+          playerName={gameState.players[gameState.badEndAnimation.playerIndex].name}
+          hand={gameState.badEndAnimation.hand}
+          onSkip={skipBadEndAnimation}
+        />
+      )}
     </div>
   );
 }
