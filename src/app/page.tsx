@@ -21,6 +21,14 @@ const GAMES = [
     description: '三口沸腾的大锅，每回合你必须往里加料或硬着头皮端走。Knizia 式的优雅博弈——规则三分钟学会，心理战贯穿全程。',
     players: '3-6',
   },
+  {
+    id: 'missing-child',
+    name: '迷子',
+    nameEn: 'Missing Child',
+    tagline: '从上家抽一张，再出一张——别让手里只剩迷子。',
+    description: '牌分光亮与黑暗，迷子不能打出。每回合从左邻抽一张牌再打出一张；手牌仅剩迷子则出局，最后存活者胜。',
+    players: '2-4',
+  },
 ];
 
 export default function Home() {
