@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useMissingChildStore } from '../store';
-import { getCardDef, isMaigo } from '../types';
+import { getCardDef, getDefaultMissingChildPlayerName, getMissingChildPlayerTheme, isMaigo } from '../types';
 import type { CardRef } from '../types';
 import { getDrawSourcePlayerIndex, hasPlayableCard, getWinnersByHp } from '../engine';
 import { MaigoCard, DeckPile, DiscardPile } from './Card';
@@ -17,6 +17,8 @@ import { TestMode } from './TestMode';
 const MAIGO_BG_BVID = 'BV1sN4y1T72q';
 const RULE_IMAGE = '/assets/maigo/rule.png';
 const MAIGO_SFX = '/assets/maigo/gugugaga.mp3';
+const TOMORI_COLOR = '#77BBDD';
+const DEFAULT_PLAYER_NAMES = Array.from({ length: 4 }, (_, index) => getDefaultMissingChildPlayerName(index));
 
 let lastSfxTime = 0;
 function playMaigoSfx() {
@@ -27,8 +29,18 @@ function playMaigoSfx() {
   audio.play().catch(() => {});
 }
 
+import { unlockAudio } from '../audioUnlock';
+
 function buildBilibiliSrc(bvid: string, muted: boolean) {
   return `//player.bilibili.com/player.html?isOutside=true&bvid=${bvid}&p=1&autoplay=1&danmaku=0&loop=1&t=0${muted ? '&muted=1' : ''}`;
+}
+
+function hexToRgba(hex: string, alpha: number) {
+  const normalized = hex.replace('#', '');
+  const red = Number.parseInt(normalized.slice(0, 2), 16);
+  const green = Number.parseInt(normalized.slice(2, 4), 16);
+  const blue = Number.parseInt(normalized.slice(4, 6), 16);
+  return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
 }
 
 function SetupScreen({
@@ -39,10 +51,21 @@ function SetupScreen({
   onShowRules: () => void;
 }) {
   const [playerCount, setPlayerCount] = useState(4);
-  const [names, setNames] = useState<string[]>(['', '', '', '']);
+  const [names, setNames] = useState<string[]>(DEFAULT_PLAYER_NAMES);
+  const [audioStatus, setAudioStatus] = useState<'idle' | 'ready' | 'blocked'>('idle');
 
-  const handleStart = () => {
-    const trimmed = names.slice(0, playerCount).map((name, i) => (name.trim() || `玩家${i + 1}`));
+  const primeAudio = useCallback(() => {
+    void unlockAudio().then((ok) => {
+      setAudioStatus(ok ? 'ready' : 'blocked');
+    });
+  }, []);
+
+  const handleStart = async () => {
+    const unlocked = await unlockAudio();
+    setAudioStatus(unlocked ? 'ready' : 'blocked');
+    const trimmed = names
+      .slice(0, playerCount)
+      .map((name, i) => (name.trim() || getDefaultMissingChildPlayerName(i)));
     onStart(trimmed);
   };
 
@@ -59,17 +82,17 @@ function SetupScreen({
           backgroundImage: 'radial-gradient(ellipse 70% 60% at 50% 0%, rgba(60,30,20,0.2), transparent)',
         }}
       >
-        <p className="text-red-400/90 text-sm leading-relaxed font-medium">
-          「迷子でもいい…迷子でも進め！！」——可高松灯没告诉你的是，企鹅们会跟过来。
+        <p className="text-sm leading-relaxed font-medium" style={{ color: TOMORI_COLOR }}>
+          「迷子でもいい…迷子でも進め！！」——可高松灯没告诉你的是，企鹅病毒已经在街道上扩散。
         </p>
         <p className="text-stone-400 text-sm leading-relaxed">
-          三只高松灯企鹅潜伏在 34 张牌里。它们不能打出、不能丢弃、只会在你手牌里越攒越多。每回合你必须从上家手中盲抽一张——也许是救命的街灯，也许是又一只黑眼睛的企鹅。
+          三只高松灯企鹅潜伏在 32 张牌里。它们不能打出、不能丢弃、只会在你手牌里越攒越多。每回合你必须从上家手中盲抽一张——也许是救命的街灯，也许是又一只咕咕嘎嘎的企鹅。
         </p>
         <p className="text-stone-400 text-sm leading-relaxed">
-          当手牌无光亮牌和企鹅在一起时，你会听到它们的叫声——然后自爆出局，<span className="text-red-400">-3 血</span>，被拖入永远迷路的彼端。全 3 轮打完，血量最高的人才能活着走出来。
+          当手牌里有企鹅、却一张光亮牌都没有时，你会永远只听到它们的叫声——<span style={{ color: TOMORI_COLOR }}>-3 SAN</span>，被拖入成为迷子的一员。全 3 轮打完，SAN 最高的人获胜。
         </p>
         <p className="text-stone-500 text-xs leading-relaxed italic">
-          如果齐心打光全部牌……企鹅会暂时消失，这名玩家<span className="text-amber-400/80">+2 血</span>，Happy End。但别高兴太早——牌会重新发，企鹅还会回来。撑过 3 轮，血量最高的人才算真正赢了。
+          牌越少，越容易和企鹅独处，就更危险……如果打光全部牌……企鹅会暂时消失，这名玩家<span style={{ color: TOMORI_COLOR }}>+2 SAN</span>，Happy End。但别高兴太早——牌会重新发，企鹅还会回来。撑过 3 轮，SAN 最高的人才算真正赢了。
         </p>
       </div>
 
@@ -94,28 +117,44 @@ function SetupScreen({
 
       <div className="flex flex-col gap-3 w-56">
         {Array.from({ length: playerCount }, (_, i) => (
-          <input
-            key={i}
-            type="text"
-            placeholder={`玩家 ${i + 1}`}
-            value={names[i] ?? ''}
-            onChange={(e) => {
-              const next = [...names];
-              next[i] = e.target.value;
-              setNames(next);
-            }}
-            className="px-4 py-2 bg-stone-800 border border-stone-700 rounded-lg text-stone-200 placeholder-stone-500 focus:outline-none focus:border-amber-500"
-          />
+          (() => {
+            const theme = getMissingChildPlayerTheme(i);
+            return (
+              <input
+                key={i}
+                type="text"
+                placeholder={getDefaultMissingChildPlayerName(i)}
+                value={names[i] ?? ''}
+                onChange={(e) => {
+                  const next = [...names];
+                  next[i] = e.target.value;
+                  setNames(next);
+                }}
+                className="px-4 py-2 bg-stone-800 border rounded-lg text-stone-200 placeholder-stone-500 focus:outline-none"
+                style={{
+                  borderColor: hexToRgba(theme.color, 0.45),
+                  color: theme.color,
+                }}
+              />
+            );
+          })()
         ))}
       </div>
 
       <button
         type="button"
+        onPointerDown={primeAudio}
         onClick={handleStart}
         className="px-8 py-3 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-xl transition-all active:scale-95"
       >
-        开始游戏
+        开始游戏并启用声音
       </button>
+
+      <p className="text-xs text-stone-500">
+        {audioStatus === 'ready' && '声音已解锁，后续音效会尽量自动播放'}
+        {audioStatus === 'blocked' && '浏览器拦截了自动播放；开始后可再点一次相关按钮启用声音'}
+        {audioStatus === 'idle' && '点击开始时会一并请求浏览器启用声音'}
+      </p>
 
       <button
         type="button"
@@ -256,12 +295,12 @@ function EndingQuickRef({ open, onClose }: { open: boolean; onClose: () => void 
               <div>
                 <span className="text-red-400 font-bold">Bad End</span>
                 <span className="text-stone-500 mx-1">·</span>
-                <span className="text-stone-400">手牌仅剩企鹅 → 自爆 <span className="text-red-300">-3 血</span>，永久出局</span>
+                <span className="text-stone-400">手里有企鹅且没有光亮牌 → 自爆 <span className="text-red-300">-3 SAN</span>，永久出局</span>
               </div>
               <div>
                 <span className="text-amber-400 font-bold">Happy End</span>
                 <span className="text-stone-500 mx-1">·</span>
-                <span className="text-stone-400">所有牌打光（牌库+手牌=0）→ 全员 <span className="text-amber-300">+2 血</span>，重新发牌进入下一轮</span>
+                <span className="text-stone-400">所有牌打光（牌库+手牌=0）→ 全员 <span className="text-amber-300">+2 SAN</span>，重新发牌进入下一轮</span>
               </div>
               <div>
                 <span className="text-stone-300 font-bold">Normal End</span>
@@ -271,7 +310,7 @@ function EndingQuickRef({ open, onClose }: { open: boolean; onClose: () => void 
               <div>
                 <span className="text-purple-400 font-bold">3 轮结算</span>
                 <span className="text-stone-500 mx-1">·</span>
-                <span className="text-stone-400">3 轮打满仍未决出胜者 → 血量最高者获胜（初始 7 / 上限 7）</span>
+                <span className="text-stone-400">3 轮打满仍未决出胜者 → SAN 最高者获胜（初始 7 / 上限 7）</span>
               </div>
             </div>
             <div className="mt-3 pt-2 border-t border-stone-800 text-[10px] text-stone-600 leading-relaxed space-y-1">
@@ -295,6 +334,10 @@ function RuleCardPanel({
 }) {
   const [scale, setScale] = useState(1);
   const containerRef = useRef<HTMLDivElement>(null);
+  const handleClose = useCallback(() => {
+    setScale(1);
+    onClose();
+  }, [onClose]);
   
   // 滚轮缩放
   const handleWheel = useCallback((e: React.WheelEvent) => {
@@ -302,11 +345,6 @@ function RuleCardPanel({
     const delta = e.deltaY > 0 ? 0.9 : 1.1;
     setScale(prev => Math.min(Math.max(prev * delta, 0.5), 3));
   }, []);
-  
-  // 重置缩放当关闭时
-  useEffect(() => {
-    if (!open) setScale(1);
-  }, [open]);
   
   if (typeof document === 'undefined') return null;
   
@@ -320,7 +358,7 @@ function RuleCardPanel({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={onClose}
+            onClick={handleClose}
           />
           {/* 图片容器 - 支持滚轮缩放，点击任意位置关闭 */}
           <motion.div
@@ -330,7 +368,7 @@ function RuleCardPanel({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onWheel={handleWheel}
-            onClick={onClose}
+            onClick={handleClose}
           >
             <img
               src={RULE_IMAGE}
@@ -355,7 +393,7 @@ function RuleCardPanel({
             </span>
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleClose}
               className="rounded-lg px-3 py-1 text-sm bg-stone-800 text-stone-300 hover:bg-stone-700"
             >
               关闭
@@ -378,7 +416,6 @@ export default function MissingChildGameBoard() {
     startGame,
     drawFromLeftByInstanceId,
     commitPendingDraw,
-    drawFromDeck,
     toggleSelect,
     playSelected,
     skipTurnNoPlayable,
@@ -460,7 +497,7 @@ export default function MissingChildGameBoard() {
       title = 'Normal End';
       message = lastAlive ? (
         <p className="text-stone-400">
-          <span className="text-amber-400 font-bold">{lastAlive.name}</span> 最后一人存活获胜
+          <span className="font-bold" style={{ color: getMissingChildPlayerTheme(lastAlive.id).color }}>{lastAlive.name}</span> 最后一人存活获胜
         </p>
       ) : (
         <p className="text-stone-400">无人存活</p>
@@ -470,11 +507,11 @@ export default function MissingChildGameBoard() {
       message =
         winnersByHp.length > 0 ? (
           <p className="text-stone-400">
-            血量最多：{' '}
+            SAN 最高：{' '}
             {winnersByHp.map((p, i) => (
               <span key={p.id}>
                 {i > 0 && '、'}
-                <span className="text-amber-400 font-bold">{p.name}</span>
+                <span className="font-bold" style={{ color: getMissingChildPlayerTheme(p.id).color }}>{p.name}</span>
               </span>
             ))}
             {winnersByHp.length > 1 && '（并列）'}
@@ -485,7 +522,7 @@ export default function MissingChildGameBoard() {
     } else {
       message = lastAlive ? (
         <p className="text-stone-400">
-          <span className="text-amber-400 font-bold">{lastAlive.name}</span> 获胜
+          <span className="font-bold" style={{ color: getMissingChildPlayerTheme(lastAlive.id).color }}>{lastAlive.name}</span> 获胜
         </p>
       ) : (
         <p className="text-stone-400">无人存活</p>
@@ -499,12 +536,12 @@ export default function MissingChildGameBoard() {
         <div className="flex flex-col gap-1 text-sm text-stone-500">
           {gameState.players.map((p) => (
             <span key={p.id}>
-              {p.name} —{' '}
+              <span className="mc-player-list-font" style={{ color: getMissingChildPlayerTheme(p.id).color }}>{p.name}</span> —{' '}
               {p.badEnded
-                ? `💀 Bad End（-3血）最终 ${p.hp} 血`
+                ? `💀 Bad End（-3SAN）最终 ${p.hp} SAN`
                 : p.happyEnded
-                  ? `🌟 Happy End（+2血）最终 ${p.hp} 血`
-                  : `${p.hp} 血`}
+                  ? `🌟 Happy End（+2SAN）最终 ${p.hp} SAN`
+                  : `${p.hp} SAN`}
             </span>
           ))}
         </div>
@@ -535,6 +572,7 @@ export default function MissingChildGameBoard() {
         </div>
       );
     } else {
+    const currentTheme = getMissingChildPlayerTheme(cur.id);
     const leftPlayer = gameState.players[drawSourceIdx];
     const turnEndPending = !!gameState.turnEndPending;
     const needDraw =
@@ -579,7 +617,7 @@ export default function MissingChildGameBoard() {
           <span className="text-stone-600">·</span>
           <span>第 <span className="font-bold text-stone-200">{gameState.turn ?? 1}</span> 回合</span>
           <span className="text-stone-600">·</span>
-          <span>当前：<span className="font-bold text-amber-400">{cur.name}</span></span>
+          <span>当前：<span className="font-bold" style={{ color: currentTheme.color }}>{cur.name}</span></span>
           <span className="text-amber-300">剩余行动 {playsLeft}{playsLeft > 1 ? '（仅打牌）' : ''}</span>
           {!cur.alive && <span className="text-red-400">（自爆）</span>}
           {gameState.protectedDraw && (
@@ -817,6 +855,14 @@ export default function MissingChildGameBoard() {
             </button>
           </p>
         )}
+
+        {gameState.gameEndPending && (
+          <div className="rounded-lg border border-red-500/40 bg-red-950/20 px-4 py-3">
+            <p className="text-sm text-red-200">
+              已触发 <span className="font-bold">Normal End</span> · 点击上方按钮进入结算
+            </p>
+          </div>
+        )}
       </div>
 
       {/* mb-20 为左下角路由按钮留出空间 */}
@@ -839,19 +885,24 @@ export default function MissingChildGameBoard() {
             {gameState.players.map((p) => {
               const isHE = Boolean(p.happyEnded);
               const isBE = Boolean(p.badEnded);
+              const theme = getMissingChildPlayerTheme(p.id);
 
               return (
                 <span
                   key={p.id}
-                  className={`px-2 py-1 rounded text-sm ${
-                    isBE
-                      ? 'bg-red-900/30 text-red-300'
+                  className="px-2 py-1 rounded text-sm"
+                  style={{
+                    backgroundColor: isBE
+                      ? 'rgba(127, 29, 29, 0.3)'
                       : isHE
-                        ? 'bg-amber-900/30 text-amber-300'
-                        : 'bg-stone-800 text-stone-300'
-                  } ${p.id === gameState.currentPlayerIndex ? 'ring-1 ring-amber-500' : ''}`}
+                        ? 'rgba(120, 53, 15, 0.3)'
+                        : hexToRgba(theme.color, 0.16),
+                    color: isBE ? '#fca5a5' : isHE ? '#fcd34d' : theme.color,
+                    border: `1px solid ${p.id === gameState.currentPlayerIndex ? theme.color : hexToRgba(theme.color, 0.35)}`,
+                    boxShadow: p.id === gameState.currentPlayerIndex ? `0 0 0 1px ${hexToRgba(theme.color, 0.35)}` : undefined,
+                  }}
                 >
-                  {p.name} 血{p.hp} · {p.hand.length}张
+                  <span className="mc-player-list-font">{p.name}</span> SAN{p.hp} · {p.hand.length}张
                   {isBE && <span className="ml-1 text-red-400">💀BE</span>}
                   {isHE && <span className="ml-1 text-amber-400">🌟HE</span>}
                 </span>
@@ -937,6 +988,7 @@ export default function MissingChildGameBoard() {
         <BadEndOverlay
           playerName={gameState.players[gameState.badEndAnimation.playerIndex].name}
           hand={gameState.badEndAnimation.hand}
+          description={gameState.badEndAnimation.description}
           onSkip={skipBadEndAnimation}
         />
       )}

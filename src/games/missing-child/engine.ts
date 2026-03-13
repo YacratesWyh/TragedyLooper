@@ -27,9 +27,11 @@ function buildDeck(startInstanceId: number): CardRef[] {
   return refs;
 }
 
-/** Bad End 判定：手牌不为空且无光亮牌（只有迷子、或迷子+黑暗牌） */
+/** Bad End 判定：手牌中有迷子，且没有任何光亮牌（纯黑暗牌不会 Bad End） */
 export function badEndCheck(hand: CardRef[]): boolean {
   if (hand.length === 0) return false;
+  const hasMaigo = hand.some(c => isMaigo(c.cardId));
+  if (!hasMaigo) return false;
   return !hand.some(c => isBright(c.cardId));
 }
 
@@ -40,10 +42,21 @@ export function happyEndCheck(hand: CardRef[]): boolean {
 
 const HP_CAP = 7;
 
+function getRandomBadEndDescription(playerName: string): string {
+  const descriptions = [
+    `${playerName} 变得只会咕咕嘎嘎了。`,
+    `${playerName} 被企鹅包围，彻底迷失在夜色里。`,
+    `${playerName} 的理智被迷子一点点啄碎了。`,
+    `${playerName} 看见的最后一盏灯，也熄灭了。`,
+    `${playerName} 再也分不清街道和深渊的边界。`,
+  ];
+  return descriptions[Math.floor(Math.random() * descriptions.length)] ?? descriptions[0];
+}
+
 /**
  * 每次结算时检查个人结局：
- * - 手牌为空且存活 → 个人 Happy End（+2 血，happyEnded=true，出局）
- * - 无光亮牌（仅迷子/仅黑暗/迷子+黑暗）→ Bad End（-3 血，alive=false，badEnded=true）
+ * - 手牌为空且存活 → 个人 Happy End（+2 SAN，happyEnded=true，出局）
+ * - 有迷子且无光亮牌（仅迷子/迷子+黑暗）→ Bad End（-3 SAN，alive=false，badEnded=true）
  */
 function applyEndCheck(players: Player[]): Player[] {
   return players.map(p => {
@@ -556,8 +569,8 @@ function checkRoundEnd(
       playerIndex: survivor.id,
       timestamp: Date.now(),
       message: penalty === 3 
-        ? `2人局结算：由于对手已 HE，${survivor.name} 进入 Normal End (-3血)`
-        : `${survivor.name} 进入 Normal End (-1血)`,
+        ? `2人局结算：由于对手已 HE，${survivor.name} 进入 Normal End (-3SAN)`
+        : `${survivor.name} 进入 Normal End (-1SAN)`,
     };
 
     return { 
@@ -579,7 +592,7 @@ function checkRoundEnd(
 
 /**
  * 对比 applyEndCheck 前后的玩家列表，为新出局的玩家生成 log 条目。
- * 返回 {logs, badEndPlayer}，其中 badEndPlayer 是新自爆的玩家索引（如果有）
+ * 返回 {logs, badEndPlayer, badEndDescription}，其中 badEndPlayer 是新自爆的玩家索引（如果有）
  */
 function logEndingsIfAny(
   before: Player[],
@@ -587,9 +600,10 @@ function logEndingsIfAny(
   round: number,
   turn: number,
   existingLogs: LogEntry[],
-): { logs: LogEntry[]; badEndPlayer?: number } {
+): { logs: LogEntry[]; badEndPlayer?: number; badEndDescription?: string } {
   const extra: LogEntry[] = [];
   let badEndPlayer: number | undefined;
+  let badEndDescription: string | undefined;
   const now = Date.now();
   for (let i = 0; i < before.length; i++) {
     if (!before[i].happyEnded && after[i].happyEnded) {
@@ -600,11 +614,12 @@ function logEndingsIfAny(
         turn,
         playerIndex: i,
         timestamp: now + i,
-        message: `🌟HE ${after[i].name} 手牌打光，Happy End（+2血，现 ${after[i].hp} 血）`,
+        message: `🌟HE ${after[i].name} 手牌打光，Happy End（+2SAN，现 ${after[i].hp} SAN）`,
       });
     }
     if (before[i].alive && !before[i].happyEnded && !after[i].alive && after[i].badEnded) {
       badEndPlayer = i;
+      badEndDescription = getRandomBadEndDescription(after[i].name);
       extra.push({
         id: `log-${now}-badend-${i}`,
         type: 'bad_end',
@@ -612,12 +627,12 @@ function logEndingsIfAny(
         turn,
         playerIndex: i,
         timestamp: now + i,
-        message: `💀BE ${after[i].name} 手牌仅剩迷子，Bad End 自爆（-3血，现 ${after[i].hp} 血）`,
+        message: `💀BE ${after[i].name} ${badEndDescription}（-3SAN，现 ${after[i].hp} SAN）`,
       });
     }
   }
   const logs = extra.length > 0 ? [...existingLogs, ...extra] : existingLogs;
-  return { logs, badEndPlayer };
+  return { logs, badEndPlayer, badEndDescription };
 }
 
 /**
@@ -626,13 +641,21 @@ function logEndingsIfAny(
  */
 function applyMidTurnEndCheck(st: MissingChildGameState): MissingChildGameState {
   const withDeath = applyEndCheck(st.players);
-  const { logs: logsAfterEnd, badEndPlayer } = logEndingsIfAny(st.players, withDeath, st.round, st.turn ?? 1, st.logs ?? []);
+  const { logs: logsAfterEnd, badEndPlayer, badEndDescription } = logEndingsIfAny(st.players, withDeath, st.round, st.turn ?? 1, st.logs ?? []);
   let after = processDeadHands({ ...st, players: withDeath, logs: logsAfterEnd });
   
   // 如果有新自爆玩家，设置动画状态
   if (badEndPlayer !== undefined) {
     const player = withDeath[badEndPlayer];
-    after = { ...after, badEndAnimation: { playerIndex: badEndPlayer, hand: player.hand, bvid: 'BV1XB6zBcEMu' } };
+    after = {
+      ...after,
+      badEndAnimation: {
+        playerIndex: badEndPlayer,
+        hand: player.hand,
+        description: badEndDescription ?? getRandomBadEndDescription(player.name),
+        bvid: 'BV1XB6zBcEMu',
+      },
+    };
   }
 
   const ended = checkRoundEnd(after);
@@ -659,13 +682,21 @@ function finalizeTurn(
   newPlaysLeft: number,
 ): MissingChildGameState {
   const withDeath = applyEndCheck(st.players);
-  const { logs: logsAfterEnd, badEndPlayer } = logEndingsIfAny(st.players, withDeath, st.round, st.turn ?? 1, st.logs ?? []);
+  const { logs: logsAfterEnd, badEndPlayer, badEndDescription } = logEndingsIfAny(st.players, withDeath, st.round, st.turn ?? 1, st.logs ?? []);
   let after = processDeadHands({ ...st, players: withDeath, logs: logsAfterEnd });
   
   // 如果有新自爆玩家，设置动画状态
   if (badEndPlayer !== undefined) {
     const player = withDeath[badEndPlayer];
-    after = { ...after, badEndAnimation: { playerIndex: badEndPlayer, hand: player.hand, bvid: 'BV1XB6zBcEMu' } };
+    after = {
+      ...after,
+      badEndAnimation: {
+        playerIndex: badEndPlayer,
+        hand: player.hand,
+        description: badEndDescription ?? getRandomBadEndDescription(player.name),
+        bvid: 'BV1XB6zBcEMu',
+      },
+    };
   }
 
   // 结局检查优先
@@ -803,13 +834,21 @@ export function playCards(
   // 有待处理效果：先结算当前 Bad End（出牌后手牌可能已满足条件），再等待效果选择
   if (afterPlay.pendingEffect) {
     const withDeath = applyEndCheck(afterPlay.players);
-    const { logs: logsAfterEnd, badEndPlayer } = logEndingsIfAny(afterPlay.players, withDeath, afterPlay.round, afterPlay.turn ?? 1, afterPlay.logs ?? []);
+    const { logs: logsAfterEnd, badEndPlayer, badEndDescription } = logEndingsIfAny(afterPlay.players, withDeath, afterPlay.round, afterPlay.turn ?? 1, afterPlay.logs ?? []);
     let afterDeath = processDeadHands({ ...afterPlay, players: withDeath, logs: logsAfterEnd });
     
     // 如果有新自爆玩家，设置动画状态
     if (badEndPlayer !== undefined) {
       const player = withDeath[badEndPlayer];
-      afterDeath = { ...afterDeath, badEndAnimation: { playerIndex: badEndPlayer, hand: player.hand, bvid: 'BV1XB6zBcEMu' } };
+      afterDeath = {
+        ...afterDeath,
+        badEndAnimation: {
+          playerIndex: badEndPlayer,
+          hand: player.hand,
+          description: badEndDescription ?? getRandomBadEndDescription(player.name),
+          bvid: 'BV1XB6zBcEMu',
+        },
+      };
     }
 
     const ended = checkRoundEnd(afterDeath, true);
@@ -878,7 +917,7 @@ export function getDrawSourcePlayerIndex(state: MissingChildGameState): number {
   return currentPlayerIndex;
 }
 
-/** 3 轮结束后按血量取获胜者（血量最高且 >0 的玩家，可能并列） */
+/** 3 轮结束后按 SAN 取获胜者（SAN 最高且 >0 的玩家，可能并列） */
 export function getWinnersByHp(players: Player[]): Player[] {
   const maxHp = Math.max(...players.map((p) => p.hp));
   if (maxHp <= 0) return [];
@@ -918,13 +957,21 @@ export function confirmTurnEnd(state: MissingChildGameState): MissingChildGameSt
   if (!state.turnEndPending && curPlayer?.alive) return null;
 
   const withDeath = applyEndCheck(state.players);
-  const { logs: logsAfterEnd, badEndPlayer } = logEndingsIfAny(state.players, withDeath, state.round, state.turn ?? 1, state.logs ?? []);
+  const { logs: logsAfterEnd, badEndPlayer, badEndDescription } = logEndingsIfAny(state.players, withDeath, state.round, state.turn ?? 1, state.logs ?? []);
   let after = processDeadHands({ ...state, players: withDeath, logs: logsAfterEnd });
   
   // 如果有新自爆玩家，设置动画状态（保持到动画被跳过）
   if (badEndPlayer !== undefined && !state.badEndAnimation) {
     const player = withDeath[badEndPlayer];
-    after = { ...after, badEndAnimation: { playerIndex: badEndPlayer, hand: player.hand, bvid: 'BV1XB6zBcEMu' } };
+    after = {
+      ...after,
+      badEndAnimation: {
+        playerIndex: badEndPlayer,
+        hand: player.hand,
+        description: badEndDescription ?? getRandomBadEndDescription(player.name),
+        bvid: 'BV1XB6zBcEMu',
+      },
+    };
     // 返回设置动画后的状态，不推进回合
     return { ...after, turnEndPending: false };
   }
@@ -1380,6 +1427,7 @@ export function resolveCrossroadDraw(state: MissingChildGameState): MissingChild
 
   if (card && isMaigo(card.cardId)) {
     const nextHp = Math.max(0, st.players[triggeredBy].hp - 3);
+    const badEndDescription = getRandomBadEndDescription(st.players[triggeredBy].name);
     const badEndLog: LogEntry = {
       id: `log-${Date.now()}-crossroad-badend-${triggeredBy}`,
       type: 'bad_end',
@@ -1387,7 +1435,7 @@ export function resolveCrossroadDraw(state: MissingChildGameState): MissingChild
       turn: st.turn,
       playerIndex: triggeredBy,
       timestamp: Date.now(),
-      message: `💀BE ${st.players[triggeredBy].name} 抽到迷子，平交道直接 Bad End（-3血，现 ${nextHp} 血）`,
+      message: `💀BE ${st.players[triggeredBy].name} ${badEndDescription}（平交道直击，-3SAN，现 ${nextHp} SAN）`,
     };
     st = {
       ...st,

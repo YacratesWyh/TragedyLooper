@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MaigoCard } from './Card';
-import type { CardRef, MissingChildGameState } from '../types';
+import type { MissingChildGameState } from '../types';
 
 interface BadEndAnimationProps {
   gameState: MissingChildGameState;
@@ -15,17 +15,17 @@ const BAD_END_BVID = 'BV1XB6zBcEMu';
 export function BadEndAnimation({ gameState, onSkip }: BadEndAnimationProps) {
   const [showBE, setShowBE] = useState(false);
   const animation = gameState.badEndAnimation;
-  
-  if (!animation) return null;
-  
-  const player = gameState.players[animation.playerIndex];
-  const hand = animation.hand;
+  const player = animation ? gameState.players[animation.playerIndex] : null;
+  const hand = animation?.hand ?? [];
 
   useEffect(() => {
+    if (!animation) return;
     // 2秒后显示 BE 标识
     const timer = setTimeout(() => setShowBE(true), 2000);
     return () => clearTimeout(timer);
-  }, []);
+  }, [animation]);
+
+  if (!animation || !player) return null;
 
   return (
     <motion.div
@@ -48,7 +48,7 @@ export function BadEndAnimation({ gameState, onSkip }: BadEndAnimationProps) {
             className="text-center"
           >
             <p className="mb-2 text-3xl font-bold text-red-500">{player.name}</p>
-            <p className="text-lg text-red-400/80">手牌仅剩迷子，Bad End 自爆</p>
+            <p className="text-lg text-red-400/80">手里有迷子且没有光亮牌，Bad End 自爆</p>
           </motion.div>
 
           {/* 手牌展示 - 旋转动画 + 红色边框闪烁 */}

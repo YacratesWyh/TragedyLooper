@@ -114,9 +114,9 @@ export const useMissingChildStore = create<MissingChildStore>((set, get) => ({
   },
 
   drawFromLeftByInstanceId: (instanceId) => {
-    const { gameState } = get();
+    const { gameState, pendingDraw } = get();
     if (!gameState || gameState.phase !== 'playing') return;
-    if (gameState.turnEndPending || gameState.pendingEffect) return;
+    if (pendingDraw || gameState.turnEndPending || gameState.pendingEffect) return;
 
     const cur = gameState.players[gameState.currentPlayerIndex];
     if (!cur.alive || cur.drawnCard !== null) return;
@@ -157,9 +157,9 @@ export const useMissingChildStore = create<MissingChildStore>((set, get) => ({
   },
 
   drawFromDeck: () => {
-    const { gameState } = get();
+    const { gameState, pendingDraw } = get();
     if (!gameState || gameState.phase !== 'playing') return;
-    if (gameState.turnEndPending || gameState.pendingEffect) return;
+    if (pendingDraw || gameState.turnEndPending || gameState.pendingEffect) return;
 
     const cur = gameState.players[gameState.currentPlayerIndex];
     if (!cur.alive || cur.drawnCard !== null) return;
@@ -183,9 +183,9 @@ export const useMissingChildStore = create<MissingChildStore>((set, get) => ({
   },
 
   toggleSelect: (instanceId) => {
-    const { gameState, selectedInstanceIds } = get();
+    const { gameState, selectedInstanceIds, pendingDraw } = get();
     if (!gameState || gameState.phase !== 'playing') return;
-    if (gameState.turnEndPending || gameState.pendingEffect) return;
+    if (pendingDraw || gameState.turnEndPending || gameState.pendingEffect) return;
 
     const cur = gameState.players[gameState.currentPlayerIndex];
     if (!cur.alive || !cur.hand.some(c => c.instanceId === instanceId)) return;
@@ -219,9 +219,9 @@ export const useMissingChildStore = create<MissingChildStore>((set, get) => ({
   },
 
   playSelected: () => {
-    const { gameState, selectedInstanceIds } = get();
+    const { gameState, selectedInstanceIds, pendingDraw } = get();
     if (!gameState || gameState.phase !== 'playing') return;
-    if (gameState.turnEndPending || gameState.pendingEffect || selectedInstanceIds.length === 0) return;
+    if (pendingDraw || gameState.turnEndPending || gameState.pendingEffect || selectedInstanceIds.length === 0) return;
 
     const cur = gameState.players[gameState.currentPlayerIndex];
     if (!cur) return;
@@ -274,9 +274,9 @@ export const useMissingChildStore = create<MissingChildStore>((set, get) => ({
   clearExtraGained: () => set({ extraGained: 0 }),
 
   skipTurnNoPlayable: () => {
-    const { gameState } = get();
+    const { gameState, pendingDraw } = get();
     if (!gameState || gameState.phase !== 'playing') return;
-    if (gameState.turnEndPending || gameState.pendingEffect) return;
+    if (pendingDraw || gameState.turnEndPending || gameState.pendingEffect) return;
 
     const cur = gameState.players[gameState.currentPlayerIndex];
     const next = advanceTurnWhenNoPlayable(gameState);
@@ -295,8 +295,8 @@ export const useMissingChildStore = create<MissingChildStore>((set, get) => ({
   },
 
   confirmTurnEnd: () => {
-    const { gameState } = get();
-    if (!gameState?.turnEndPending) return;
+    const { gameState, pendingDraw } = get();
+    if (!gameState?.turnEndPending || pendingDraw) return;
 
     const next = engineConfirmTurnEnd(gameState);
     if (!next) return;
@@ -330,7 +330,7 @@ export const useMissingChildStore = create<MissingChildStore>((set, get) => ({
 
   confirmGameEnd: () => {
     const { gameState } = get();
-    if (!gameState || gameState.phase !== 'game_end') return;
+    if (!gameState || !gameState.gameEndPending) return;
     const next = engineConfirmGameEnd(gameState);
     if (next) set({ gameState: next, selectedInstanceIds: [] });
   },
@@ -496,6 +496,12 @@ export const useMissingChildStore = create<MissingChildStore>((set, get) => ({
     const { gameState } = get();
     if (!gameState?.badEndAnimation) return;
     const cleared = { ...gameState, badEndAnimation: undefined };
+
+    if (cleared.gameEndPending) {
+      set({ gameState: cleared });
+      return;
+    }
+
     const next = engineConfirmTurnEnd(cleared);
 
     if (!next) {

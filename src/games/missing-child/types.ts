@@ -31,7 +31,7 @@ export interface Player {
   hand: CardRef[];
   /** 是否存活；当前仅在 Bad End 自爆后设为 false */
   alive: boolean;
-  /** 血量：初始 7 上限 7，Happy End +2（ cap 7），Bad End -3，Normal 非胜者 -1 */
+  /** SAN：初始 7 上限 7，Happy End +2（ cap 7），Bad End -3，Normal 非胜者 -1 */
   hp: number;
   /** 本回合从左侧玩家抽到的牌（未选时 null） */
   drawnCard: CardRef | null;
@@ -45,7 +45,7 @@ export interface Player {
 
 export type GamePhase = 'waiting' | 'playing' | 'game_end';
 
-/** Good=牌打光 Happy End, Bad=自爆, Normal=最后一人, RoundsComplete=3 轮后血量最多 */
+/** Good=牌打光 Happy End, Bad=自爆, Normal=最后一人, RoundsComplete=3 轮后 SAN 最多 */
 export type EndReason = 'Playing' | 'Good' | 'Bad' | 'Normal' | 'RoundsComplete';
 
 /** 日志条目类型 */
@@ -133,7 +133,7 @@ export interface MissingChildGameState {
   discard: CardRef[];
   /** 当前回合玩家索引 */
   currentPlayerIndex: number;
-  /** 已完成的轮数（0/1/2），到 3 即结束按血量判胜 */
+  /** 已完成的轮数（0/1/2），到 3 即结束按 SAN 判胜 */
   round: number;
   /** 当前回合数（从 1 开始，每玩家行动一次递增） */
   turn: number;
@@ -157,6 +157,7 @@ export interface MissingChildGameState {
   badEndAnimation?: {
     playerIndex: number;
     hand: CardRef[];
+    description: string;
     bvid: string;
   };
   /** 护身符/灯塔标记：下家抽牌时由指定玩家挑选 */
@@ -231,4 +232,22 @@ export function isBright(cardId: number): boolean {
 
 export function canPlayToField(cardId: number): boolean {
   return !MAIGO_IDS.has(cardId);
+}
+
+export const MYGO_OTHER_MEMBER_THEMES = [
+  { name: '千早爱音', color: '#FF8899' },
+  { name: '长崎素世', color: '#FFDD88' },
+  { name: '要乐奈', color: '#77DD77' },
+  { name: '椎名立希', color: '#7777AA' },
+] as const;
+
+export function getDefaultMissingChildPlayerName(index: number): string {
+  return MYGO_OTHER_MEMBER_THEMES[index]?.name ?? `玩家${index + 1}`;
+}
+
+export function getMissingChildPlayerTheme(index: number) {
+  return MYGO_OTHER_MEMBER_THEMES[index % MYGO_OTHER_MEMBER_THEMES.length] ?? {
+    name: `玩家${index + 1}`,
+    color: '#A8A29E',
+  };
 }

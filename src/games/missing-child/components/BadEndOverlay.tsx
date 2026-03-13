@@ -1,31 +1,63 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { createPortal } from 'react-dom';
+import { Volume2, VolumeX } from 'lucide-react';
 import type { CardRef } from '../types';
 import { MaigoCard } from './Card';
+import { isAudioUnlocked } from '../audioUnlock';
 
-const BAD_END_BVID = 'BV1XB6zBcEMu';
+const BAD_END_VIDEO_SRC = '/assets/maigo/gugugaga.m4s';
+const BAD_END_AUDIO_SRC = '/assets/maigo/gugugaga%20audio.m4s';
 
 interface BadEndOverlayProps {
   playerName: string;
   hand: CardRef[];
+  description: string;
   onSkip: () => void;
 }
 
-export function BadEndOverlay({ playerName, hand, onSkip }: BadEndOverlayProps) {
+export function BadEndOverlay({ playerName, hand, description, onSkip }: BadEndOverlayProps) {
   const [showBe, setShowBe] = useState(false);
-  const [mounted, setMounted] = useState(false);
+  // 如果用户已交互（点击过开始游戏），默认开启声音
+  const [muted, setMuted] = useState(() => !isAudioUnlocked());
+  const [showUnmuteHint, setShowUnmuteHint] = useState(() => !isAudioUnlocked());
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
-    setMounted(true);
     const t = setTimeout(() => setShowBe(true), 500);
     return () => clearTimeout(t);
   }, []);
 
+  const syncAudioToVideo = useCallback(() => {
+    const video = videoRef.current;
+    const audio = audioRef.current;
+    if (!video || !audio) return;
+
+    audio.currentTime = video.currentTime;
+    audio.playbackRate = video.playbackRate;
+  }, []);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (muted) return;
+    void audio.play();
+  }, [muted]);
+  
+  const toggleMute = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    setMuted((prev) => {
+      const next = !prev;
+      if (!next) setShowUnmuteHint(false);
+      return next;
+    });
+  }, []);
+
   // 防止 hydration 不匹配
-  if (!mounted || typeof document === 'undefined') return null;
+  if (typeof document === 'undefined') return null;
 
   return createPortal(
     <div
@@ -34,19 +66,74 @@ export function BadEndOverlay({ playerName, hand, onSkip }: BadEndOverlayProps) 
     >
       <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/60" />
 
-      {/* 右侧悬浮视频，不参与交互 */}
+      {/* 右侧悬浮视频 */}
       <motion.div
         initial={{ x: 40, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
         transition={{ delay: 0.2 }}
-        className="pointer-events-none absolute right-6 top-6 z-10 hidden w-[360px] overflow-hidden rounded-2xl border border-red-900/60 bg-black/40 shadow-2xl lg:block"
+        className="absolute right-6 top-6 z-10 hidden w-[360px] overflow-hidden rounded-2xl border border-red-900/60 bg-black/40 shadow-2xl lg:block"
+        onClick={(e) => e.stopPropagation()}
       >
-        <iframe
-          src={`//player.bilibili.com/player.html?bvid=${BAD_END_BVID}&autoplay=1&muted=1&danmaku=0`}
-          className="pointer-events-none aspect-video w-full"
-          style={{ border: 'none' }}
-          allow="autoplay"
-        />
+        <video
+          ref={videoRef}
+          className="aspect-video w-full object-cover"
+          src={BAD_END_VIDEO_SRC}
+          autoPlay
+          loop
+          playsInline
+          muted
+          preload="auto"
+          onPlay={() => {
+            syncAudioToVideo();
+            if (!muted) {
+              void audioRef.current?.play();
+            }
+          }}
+          onPause={() => audioRef.current?.pause()}
+          onSeeked={syncAudioToVideo}
+          onRateChange={syncAudioToVideo}
+        >
+          <source src={BAD_END_VIDEO_SRC} type="video/mp4" />
+        </video>
+        <audio
+          ref={audioRef}
+          src={BAD_END_AUDIO_SRC}
+          autoPlay
+          loop
+          preload="auto"
+          muted={muted}
+        >
+          <source src={BAD_END_AUDIO_SRC} type="audio/mp4" />
+        </audio>
+        
+        {/* 音量控制按钮 */}
+        <button
+          onClick={toggleMute}
+          className="absolute bottom-3 right-3 z-20 flex h-9 w-9 items-center justify-center rounded-full bg-black/60 text-white/90 backdrop-blur-sm transition-all hover:bg-black/80 hover:scale-110"
+          title={muted ? '点击开启声音' : '点击静音'}
+        >
+          {muted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+        </button>
+
+        {/* 开启声音提示 */}
+        <AnimatePresence>
+          {showUnmuteHint && muted && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              className="absolute bottom-3 left-3 z-20"
+            >
+              <button
+                onClick={toggleMute}
+                className="flex items-center gap-1.5 rounded-full bg-red-600/90 px-3 py-1.5 text-xs font-medium text-white backdrop-blur-sm transition-all hover:bg-red-500"
+              >
+                <Volume2 size={14} />
+                点击开启声音
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </motion.div>
 
       {/* 标题：玩家自爆 */}
@@ -57,6 +144,9 @@ export function BadEndOverlay({ playerName, hand, onSkip }: BadEndOverlayProps) 
       >
         <div className="text-3xl font-bold text-red-500">
           💥 {playerName} 自爆了！
+        </div>
+        <div className="mt-2 text-base text-red-300/85">
+          {description}
         </div>
       </motion.div>
 

@@ -1,11 +1,12 @@
 'use client';
 
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useMissingChildStore } from '../store';
-import { getCardDef, isMaigo, isBright, canPlayToField } from '../types';
-import { getLeftPlayerIndex, hasPlayableCard, advanceTurnWhenNoPlayable } from '../engine';
-import { Bug, Play, Pause, Square, SkipForward, RotateCcw } from 'lucide-react';
+import { canPlayToField, getCardDef, getDefaultMissingChildPlayerName, isBright, isMaigo } from '../types';
+import type { CardRef } from '../types';
+import { getLeftPlayerIndex } from '../engine';
+import { Bug, Play, Pause, SkipForward, RotateCcw } from 'lucide-react';
 
 interface TestLog {
   id: string;
@@ -15,9 +16,11 @@ interface TestLog {
   detail?: string;
 }
 
+const TEST_PLAYER_NAMES = Array.from({ length: 4 }, (_, index) => getDefaultMissingChildPlayerName(index));
+
 export function TestMode() {
   const store = useMissingChildStore();
-  const { gameState, startGame, drawFromLeftByInstanceId, drawFromDeck, playSelected, toggleSelect, skipTurnNoPlayable, confirmTurnEnd,
+  const { gameState, pendingDraw, startGame, drawFromLeftByInstanceId, drawFromDeck, playSelected, toggleSelect, skipTurnNoPlayable, confirmTurnEnd,
     brightStreetReturn, policeStationSelect, amuletProtectSelect, lighthouseDesignateSelect, rumorPickSelect,
     aquariumSelect, riverSelect, phoneBoothSelect, laundromatSelectPlayer, laundromatSelectCard,
     convenienceStoreSelect, convenienceStoreArrange, forkRoadSelect, shrineSelectTarget, kurosakiSelect, selectFromDiscard, tunnelDiscardSelect,
@@ -41,6 +44,29 @@ export function TestMode() {
     }]);
   }, []);
 
+  const pickPreferMaigoCard = useCallback((hand: CardRef[]) => {
+    if (hand.length === 0) return null;
+    const maigoCards = hand.filter((card) => isMaigo(card.cardId));
+    const candidateCards = maigoCards.length > 0 ? maigoCards : hand;
+    return candidateCards[Math.floor(Math.random() * candidateCards.length)] ?? null;
+  }, []);
+
+  const pickAutoPlayCards = useCallback((hand: CardRef[]) => {
+    const playableCards = hand.filter(c => canPlayToField(c.cardId));
+    if (playableCards.length === 0) return [];
+
+    const darkCards = playableCards.filter((card) => getCardDef(card.cardId)?.type === 'DARK');
+    const primaryCard = darkCards[0] ?? playableCards[0];
+    if (!primaryCard) return [];
+
+    const isDarkStreet = primaryCard.cardId >= 18 && primaryCard.cardId <= 22;
+    if (isDarkStreet) {
+      return playableCards.filter(card => card.cardId >= 18 && card.cardId <= 22);
+    }
+
+    return [primaryCard];
+  }, []);
+
   // 自动滚动日志
   useEffect(() => {
     logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -49,6 +75,10 @@ export function TestMode() {
   // 获取当前可执行的操作
   const getAvailableActions = useCallback(() => {
     if (!gameState || gameState.phase !== 'playing') return [];
+
+    if (pendingDraw) {
+      return ['wait'];
+    }
     
     // 如果有待处理效果，优先处理
     if (gameState.pendingEffect) {
@@ -81,7 +111,7 @@ export function TestMode() {
     }
     
     return actions;
-  }, [gameState]);
+  }, [gameState, pendingDraw]);
 
   // 处理待处理效果
   const handlePendingEffect = useCallback(() => {
@@ -160,8 +190,9 @@ export function TestMode() {
         const current = waitingPlayers[0];
         const hand = current.p.hand;
         if (hand.length > 0) {
-          const card = hand[Math.floor(Math.random() * hand.length)];
-          addLog('info', `水族馆: ${current.p.name} 选择一张牌`);
+          const card = pickPreferMaigoCard(hand);
+          if (!card) break;
+          addLog('info', `水族馆: ${current.p.name} 优先选择${isMaigo(card.cardId) ? '迷子' : '其他手牌'}`);
           aquariumSelect(current.i, card.instanceId);
         } else {
           addLog('info', `水族馆: ${current.p.name} 没有手牌，跳过`);
@@ -184,8 +215,9 @@ export function TestMode() {
         const current = waitingPlayers[0];
         const hand = current.p.hand;
         if (hand.length > 0) {
-          const card = hand[Math.floor(Math.random() * hand.length)];
-          addLog('info', `河: ${current.p.name} 选择手牌给左手边`);
+          const card = pickPreferMaigoCard(hand);
+          if (!card) break;
+          addLog('info', `河: ${current.p.name} 优先给出${isMaigo(card.cardId) ? '迷子' : '其他手牌'}`);
           riverSelect(current.i, card.instanceId);
         } else {
           addLog('info', `河: ${current.p.name} 没有手牌，跳过`);
@@ -316,7 +348,7 @@ export function TestMode() {
       default:
         addLog('error', `未处理的效果类型: ${type}`);
     }
-  }, [gameState, addLog, brightStreetReturn, policeStationSelect, amuletProtectSelect, lighthouseDesignateSelect, rumorPickSelect, aquariumSelect, riverSelect, phoneBoothSelect, laundromatSelectPlayer, laundromatSelectCard, convenienceStoreSelect, convenienceStoreArrange, forkRoadSelect, shrineSelectTarget, kurosakiSelect, selectFromDiscard, tunnelDiscardSelect, crossroadDrawDone, store]);
+  }, [gameState, addLog, brightStreetReturn, policeStationSelect, amuletProtectSelect, lighthouseDesignateSelect, rumorPickSelect, aquariumSelect, riverSelect, phoneBoothSelect, laundromatSelectPlayer, laundromatSelectCard, convenienceStoreSelect, convenienceStoreArrange, forkRoadSelect, shrineSelectTarget, kurosakiSelect, selectFromDiscard, tunnelDiscardSelect, crossroadDrawDone, store, pickPreferMaigoCard]);
 
   // 执行一步操作
   const executeStep = useCallback(() => {
@@ -349,24 +381,25 @@ export function TestMode() {
         drawFromDeck();
       }
     } else if (actions.includes('play')) {
-      // 自动选择可出的牌
-      const playableCards = cur.hand.filter(c => canPlayToField(c.cardId));
-      
-      if (playableCards.length === 0) {
+      const cardsToPlay = pickAutoPlayCards(cur.hand);
+
+      if (cardsToPlay.length === 0) {
         addLog('error', '没有可出的牌');
         return;
       }
-      
-      // 选择一张牌（优先选择非迷子牌）
-      const cardToPlay = playableCards[0];
-      const cardDef = getCardDef(cardToPlay.cardId);
-      
-      addLog('action', `${cur.name} 打出卡牌`, `【${cardDef?.name}】${cardDef?.description?.slice(0, 30)}...`);
-      
+
+      const cardDefs = cardsToPlay.map(card => getCardDef(card.cardId)).filter(Boolean);
+      const cardNames = cardDefs.map(def => def!.name).join('、');
+      addLog(
+        'action',
+        `${cur.name} 打出卡牌`,
+        `优先级: ${getCardDef(cardsToPlay[0].cardId)?.type === 'DARK' ? '黑暗牌' : '非黑暗牌'} · ${cardNames}`,
+      );
+
       // 先清除之前的选中状态，再选中新牌
       store.selectedInstanceIds.forEach(id => toggleSelect(id));
-      toggleSelect(cardToPlay.instanceId);
-      
+      cardsToPlay.forEach(card => toggleSelect(card.instanceId));
+
       // 执行打牌
       setTimeout(() => {
         playSelected();
@@ -384,16 +417,21 @@ export function TestMode() {
     } else if (actions.includes('next')) {
       // 当前玩家已死亡，直接推进
       addLog('info', '当前玩家已死亡，跳过');
+    } else if (actions.includes('wait')) {
+      // 等待抽牌动画提交到 gameState，避免重复抽牌
+      return;
     }
-  }, [gameState, getAvailableActions, addLog, drawFromLeftByInstanceId, drawFromDeck, toggleSelect, playSelected, skipTurnNoPlayable, confirmTurnEnd, store.selectedInstanceIds, handlePendingEffect]);
+  }, [gameState, getAvailableActions, addLog, drawFromLeftByInstanceId, drawFromDeck, toggleSelect, playSelected, skipTurnNoPlayable, confirmTurnEnd, store.selectedInstanceIds, handlePendingEffect, pickAutoPlayCards]);
 
   // 自动运行循环
   useEffect(() => {
     if (!isRunning || !gameState) return;
     
     if (gameState.phase === 'game_end') {
-      addLog('end', '游戏结束', `原因: ${gameState.endReason}`);
-      setIsRunning(false);
+      timeoutRef.current = setTimeout(() => {
+        addLog('end', '游戏结束', `原因: ${gameState.endReason}`);
+        setIsRunning(false);
+      }, 0);
       return;
     }
     
@@ -410,9 +448,8 @@ export function TestMode() {
 
   const handleStart = () => {
     if (!gameState) {
-      // 自动开始新游戏
-      addLog('info', '开始新游戏（3人）');
-      startGame(['测试A', '测试B', '测试C']);
+      addLog('info', '开始新游戏（MyGO四人）');
+      startGame(TEST_PLAYER_NAMES);
     }
     setIsRunning(true);
     addLog('info', '测试模式启动');
@@ -425,7 +462,7 @@ export function TestMode() {
 
   const handleStep = () => {
     if (!gameState) {
-      startGame(['测试A', '测试B', '测试C']);
+      startGame(TEST_PLAYER_NAMES);
     } else {
       executeStep();
     }
