@@ -25,7 +25,7 @@ const GAMES = [
     id: 'missing-child',
     name: '迷子',
     nameEn: 'Missing Child',
-    tagline: '从上家抽一张，再出一张——别让手里只剩迷子。',
+    tagline: '每回合从上家抽一张，再出一张——没亮牌+有迷子=被迷子勾走喔。',
     description: '牌分光亮与黑暗，迷子不能打出。每回合从左邻抽一张牌再打出一张；手牌仅剩迷子则出局，最后存活者胜。',
     players: '2-4',
   },
