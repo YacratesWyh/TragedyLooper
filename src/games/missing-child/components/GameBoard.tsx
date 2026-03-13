@@ -445,6 +445,7 @@ export default function MissingChildGameBoard() {
 
   useEffect(() => {
     if (!gameState || gameState.phase !== 'playing') return;
+    if (pendingDraw) return;
     if (gameState.gameEndPending || gameState.pendingEffect) return;
     const cur = gameState.players[gameState.currentPlayerIndex];
     
@@ -458,7 +459,7 @@ export default function MissingChildGameBoard() {
     if (drawSourceIdx === gameState.currentPlayerIndex) {
       triggerNormalEndFromDraw();
     }
-  }, [drawSourceIdx, gameState?.currentPlayerIndex, gameState?.phase, gameState?.gameEndPending]);
+  }, [confirmTurnEnd, drawSourceIdx, gameState, pendingDraw, triggerNormalEndFromDraw]);
 
   const prevLogCountRef = useRef(0);
   useEffect(() => {
@@ -469,7 +470,7 @@ export default function MissingChildGameBoard() {
       if (newLogs.some(l => l.type === 'bad_end')) playMaigoSfx();
       prevLogCountRef.current = logs.length;
     }
-  }, [gameState?.logs.length]);
+  }, [gameState]);
 
   useEffect(() => {
     if (extraGained > 0) {
@@ -618,8 +619,10 @@ export default function MissingChildGameBoard() {
           <span>第 <span className="font-bold text-stone-200">{gameState.turn ?? 1}</span> 回合</span>
           <span className="text-stone-600">·</span>
           <span>当前：<span className="font-bold" style={{ color: currentTheme.color }}>{cur.name}</span></span>
-          <span className="text-amber-300">剩余行动 {playsLeft}{playsLeft > 1 ? '（仅打牌）' : ''}</span>
-          {!cur.alive && <span className="text-red-400">（自爆）</span>}
+          <span className="text-amber-300">剩余行动 {playsLeft}</span>
+          <span className="text-stone-500">每回合：抽牌 → 行动</span>
+          {cur.badEnded && <span className="text-red-400">（自爆）</span>}
+          {cur.happyEnded && <span style={{ color: '#00CCAA' }}>（逃离）</span>}
           {gameState.protectedDraw && (
             <span className="text-purple-400">
               {gameState.protectedDraw.source === 'amulet' ? '🔮 护身符' : '⚡ 灯塔'}生效中
