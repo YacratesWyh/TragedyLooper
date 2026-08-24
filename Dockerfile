@@ -16,6 +16,7 @@ COPY --chown=node:node --from=builder /app/.next/standalone ./
 COPY --chown=node:node --from=builder /app/.next/static ./.next/static
 COPY --chown=node:node --from=builder /app/public ./public
 COPY --chown=node:node --from=builder /app/server ./server
+COPY --chown=node:node --from=builder /app/node_modules/next ./node_modules/next
 COPY --chown=node:node --from=builder /app/node_modules/ws ./node_modules/ws
 
 EXPOSE 8080
