@@ -42,18 +42,6 @@ const PHASE_ICONS: Record<GamePhase, React.ReactNode> = {
   game_over: <AlertTriangle className="w-5 h-5" />,
 };
 
-// 阶段顺序
-const PHASE_ORDER: GamePhase[] = [
-  'dawn',
-  'mastermind_action', 
-  'protagonist_action',
-  'resolution',
-  'mastermind_ability',
-  'protagonist_ability',
-  'incident',
-  'night',
-];
-
 export function PhaseControl() {
   const { 
     gameState, 
@@ -72,6 +60,9 @@ export function PhaseControl() {
   const gameMode = useGameStore((s) => s.gameMode);
   const storeRole = useGameStore((s) => s.playerRole);
   const dayStartSnapshot = useGameStore((s) => s.dayStartSnapshot);
+  const currentScript = useGameStore((s) => s.currentScript);
+  const mmCardCount = useGameStore((s) => s.currentMastermindCards.length);
+  const proCardCount = useGameStore((s) => s.currentProtagonistCards.length);
 
   // 黎明阶段自动推进（包含游戏开局的初始 dawn）
   const advanceFromDawnRef = useRef<(() => void) | null>(null);
@@ -86,7 +77,6 @@ export function PhaseControl() {
   if (!gameState) return null;
 
   const isHotseat = gameMode === 'hotseat';
-  const currentScript = useGameStore((s) => s.currentScript);
   const isTutorial = currentScript?.id === 'fs-01' || gameState.publicInfo.scriptName.includes('初学者');
 
   // 是否正在回放历史
@@ -104,15 +94,6 @@ export function PhaseControl() {
   
   // 热座模式用 store 的角色，联机用 multiplayer 的角色
   const playerRole = isHotseat ? storeRole : myRole;
-
-  // 获取下一个阶段
-  const getNextPhase = (): GamePhase => {
-    const currentIndex = PHASE_ORDER.indexOf(currentPhase);
-    if (currentIndex === -1 || currentIndex === PHASE_ORDER.length - 1) {
-      return 'dawn'; // 循环回到黎明
-    }
-    return PHASE_ORDER[currentIndex + 1];
-  };
 
   // 推进到下一阶段（同时同步到服务器）
   const advanceToPhase = (nextPhase: GamePhase) => {
@@ -206,7 +187,7 @@ export function PhaseControl() {
     }
   };
 
-  // 注册黎明自动推进回调（供 useEffect 使用）
+  // 注册黎明自动推进回调（供顶部的定时 effect 使用）。
   advanceFromDawnRef.current = () => advanceToPhase('mastermind_action');
 
   // 根据当前阶段决定下一步动作
@@ -265,8 +246,6 @@ export function PhaseControl() {
 
   const nextAction = getNextAction();
 
-  const mmCardCount = useGameStore((s) => s.currentMastermindCards.length);
-  const proCardCount = useGameStore((s) => s.currentProtagonistCards.length);
   const REQUIRED_CARDS = 3;
 
   const actionComplete =
@@ -285,8 +264,6 @@ export function PhaseControl() {
     if (nextAction.operator === 'any') return true;
     return nextAction.operator === playerRole;
   };
-
-  const canProceed = () => hasRolePermission() && actionComplete;
 
   return (
     <div className="flex flex-col gap-3 flex-1">
@@ -318,7 +295,7 @@ export function PhaseControl() {
         {currentPhase === 'game_over' && (
           <>
             <div className="mt-3 p-3 bg-black/40 rounded border border-white/10 text-sm font-medium leading-relaxed italic text-center">
-              "{isGameOver(gameState).reason}"
+              &ldquo;{isGameOver(gameState).reason}&rdquo;
             </div>
             
             {/* 历史回放控制 */}

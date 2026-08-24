@@ -6,7 +6,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Sparkles, ChevronDown, ChevronRight, Image as ImageIcon, Maximize2, Lock } from 'lucide-react';
+import { X, Sparkles, ChevronDown, ChevronRight, Image as ImageIcon, Maximize2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useGameStore } from '@/games/tragedy-looper/store';
 import { useMultiplayer } from '@/shared/useMultiplayer';
@@ -357,12 +357,8 @@ function ReferenceGallery() {
   const isHotseat = gameMode === 'hotseat';
   const currentRole = isHotseat ? localRole : (multiplayerRole || localRole);
 
-  const scriptAssetPath = useMemo(() => {
-    if (gameState?.publicInfo?.scriptName) {
-      return getScriptAssetPath(gameState.publicInfo.scriptName);
-    }
-    return 'tl/fs';
-  }, [gameState?.publicInfo?.scriptName]);
+  const scriptName = gameState?.publicInfo?.scriptName;
+  const scriptAssetPath = scriptName ? getScriptAssetPath(scriptName) : 'tl/fs';
 
   useEffect(() => {
     fetch(`/assets/${scriptAssetPath}/config.json`)

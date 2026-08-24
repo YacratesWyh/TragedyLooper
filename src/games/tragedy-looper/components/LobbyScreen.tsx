@@ -4,19 +4,15 @@
 
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Brain, Users, Eye, Wifi, WifiOff, Loader2, Check, X, Plus, LogIn, RefreshCw, Lock, Unlock, ArrowLeft, Home, BookOpen, Monitor } from 'lucide-react';
+import { Brain, Users, Eye, Wifi, Loader2, Check, X, Plus, LogIn, RefreshCw, Lock, ArrowLeft, Home, Monitor } from 'lucide-react';
 import { useMultiplayer } from '@/shared/useMultiplayer';
 import { useGameStore } from '@/games/tragedy-looper/store';
 import type { GameMode } from '@/games/tragedy-looper/store';
 import { cn } from '@/lib/utils';
 import { ScriptSetup } from './ScriptSetup';
-import { SCRIPT_TEMPLATES, generatePublicInfo, type ScriptTemplate } from '@/games/tragedy-looper/scripts/registry';
+import type { ScriptTemplate } from '@/games/tragedy-looper/scripts/registry';
 
-interface LobbyScreenProps {
-  onGameStart: () => void;
-}
-
-export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
+export function LobbyScreen() {
     const { 
     username,
     setUsername,
@@ -34,16 +30,13 @@ export function LobbyScreen({ onGameStart }: LobbyScreenProps) {
     refreshRooms,
     myRole,
     isSpectator,
-    availableRoles,
     players,
     selectRole,
     spectate,
     resetGame,
   } = useMultiplayer();
   
-  const initializeGame = useGameStore((state) => state.initializeGame);
   const initializeWithScript = useGameStore((state) => state.initializeWithScript);
-  const initializeHotseatGame = useGameStore((state) => state.initializeHotseatGame);
   const setGameMode = useGameStore((state) => state.setGameMode);
   const { updateGameState } = useMultiplayer();
   

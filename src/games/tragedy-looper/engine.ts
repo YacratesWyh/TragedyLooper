@@ -243,7 +243,7 @@ export function handleIncident(
     return state;
   }
 
-  let updatedState = { ...state };
+  const updatedState = { ...state };
 
   // 根据事件类型处理
   if (incident.type === 'murder') {
@@ -358,7 +358,7 @@ export function processResolution(
   protagonistCards: PlayedCard[],
   characterDefs: Record<CharacterId, Character>
 ): ResolutionResult {
-  let updatedState = { ...state };
+  const updatedState = { ...state };
   const allCards = [...mastermindCards, ...protagonistCards];
   const messages: string[] = [];
 
@@ -632,8 +632,7 @@ export function canUseAbility(
 export function useCharacterAbility(
   state: GameState,
   characterId: CharacterId,
-  abilityIndex: number,
-  targetId?: CharacterId
+  abilityIndex: number
 ): GameState {
   // TODO: 根据具体能力实现不同效果
   // 这里先返回原状态，后续扩展

@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePoisonStore } from '../store';
-import type { Card, Cauldron, Player, PotionColor } from '../types';
+import type { Card, Cauldron } from '../types';
 import { ALL_COLORS, COLOR_CSS, COLOR_LABELS, POTION_COLORS } from '../types';
 import { getTotalScores, getWinner } from '../engine';
 import { ChevronDown, BookOpen, Users, Wifi, WifiOff, Plus, LogIn, ArrowLeft } from 'lucide-react';
@@ -79,7 +79,7 @@ function RulesDropdown() {
                     <span className="text-emerald-400">毒药</span>是最危险的牌：可以丢进<b className="text-white">任何一口锅</b>，每瓶扣 <b className="text-amber-300">2 分</b>（普通药水只扣 1 分），而且<b className="text-red-400">不能被免罚</b>。
                   </RuleSection>
                   <RuleSection title="独饮真谛">
-                    一轮结束，看<span className="text-red-400">红</span>/<span className="text-blue-400">蓝</span>/<span className="text-purple-400">紫</span>三种颜色：如果你收的某色<b className="text-white">比所有人都多且没人并列</b>，就算"独饮"成功。该色药水<b className="text-amber-300">全部免罚</b>。
+                    一轮结束，看<span className="text-red-400">红</span>/<span className="text-blue-400">蓝</span>/<span className="text-purple-400">紫</span>三种颜色：如果你收的某色<b className="text-white">比所有人都多且没人并列</b>，就算“独饮”成功。该色药水<b className="text-amber-300">全部免罚</b>。
                   </RuleSection>
                   <RuleSection title="怎么算分">
                     <b className="text-amber-300">罚分越少越好！</b>没免罚的药水每瓶扣 1 分，毒药每瓶扣 2 分。所有人打光手牌算一轮，总罚分最少的魔女赢。

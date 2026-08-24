@@ -11,8 +11,11 @@ npm install          # 安装依赖
 npm run dev          # 开发服务器（含 combined-server）
 npm run build        # 生产构建
 npm run lint         # 代码检查
-npx tsc --noEmit     # 类型检查
+npm run typecheck    # 类型检查
+npm run check        # lint + 类型检查 + 生产构建
 ```
+
+生产容器与发布约定见 `doc/deployment.md`。
 
 ## 代码规范
 

@@ -27,13 +27,6 @@ interface ScriptConfig {
   images: QuickRefImage[];
 }
 
-function isReferenceRoleCard(imageId: string): boolean {
-  return imageId === 'mastermind-reference'
-    || imageId === 'protagonist-reference'
-    || imageId === 'scripter-card'
-    || imageId === 'protagonist-card';
-}
-
 function isSpriteSheetRoleCard(imageId: string): boolean {
   return imageId === 'mastermind-reference'
     || imageId === 'protagonist-reference'
@@ -455,7 +448,7 @@ export function SupplementaryReference({ inTopbar = false }: SupplementaryRefere
                       <ul className="text-sm text-slate-300 space-y-1.5">
                         <li className="flex gap-2">
                           <span className="text-oblivionis shrink-0">▸</span>
-                          <span><strong className="text-oblivionis">多试错，重视信息</strong>——每次失败都是情报。知道"第几步·什么结果"比本轮存活更有价值，下一轮才能针对性地防守。</span>
+                          <span><strong className="text-oblivionis">多试错，重视信息</strong>——每次失败都是情报。知道“第几步·什么结果”比本轮存活更有价值，下一轮才能针对性地防守。</span>
                         </li>
                         <li className="flex gap-2">
                           <span className="text-oblivionis shrink-0">▸</span>
@@ -506,7 +499,7 @@ export function SupplementaryReference({ inTopbar = false }: SupplementaryRefere
                         </li>
                         <li className="flex gap-2">
                           <span className="text-timoris shrink-0">▸</span>
-                          <span>当主人公将注意力集中于"熟悉的失败路径"时，在<strong className="text-timoris">关键轮回突然换手</strong>——他们来不及重新推理，轮回就耗尽了。</span>
+                          <span>当主人公将注意力集中于“熟悉的失败路径”时，在<strong className="text-timoris">关键轮回突然换手</strong>——他们来不及重新推理，轮回就耗尽了。</span>
                         </li>
                       </ul>
                     </div>

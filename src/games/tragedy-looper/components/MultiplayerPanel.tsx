@@ -14,8 +14,7 @@ import {
   Check, 
   Download, 
   Upload, 
-  LogOut,
-  RefreshCw
+  LogOut
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 

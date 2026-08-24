@@ -6,6 +6,16 @@ export interface ChangelogEntry {
 
 const changelog: ChangelogEntry[] = [
   {
+    version: '1.0.6',
+    date: '2026-08-24',
+    changes: [
+      '新增迷子完整游戏流程与结局展示',
+      '整理运行时素材、项目结构与文档',
+      '新增 Docker 生产部署与健康检查',
+      '修正离线生产构建和多处 Hook 结构问题',
+    ],
+  },
+  {
     version: '0.3.5',
     date: '2026-03-10',
     changes: [

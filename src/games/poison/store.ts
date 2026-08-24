@@ -1,12 +1,10 @@
 import { create } from 'zustand';
-import type { PoisonGameState, Explosion } from './types';
+import type { PoisonGameState } from './types';
 import {
   createInitialState,
   playCard as enginePlayCard,
   scoreRound,
   startNextRound,
-  getTotalScores,
-  getWinner,
   getPlayableCauldrons,
 } from './engine';
 

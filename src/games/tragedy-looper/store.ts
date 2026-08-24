@@ -12,18 +12,11 @@ import {
 } from '@/games/tragedy-looper/types';
 import {
   initializeGameState,
-  checkIncidents,
-  handleIncident,
   resetLoop,
   advanceDay,
   isGameOver,
-  applyIndicatorChange,
-  combineMovements,
-  applyMovement,
   processDawnPhase,
   processResolution,
-  canUseAbility,
-  useCharacterAbility,
 } from '@/games/tragedy-looper/engine';
 import { FS01_SCRIPT1_PUBLIC, FS01_SCRIPT1_PRIVATE } from '@/games/tragedy-looper/scripts/fs-01';
 import { generatePublicInfo, type ScriptTemplate } from '@/games/tragedy-looper/scripts/registry';
@@ -127,7 +120,14 @@ interface GameStore {
   importState: (file: File) => Promise<void>;
 
   // 获取需要同步的完整状态包
-  getSyncPayload: () => any;
+  getSyncPayload: () => {
+    gameState: GameState | null;
+    mastermindDeck: PlayerDeck;
+    protagonistDeck: PlayerDeck;
+    currentMastermindCards: PlayedCard[];
+    currentProtagonistCards: PlayedCard[];
+    dayHistory: DaySnapshot[];
+  };
 
   // 历史回放
   saveDaySnapshot: () => void;  // 保存当天状态到历史
@@ -311,7 +311,6 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   playCard: (playedCard: PlayedCard) => {
     const { 
-      playerRole,
       currentMastermindCards, currentProtagonistCards,
       mastermindDeck, protagonistDeck,
       isTargetOccupied,
@@ -427,7 +426,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       ALL_CHARACTERS
     );
 
-    let updatedState = result.state;
+    const updatedState = result.state;
 
     // 检查游戏是否结束（仅检查关键人物死亡等即时结束条件）
     const gameOverCheck = isGameOver(updatedState);
@@ -552,7 +551,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const { gameState, mastermindDeck, protagonistDeck } = get();
     if (!gameState) return;
 
-    let updatedState = resetLoop(gameState, ALL_CHARACTERS);
+    const updatedState = resetLoop(gameState, ALL_CHARACTERS);
     
     // 检查剧作家是否因轮数耗尽而获胜
     const gameOverCheck = isGameOver(updatedState);

@@ -19,7 +19,7 @@ const handle = app.getRequestHandler();
 
 // ============== WebSocket 房间逻辑 ==============
 
-const VERSION = '0.3.0';
+const VERSION = '1.0.6';
 const rooms = new Map();
 
 // 断线重连等待，key = `${roomId}:${role}`
@@ -109,7 +109,7 @@ function handleWebSocketMessage(ws, message) {
   let data;
   try {
     data = JSON.parse(message);
-  } catch (e) {
+  } catch {
     if (message && !message.toLowerCase().includes('ping')) {
       console.error('Invalid JSON:', message.substring(0, 100));
     }
@@ -610,7 +610,7 @@ app.prepare().then(() => {
     });
   });
 
-  const heartbeatInterval = setInterval(() => {
+  setInterval(() => {
     wss.clients.forEach((ws) => {
       if (ws.isAlive === false) {
         console.log('心跳超时，断开连接');

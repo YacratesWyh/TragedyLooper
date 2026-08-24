@@ -1101,7 +1101,6 @@ export function resolveRumorPick(
   instanceId: number | null,
 ): MissingChildGameState {
   if (state.pendingEffect?.type !== 'rumor_pick') return state;
-  const { triggeredBy } = state.pendingEffect;
   let st = { ...state, pendingEffect: undefined };
 
   if (instanceId !== null) {

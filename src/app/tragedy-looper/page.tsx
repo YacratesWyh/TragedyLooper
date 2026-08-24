@@ -45,7 +45,6 @@ export default function Home() {
     currentProtagonistCards,
     playCard,
     isTargetOccupied,
-    resolveDay,
     resolutionMessages,
     clearMessages,
     getSyncPayload
@@ -213,7 +212,7 @@ export default function Home() {
   // 入口条件：热座模式用 gameMode + gameState，联机模式用 myRole/isSpectator + gameState
   const isGameReady = isHotseat ? !!gameState : ((!!myRole || isSpectator) && !!gameState);
   if (!isGameReady) {
-    return <LobbyScreen onGameStart={() => {}} />;
+    return <LobbyScreen />;
   }
 
   // 当前角色颜色标识

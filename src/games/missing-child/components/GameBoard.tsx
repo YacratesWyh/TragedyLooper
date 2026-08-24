@@ -209,7 +209,6 @@ function DrawRevealOverlay({
       clearTimeout(t1);
       if (t2 !== undefined) clearTimeout(t2);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return createPortal(
@@ -628,7 +627,7 @@ export default function MissingChildGameBoard() {
               {gameState.protectedDraw.source === 'amulet' ? '🔮 护身符' : '⚡ 灯塔'}生效中
             </span>
           )}
-          <MiniWaitingIndicator gameState={gameState} currentPlayerIndex={currentPlayerIndex} />
+          <MiniWaitingIndicator gameState={gameState} />
         </span>
         <div className="flex items-center gap-2">
           <button

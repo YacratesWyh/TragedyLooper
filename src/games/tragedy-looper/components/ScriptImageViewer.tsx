@@ -97,12 +97,12 @@ export function ScriptImageViewer() {
   const [mastermindUnlocked, setMastermindUnlocked] = useState(false);
   
   // 确定当前剧本的资源路径
-  const scriptAssetPath = useMemo(() => {
-    if (gameState?.publicInfo?.scriptName) {
-      return getScriptAssetPath(gameState.publicInfo.scriptName);
-    }
-    return 'fs'; // 默认
-  }, [gameState?.publicInfo?.scriptName]);
+  const scriptName = gameState?.publicInfo?.scriptName;
+  const scriptAssetPath = scriptName ? getScriptAssetPath(scriptName) : 'tl/fs';
+  const roleCardTileStyle = useMemo(
+    () => getDefaultScriptTileStyle(currentScript?.id),
+    [currentScript?.id],
+  );
 
   // 热座模式：角色切换时重新锁定
   useEffect(() => {
@@ -180,10 +180,6 @@ export function ScriptImageViewer() {
   
   // 获取图片完整路径
   const getImagePath = (img: ScriptImage) => `${img.basePath}/${img.path}`;
-
-  const roleCardTileStyle = useMemo(() => {
-    return getDefaultScriptTileStyle(currentScript?.id);
-  }, [currentScript?.id]);
 
   const nextImage = () => {
     setCurrentIndex((i) => (i + 1) % visibleImages.length);

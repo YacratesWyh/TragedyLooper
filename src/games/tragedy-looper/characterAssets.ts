@@ -1,6 +1,6 @@
 /**
  * 角色资产配置
- * 对应 public/assets/characters-grid.png
+ * 对应 public/assets/tl/characters-grid.png
  * 
  * 图片尺寸：4960 x 3464 (8列 x 4行)
  * 每个角色：620 x 866 像素

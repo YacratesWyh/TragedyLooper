@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
-import { Home, Settings, X } from 'lucide-react';
+import { usePathname } from 'next/navigation';
+import { Settings, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface RouteItem {
@@ -20,11 +21,7 @@ const ROUTES: RouteItem[] = [
 
 export function RoutePreference() {
   const [isOpen, setIsOpen] = useState(false);
-  const [currentPath, setCurrentPath] = useState('');
-
-  useEffect(() => {
-    setCurrentPath(window.location.pathname);
-  }, []);
+  const currentPath = usePathname();
 
   // 过滤掉当前页面
   const availableRoutes = ROUTES.filter(route => route.href !== currentPath);

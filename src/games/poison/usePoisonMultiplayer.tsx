@@ -306,7 +306,6 @@ export function usePoisonMultiplayer(): PoisonMultiplayer {
     };
 
     ws.onerror = () => {};
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomName, clearTimers]);
 
   function updatePlayersFromInfo(info: unknown) {

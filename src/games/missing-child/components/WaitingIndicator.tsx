@@ -193,7 +193,7 @@ export function WaitingIndicator({ gameState, currentPlayerIndex }: WaitingIndic
 }
 
 /** 简化版等待指示器（用于页面顶部固定位置） */
-export function MiniWaitingIndicator({ gameState, currentPlayerIndex }: WaitingIndicatorProps) {
+export function MiniWaitingIndicator({ gameState }: { gameState: MissingChildGameState }) {
   if (!gameState.pendingEffect) return null;
 
   const effect = gameState.pendingEffect;

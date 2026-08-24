@@ -1,4 +1,4 @@
-import type { Card, CardColor, Cauldron, Player, PoisonGameState, PotionColor } from './types';
+import type { Card, Cauldron, Player, PoisonGameState, PotionColor } from './types';
 import { POTION_COLORS } from './types';
 
 function createDeck(): Card[] {

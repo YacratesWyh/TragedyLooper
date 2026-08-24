@@ -1,12 +1,14 @@
 {
   "name": "tragedylooper",
-  "version": "0.3.0",
+  "version": "1.0.6",
   "private": true,
   "scripts": {
     "dev": "node server/combined-server.js",
     "build": "next build",
     "start": "node server/combined-server.js",
-    "lint": "eslint"
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "check": "npm run lint && npm run typecheck && npm run build"
   },
   "dependencies": {
     "clsx": "^2.1.1",

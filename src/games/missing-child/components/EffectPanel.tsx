@@ -19,7 +19,7 @@ const BTN_PLAYER = 'px-3 py-2 rounded-lg text-sm bg-amber-600/30 hover:bg-amber-
 const BTN_SKIP = 'text-xs text-stone-500 hover:text-stone-300';
 
 // ── 明亮的街道 3/4/5 ──────────────────────────────────────
-function BrightStreetPanel({ gameState }: { gameState: MissingChildGameState }) {
+function BrightStreetPanel() {
   const { brightStreetReturn } = useMissingChildStore();
   return (
     <div className={PANEL_CLS}>
@@ -448,7 +448,7 @@ export function EffectPanel({ gameState, currentPlayerIndex }: EffectPanelProps)
         animate={{ scale: 1, opacity: 1 }}
         className="max-w-lg w-full"
       >
-        {type === 'bright_street_return' && <BrightStreetPanel gameState={gameState} />}
+        {type === 'bright_street_return' && <BrightStreetPanel />}
         {type === 'police_station' && <PoliceStationPanel gameState={gameState} />}
         {type === 'amulet_protect' && <AmuletProtectPanel gameState={gameState} />}
         {type === 'lighthouse_designate' && <LighthousePanel gameState={gameState} />}

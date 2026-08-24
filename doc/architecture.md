@@ -1,112 +1,76 @@
-# 多桌游平台 - 系统架构文档
+# 系统架构
 
-> 版本：0.3.0
-> 最后更新：2026-03-05
+> 版本：1.0.6 · 最后更新：2026-08-24
 
----
+## 技术栈
 
-## 1. 架构概览
+| 层级 | 技术 |
+|---|---|
+| Web | Next.js 16 App Router、React 19、TypeScript 5 |
+| 样式与动效 | Tailwind CSS 4、Framer Motion 12 |
+| 状态 | Zustand 5 |
+| 联机 | Node.js HTTP + `ws` WebSocket |
+| 交付 | Docker、Compose、Caddy |
 
-### 1.1 技术栈
+## 目录
 
-| 层级 | 技术 | 版本 |
-|------|------|------|
-| 框架 | Next.js (App Router) | 16 |
-| 语言 | TypeScript | 5 |
-| 运行时 | React | 19 |
-| 状态管理 | Zustand | 5 |
-| 样式 | Tailwind CSS | 4 |
-| 动画 | Framer Motion | 12 |
-| 联机 | ws (WebSocket) | 8 |
-
-### 1.2 目录结构
-
-```
+```text
 src/
-├── app/                          # Next.js 页面路由
-│   ├── page.tsx                  # 首页（游戏选择）
-│   ├── layout.tsx                # 全局布局
-│   ├── globals.css
-│   ├── tragedy-looper/page.tsx   # 惨剧轮回入口
-│   └── poison/page.tsx           # Poison 入口
-├── changelog.ts                  # 应用内版本说明
-├── games/                        # 各游戏独立模块
-│   ├── tragedy-looper/
-│   │   ├── components/           # 18 个 UI 组件
-│   │   ├── scripts/fs-01.ts      # 剧本数据
-│   │   ├── characterAssets.ts    # 角色资产映射
-│   │   ├── engine.ts             # 游戏引擎
-│   │   ├── store.ts              # Zustand 状态
-│   │   └── types.ts              # 类型定义
-│   └── poison/
-│       ├── components/GameBoard.tsx
-│       ├── engine.ts
-│       ├── store.ts
-│       ├── types.ts
-│       └── usePoisonMultiplayer.tsx
-├── shared/                       # 跨游戏公共层
-│   ├── ClientWrapper.tsx         # 客户端包装器
-│   ├── identity.ts               # 用户身份管理
-│   └── useMultiplayer.tsx         # WebSocket 联机 Hook
-└── lib/
-    └── utils.ts                  # 通用工具（cn 等）
-
-server/
-└── combined-server.js            # HTTP + WebSocket 合并服务器
-
-public/assets/
-├── common/                       # 公共资产（角色立绘）
-├── fs/                           # FS 剧本资产
-├── btx/                          # BTX 剧本资产
-└── poison/                       # Poison 游戏资产
+├─ app/                         路由和全局样式
+│  ├─ page.tsx                 游戏选择首页
+│  ├─ tragedy-looper/page.tsx
+│  ├─ poison/page.tsx
+│  └─ missing-child/page.tsx
+├─ games/
+│  ├─ tragedy-looper/          引擎、状态、剧本和 UI
+│  ├─ poison/                  引擎、状态、联机和 UI
+│  └─ missing-child/           引擎、状态、音频和 UI
+├─ shared/                     身份与通用 WebSocket Hook
+└─ components/RoutePreference.tsx
+server/combined-server.js      HTTP + WebSocket 单端口入口
+public/assets/                 运行时静态素材
+doc/                           规则与运维文档
 ```
 
----
+## 请求链路
 
-## 2. 核心设计
-
-### 2.1 多游戏隔离
-
-每个游戏是 `src/games/<game>/` 下的独立模块，包含自己的 engine / store / types / components。公共的联机和身份逻辑在 `src/shared/` 中复用。
-
-```
-app/poison/page.tsx  →  games/poison/store  →  games/poison/engine
-app/tragedy-looper/  →  games/tragedy-looper/store  →  .../engine
-                     ↘  shared/useMultiplayer  ↙
+```text
+Browser
+  ├─ GET /... ──────────────┐
+  └─ Upgrade /ws ───────────┼─ reverse proxy ─ combined-server.js:8080
+                             ├─ Next.js request handler
+                             └─ WebSocket rooms
 ```
 
-### 2.2 联机架构
+`src/shared/useMultiplayer.tsx` 根据当前页面的协议和 host 生成 `/ws` 地址，因此本地与反向代理部署不需要两套客户端配置。
 
-```
-浏览器 ←→ combined-server.js ←→ 浏览器
-          (HTTP: Next.js)
-          (WS: 房间/状态同步)
-```
+## 游戏隔离
 
-- 房间制：创建 → 加入 → 同步游戏状态
-- 断线重连：5 分钟窗口内自动恢复
-- 身份持久化：`shared/identity.ts` 生成并缓存用户 ID
+每个游戏在 `src/games/<game>/` 下维护自己的类型、引擎、状态和组件。页面路由只负责组装；跨游戏能力放在 `src/shared/`。
 
-### 2.3 惨剧轮回 - 数据流
+惨剧轮回额外使用 `scripts/registry.ts` 注册剧本，`scripts/fs-01.ts` 保存剧本数据，`public/assets/tl/*/config.json` 声明速查图片。
 
-```typescript
-GameState {
-  currentLoop, currentDay,
-  characters: CharacterState[],
-  boardIntrigue: Record<LocationType, number>,
-  privateInfo,    // 仅剧作家可见
-  publicInfo,     // 所有玩家可见
-  phase
-}
-```
+## 联机状态
 
-结算顺序：移动牌 → 禁止牌抵消 → 指示物应用 → 事件检查
+服务端负责：
 
----
+- 房间创建、列表、密码检查和清理；
+- 剧作家/主人公席位占用与旁观者；
+- 广播游戏状态、行动和消息；
+- 2 分钟断线重连宽限；
+- WebSocket ping/pong 心跳。
 
-## 3. 新增游戏指引
+服务端不持久化房间。对局状态以内存对象保存，进程重启后清空。当前同步模型信任客户端提交的状态，适合熟人桌游，不适合作为对抗作弊的公共竞技服务器。
 
-1. 在 `src/games/<name>/` 创建 engine / store / types / components
-2. 在 `src/app/<name>/page.tsx` 添加路由
-3. 如需联机，复用 `shared/useMultiplayer.tsx` 或编写专用 Hook
-4. 在 `public/assets/<name>/` 放置资产
+## 新增游戏
+
+1. 在 `src/games/<id>/` 创建类型、引擎、状态和组件；
+2. 在 `src/app/<id>/page.tsx` 添加路由；
+3. 在 `src/app/page.tsx` 与 `RoutePreference.tsx` 注册入口；
+4. 将运行时素材放入 `public/assets/<id>/`；
+5. 更新 README、状态和规则文档；
+6. 执行 `npm run check` 并做双客户端联机验收。
+
+## 部署边界
+
+本仓库维护应用镜像和容器内端口。生产 portal、域名和 Caddy 路由由导航项目维护，接口约定见 [deployment.md](deployment.md)。

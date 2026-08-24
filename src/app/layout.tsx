@@ -1,22 +1,11 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ClientWrapper } from "@/shared/ClientWrapper";
 import { RoutePreference } from "@/components/RoutePreference";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
 export const metadata: Metadata = {
-  title: "Board Game Hub",
-  description: "Multi-boardgame platform",
+  title: "桌游合集 · Board Game Hub",
+  description: "惨剧轮回、Poison 与迷子的在线桌游合集",
 };
 
 export default function RootLayout({
@@ -27,10 +16,10 @@ export default function RootLayout({
   return (
     <html lang="zh-CN">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
+        className="antialiased bg-background text-foreground"
       >
         <ClientWrapper>
-        {children}
+          {children}
         </ClientWrapper>
         <RoutePreference />
       </body>
